@@ -1,10 +1,9 @@
 """Tests for API endpoints."""
-import pytest
+from unittest.mock import AsyncMock, patch
+
 from fastapi.testclient import TestClient
-from unittest.mock import patch, AsyncMock
 
 from main import app
-
 
 client = TestClient(app)
 

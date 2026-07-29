@@ -1,22 +1,66 @@
-# Audio Fetch 🎵
+# Audio Fetch
 
-A simple YouTube audio downloader with a retro 8-bit aesthetic.
+A simple YouTube audio downloader with an 8-bit themed web interface.
 
-## Features
+## Prerequisites
 
-- 🎮 **8-bit Retro UI** - NES-themed interface with pixel-perfect design
-- 🎵 **Multiple Formats** - MP3, M4A, Opus, WAV support
-- ⚡ **Quality Options** - Best, high, medium, low quality selection
-- 🔊 **Sound Effects** - 8-bit audio feedback on interactions
-- 📱 **Responsive Design** - Works on desktop and mobile
-- 🔒 **Queue System** - One download at a time for stability
+- Python 3.9+
+- FFmpeg (for audio conversion)
 
-## Usage
+## Installation
 
-1. Paste a YouTube URL
-2. Choose your preferred format and quality
-3. Click download and wait for your audio file
+```bash
+# Clone the repository
+git clone <repository-url>
+cd audio-fetch
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+## Running
+
+```bash
+# Start the server
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Access the app at `http://localhost:8000`
+
+## Development
+
+```bash
+# Run tests
+pytest
+
+# Run with coverage
+pytest --cov=. --cov-report=html
+
+# Lint code
+ruff check .
+```
+
+## Deployment
+
+For production deployment:
+
+```bash
+# Install production dependencies only
+pip install fastapi uvicorn[standard] yt-dlp aiofiles jinja2
+
+# Run with production settings
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+**Requirements:**
+- Ensure FFmpeg is installed on the server
+- Configure CORS origins in `main.py` for production
+- Use a reverse proxy (nginx/caddy) for HTTPS
 
 ## License
 
-[Add your license here]
+This project is licensed under the MIT License - see the LICENSE file for details.

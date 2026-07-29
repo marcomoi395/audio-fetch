@@ -9,7 +9,6 @@ from fastapi.templating import Jinja2Templates
 
 from api.routes import router as api_router
 
-
 app = FastAPI(
     title="Audio Fetch",
     description="8-bit themed YouTube audio downloader",

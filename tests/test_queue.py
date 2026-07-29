@@ -1,6 +1,7 @@
 """Tests for download queue service."""
-import pytest
 import asyncio
+
+import pytest
 
 from services.queue import DownloadQueue
 

@@ -1,6 +1,5 @@
 """Single-threaded download queue using asyncio.Lock."""
 import asyncio
-from typing import Optional
 
 
 class DownloadQueue:
@@ -11,7 +10,7 @@ class DownloadQueue:
     Implements singleton pattern so all instances share the same lock.
     """
     
-    _lock: Optional[asyncio.Lock] = None
+    _lock: asyncio.Lock | None = None
     _active: bool = False
     
     def __init__(self):
