@@ -3,6 +3,8 @@
 import asyncio
 import logging
 
+from typing import Any
+
 import yt_dlp
 
 logger = logging.getLogger(__name__)
@@ -43,7 +45,7 @@ def format_duration(seconds: int | None) -> str:
         return f"{minutes:02d}:{secs:02d}"
 
 
-async def get_video_info(url: str) -> dict[str, any]:
+async def get_video_info(url: str) -> dict[str, Any]:
     """
     Extract video metadata from YouTube URL without downloading.
 
@@ -156,7 +158,7 @@ async def download_audio(
 
     # Add metadata embedding (always enabled for web)
     if "postprocessors" not in ydl_opts:
-        ydl_opts["postprocessors"] = []
+        ydl_opts["postprocessors"] = []  # type: ignore[index]
     ydl_opts["postprocessors"].append(
         {
             "key": "FFmpegMetadata",
@@ -174,7 +176,7 @@ async def download_audio(
 
     try:
         # Run yt-dlp in thread pool since it's blocking I/O
-        def download():
+        def download() -> str:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 # Extract info to get final filename
                 info = ydl.extract_info(url, download=False)
