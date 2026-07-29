@@ -1,4 +1,5 @@
 """FastAPI application for audio-fetch web app."""
+
 import shutil
 from pathlib import Path
 
@@ -42,30 +43,27 @@ app.include_router(api_router, prefix="/api")
 async def root(request: Request):
     """
     Serve the main application page.
-    
+
     Args:
         request: FastAPI request object
-        
+
     Returns:
         TemplateResponse rendering index.html
     """
-    return templates.TemplateResponse(
-        request=request,
-        name="index.html"
-    )
+    return templates.TemplateResponse(request=request, name="index.html")
 
 
 @app.get("/health")
 async def health_check():
     """
     Health check endpoint.
-    
+
     Returns:
         dict: Status information including FFmpeg availability and queue status
     """
     # Check if FFmpeg is available
     ffmpeg_available = shutil.which("ffmpeg") is not None
-    
+
     return {
         "status": "ok",
         "ffmpeg_available": ffmpeg_available,

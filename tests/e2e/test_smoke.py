@@ -1,5 +1,4 @@
 """Smoke test: verify E2E infrastructure works."""
-import pytest
 
 
 def test_homepage_loads(page, live_server):

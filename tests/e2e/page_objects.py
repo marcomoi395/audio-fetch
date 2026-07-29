@@ -1,4 +1,5 @@
 """Page Object for the Audio Fetch single-page app."""
+
 from playwright.sync_api import Download, Page, expect
 
 

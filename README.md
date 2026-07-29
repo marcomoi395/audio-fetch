@@ -33,15 +33,43 @@ Access the app at `http://localhost:8000`
 
 ## Development
 
+### Git Hooks
+
+This project uses git hooks to ensure code quality:
+
+- **pre-commit**: Auto-formats code with `ruff` and `black` before each commit
+- **pre-push**: Runs tests and validates formatting before pushing
+
+Hooks are automatically active in `.git/hooks/`. See [docs/GIT_HOOKS.md](docs/GIT_HOOKS.md) for details.
+
+### Running Tests
+
 ```bash
-# Run tests
+# Run all tests
 pytest
 
 # Run with coverage
 pytest --cov=. --cov-report=html
 
+# Run specific test file
+pytest tests/test_download.py -v
+```
+
+### Code Quality
+
+```bash
+# Format code
+ruff format .
+black .
+
 # Lint code
 ruff check .
+
+# Auto-fix linting issues
+ruff check --fix .
+
+# Type check
+mypy . --ignore-missing-imports
 ```
 
 ## Deployment
