@@ -25,6 +25,7 @@ const videoDuration = document.getElementById('video-duration');
 const formatSelect = document.getElementById('format-select');
 const qualitySelect = document.getElementById('quality-select');
 
+
 // UI State Management
 function showSection(section) {
     inputSection.style.display = 'none';
@@ -35,7 +36,18 @@ function showSection(section) {
     section.style.display = 'block';
 }
 
-function showError(message) {
+function showError(error) {
+    // Handle both string and object errors
+    let message = 'An error occurred';
+    
+    if (typeof error === 'string') {
+        message = error;
+    } else if (error && error.message) {
+        message = error.message;
+    } else if (error && error.detail) {
+        message = error.detail;
+    }
+    
     errorMessage.textContent = message;
     showSection(errorSection);
 }
@@ -53,6 +65,7 @@ function showInput() {
 function showVideoInfo() {
     showSection(infoSection);
 }
+
 
 // API Functions
 async function fetchVideoInfo(url) {
@@ -99,7 +112,7 @@ async function downloadAudio(url, format, quality) {
         const contentDisposition = response.headers.get('Content-Disposition');
         let filename = 'audio';
         if (contentDisposition) {
-            const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+            const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
             if (filenameMatch) {
                 filename = filenameMatch[1];
             }
@@ -128,7 +141,7 @@ async function handleFetchInfo() {
     const url = urlInput.value.trim();
     
     if (!url) {
-        showError('Vui lòng nhập YouTube URL');
+        showError('Please enter a YouTube URL');
         return;
     }
     
@@ -162,13 +175,13 @@ async function handleDownload() {
     
     if (!currentVideoUrl || !currentVideoInfo) {
         soundEffects.play('error');
-        showError('Không tìm thấy thông tin video');
+        showError('Video info not found');
         return;
     }
     
     // Disable download button during download
     downloadBtn.disabled = true;
-    downloadBtn.textContent = '⬇️ Đang tải...';
+    downloadBtn.textContent = '⬇️ Downloading...';
     soundEffects.play('download');
     
     try {
@@ -176,7 +189,7 @@ async function handleDownload() {
         
         // Show success state briefly
         soundEffects.play('success');
-        downloadBtn.textContent = '✅ Thành công!';
+        downloadBtn.textContent = '✅ Success!';
         setTimeout(() => {
             downloadBtn.textContent = 'Download';
             downloadBtn.disabled = false;
@@ -221,6 +234,7 @@ function formatDuration(seconds) {
     }
 }
 
+
 // Event Listeners
 fetchBtn.addEventListener('click', handleFetchInfo);
 retryBtn.addEventListener('click', handleRetry);
@@ -234,6 +248,10 @@ urlInput.addEventListener('keypress', (e) => {
     }
 });
 
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    showInput();
+});
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     showInput();

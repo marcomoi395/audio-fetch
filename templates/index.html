@@ -1,9 +1,14 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎵 Audio Fetch - 8-bit YouTube Downloader</title>
+    <title>Audio Fetch</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="shortcut icon" type="image/png" href="/static/favicon.png">
+    <link rel="apple-touch-icon" href="/static/favicon.png">
     
     <!-- NES.css -->
     <link href="https://unpkg.com/nes.css@latest/css/nes.min.css" rel="stylesheet">
@@ -19,18 +24,15 @@
         <!-- Header -->
         <header class="header">
             <h1 class="title">
-                <i class="nes-icon is-large is-half heart"></i>
                 Audio Fetch
-                <i class="nes-icon is-large is-half heart"></i>
             </h1>
-            <p class="subtitle">8-bit YouTube Audio Downloader</p>
         </header>
 
         <!-- Main Content -->
         <main class="main-content">
             <!-- Initial State: URL Input Form -->
             <section id="input-section" class="nes-container with-title is-centered">
-                <p class="title">Nhập YouTube URL</p>
+                <p class="title">Enter YouTube URL</p>
                 
                 <div class="input-group">
                     <input 
@@ -38,31 +40,27 @@
                         id="youtube-url" 
                         class="nes-input" 
                         placeholder="https://youtube.com/watch?v=..."
-                        autocomplete="off"
                     >
+                    <button id="fetch-btn" class="nes-btn is-primary">Fetch Info</button>
                 </div>
-                
-                <button id="fetch-btn" class="nes-btn is-primary">
-                    Fetch Info
-                </button>
             </section>
 
             <!-- Loading State -->
             <section id="loading-section" class="nes-container is-centered" style="display: none;">
-                <p>🔄 Đang tải thông tin...</p>
+                <p>🔄 Loading info...</p>
                 <div class="loading-spinner"></div>
             </section>
 
             <!-- Error State -->
             <section id="error-section" class="nes-container is-error" style="display: none;">
-                <p class="error-title">❌ Lỗi</p>
+                <p class="error-title">❌ Error</p>
                 <p id="error-message" class="error-detail"></p>
-                <button id="retry-btn" class="nes-btn">Thử lại</button>
+                <button id="retry-btn" class="nes-btn">Retry</button>
             </section>
 
             <!-- Video Info Display -->
             <section id="info-section" class="nes-container with-title" style="display: none;">
-                <p class="title">Thông tin Video</p>
+                <p class="title">Video Info</p>
                 
                 <div class="video-info-grid">
                     <!-- Thumbnail -->
@@ -73,17 +71,17 @@
                     <!-- Metadata -->
                     <div class="video-metadata">
                         <div class="metadata-item">
-                            <span class="metadata-label">Tiêu đề:</span>
+                            <span class="metadata-label">Title:</span>
                             <span id="video-title" class="metadata-value"></span>
                         </div>
                         
                         <div class="metadata-item">
-                            <span class="metadata-label">Kênh:</span>
+                            <span class="metadata-label">Channel:</span>
                             <span id="video-uploader" class="metadata-value"></span>
                         </div>
                         
                         <div class="metadata-item">
-                            <span class="metadata-label">Thời lượng:</span>
+                            <span class="metadata-label">Duration:</span>
                             <span id="video-duration" class="metadata-value"></span>
                         </div>
                     </div>
@@ -92,7 +90,7 @@
                 <!-- Format and Quality Selection -->
                 <div class="download-options">
                     <div class="option-group">
-                        <label for="format-select">Định dạng:</label>
+                        <label for="format-select">Format:</label>
                         <div class="nes-select">
                             <select id="format-select" required>
                                 <option value="mp3" selected>MP3</option>
@@ -105,32 +103,31 @@
                     </div>
                     
                     <div class="option-group">
-                        <label for="quality-select">Chất lượng:</label>
+                        <label for="quality-select">Quality:</label>
                         <div class="nes-select">
                             <select id="quality-select" required>
-                                <option value="0" selected>Cao nhất (320kbps)</option>
-                                <option value="5">Trung bình (192kbps)</option>
-                                <option value="9">Thấp (128kbps)</option>
+                                <option value="0" selected>Best</option>
+                                <option value="5">Medium</option>
+                                <option value="9">Low</option>
                             </select>
                         </div>
                     </div>
                 </div>
+
 
                 <!-- Action Buttons -->
                 <div class="action-buttons">
                     <button id="download-btn" class="nes-btn is-success">
                         Download
                     </button>
-                    <button id="new-url-btn" class="nes-btn">
-                        URL mới
-                    </button>
+                    <button id="new-url-btn" class="nes-btn">New URL</button>
                 </div>
             </section>
         </main>
 
         <!-- Footer -->
         <footer class="footer">
-            <p>Made with <i class="nes-icon is-small heart"></i> for 8-bit lovers</p>
+            <p>✨ From youngmarco with love 💙 ✨</p>
         </footer>
     </div>
 
