@@ -28,7 +28,7 @@ class _Server(threading.Thread):
                 self.port = sock.getsockname()[1]
             self._started.set()
 
-        self._server.startup = _startup
+        self._server.startup = _startup  # type: ignore[method-assign]
 
     def run(self):
         import asyncio

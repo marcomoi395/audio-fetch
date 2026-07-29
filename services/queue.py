@@ -35,7 +35,7 @@ class DownloadQueue:
 
         Returns:
             self
-        """
+        assert DownloadQueue._lock is not None  # Guaranteed by __init__
         await DownloadQueue._lock.acquire()
         DownloadQueue._active = True
         return self
@@ -55,6 +55,7 @@ class DownloadQueue:
             False to propagate exceptions
         """
         DownloadQueue._active = False
+        assert DownloadQueue._lock is not None  # Guaranteed by __init__
         DownloadQueue._lock.release()
         return False
 
