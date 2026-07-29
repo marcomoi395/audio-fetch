@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-
 from typing import Any
 
 import yt_dlp
@@ -171,7 +170,7 @@ async def download_audio(
             "key": "EmbedThumbnail",
         }
     )
-    
+
     ydl_opts["postprocessors"] = postprocessors
     ydl_opts["writethumbnail"] = True
 
