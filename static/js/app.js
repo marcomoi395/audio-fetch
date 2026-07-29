@@ -124,6 +124,7 @@ async function downloadAudio(url, format, quality) {
 
 // Event Handlers
 async function handleFetchInfo() {
+    soundEffects.play('click');
     const url = urlInput.value.trim();
     
     if (!url) {
@@ -132,6 +133,7 @@ async function handleFetchInfo() {
     }
     
     currentVideoUrl = url;
+    soundEffects.play('fetch');
     showLoading();
     
     try {
@@ -145,17 +147,21 @@ async function handleFetchInfo() {
         videoUploader.textContent = info.uploader;
         videoDuration.textContent = formatDuration(info.duration);
         
+        soundEffects.play('success');
         showVideoInfo();
     } catch (error) {
+        soundEffects.play('error');
         showError(error.message);
     }
 }
 
 async function handleDownload() {
+    soundEffects.play('click');
     const format = formatSelect.value;
     const quality = qualitySelect.value;
     
     if (!currentVideoUrl || !currentVideoInfo) {
+        soundEffects.play('error');
         showError('Không tìm thấy thông tin video');
         return;
     }
@@ -163,11 +169,13 @@ async function handleDownload() {
     // Disable download button during download
     downloadBtn.disabled = true;
     downloadBtn.textContent = '⬇️ Đang tải...';
+    soundEffects.play('download');
     
     try {
         await downloadAudio(currentVideoUrl, format, quality);
         
         // Show success state briefly
+        soundEffects.play('success');
         downloadBtn.textContent = '✅ Thành công!';
         setTimeout(() => {
             downloadBtn.textContent = 'Download';
@@ -177,18 +185,22 @@ async function handleDownload() {
         downloadBtn.textContent = 'Download';
         downloadBtn.disabled = false;
         
+        soundEffects.play('error');
         // Show error in modal or toast
         showError(error.message);
     }
 }
 
 function handleNewUrl() {
+    soundEffects.play('click');
     currentVideoUrl = '';
     currentVideoInfo = null;
+    urlInput.value = '';
     showInput();
 }
 
 function handleRetry() {
+    soundEffects.play('click');
     showInput();
 }
 
