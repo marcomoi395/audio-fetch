@@ -74,20 +74,39 @@ mypy . --ignore-missing-imports
 
 ## Deployment
 
-For production deployment:
+### Quick Deploy to Render
+
+**Recommended: Docker Deployment (with FFmpeg support)**
+
+1. Push code to GitHub
+2. Create new Web Service on [Render](https://dashboard.render.com/)
+3. Select **Docker** as environment
+4. Set environment variable: `PORT=8000`
+5. Deploy!
+
+See [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) for detailed instructions.
+
+### Local Production Mode
 
 ```bash
 # Install production dependencies only
-pip install fastapi uvicorn[standard] yt-dlp aiofiles jinja2
+pip install -r requirements-prod.txt
 
 # Run with production settings
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-**Requirements:**
-- Ensure FFmpeg is installed on the server
-- Configure CORS origins in `main.py` for production
-- Use a reverse proxy (nginx/caddy) for HTTPS
+**Production Requirements:**
+- FFmpeg installed on server (for MP3/OPUS/WAV conversion)
+- Configure CORS via `CORS_ORIGINS` environment variable
+- Use reverse proxy (nginx/caddy) for HTTPS in self-hosted setups
+
+**Format Support Without FFmpeg:**
+- ✅ m4a (native YouTube format)
+- ✅ best (no conversion needed)
+- ❌ mp3, opus, wav (requires FFmpeg)
+
+For complete deployment guide including Docker setup, see [docs/RENDER_DEPLOYMENT.md](docs/RENDER_DEPLOYMENT.md)
 
 ## License
 
