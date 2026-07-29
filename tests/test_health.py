@@ -1,4 +1,5 @@
 """Basic test to verify FastAPI app initialization."""
+
 from fastapi.testclient import TestClient
 
 from main import app
@@ -8,7 +9,7 @@ def test_health_endpoint():
     """Test that health endpoint returns correct structure."""
     client = TestClient(app)
     response = client.get("/health")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"

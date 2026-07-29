@@ -1,8 +1,9 @@
 """E2E: Error handling and queue busy flows."""
+
 import json
-import pytest
 
 from tests.e2e.page_objects import AudioFetchPage
+
 
 def _error_route(message: str, status: int = 400):
     def handler(route):
@@ -11,12 +12,14 @@ def _error_route(message: str, status: int = 400):
             content_type="application/json",
             body=json.dumps({"detail": message}),
         )
+
     return handler
 
 
 # ---------------------------------------------------------------------------
 # Error handling tests
 # ---------------------------------------------------------------------------
+
 
 def test_invalid_url_shows_error_section(page, live_server):
     """Server 400 on video-info → error-section with message appears."""
@@ -51,9 +54,12 @@ def test_retry_returns_to_input_section(page, live_server):
 def test_new_url_clears_input(page, live_server):
     """'New URL' button from info-section clears the input field."""
     mock_info = {
-        "title": "T", "uploader": "U", "duration": 60,
+        "title": "T",
+        "uploader": "U",
+        "duration": 60,
         "thumbnail_url": "https://example.com/t.jpg",
-        "formats": ["mp3"], "qualities": {"0": "Best"},
+        "formats": ["mp3"],
+        "qualities": {"0": "Best"},
     }
     page.route(
         "**/api/video-info",
@@ -79,12 +85,16 @@ def test_new_url_clears_input(page, live_server):
 # Queue busy test
 # ---------------------------------------------------------------------------
 
+
 def test_queue_busy_shows_error_on_download(page, live_server):
     """503 from /api/download → error-section with 'in progress' message."""
     mock_info = {
-        "title": "T", "uploader": "U", "duration": 60,
+        "title": "T",
+        "uploader": "U",
+        "duration": 60,
         "thumbnail_url": "https://example.com/t.jpg",
-        "formats": ["mp3"], "qualities": {"0": "Best"},
+        "formats": ["mp3"],
+        "qualities": {"0": "Best"},
     }
     page.route(
         "**/api/video-info",

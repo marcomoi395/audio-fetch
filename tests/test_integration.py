@@ -1,4 +1,5 @@
 """Integration tests for end-to-end workflows."""
+
 import os
 import tempfile
 from unittest.mock import AsyncMock, patch
@@ -39,9 +40,7 @@ class TestEndToEndFlow:
         }
 
         # Step 1: Fetch video info — mock get_video_info at the service boundary
-        with patch(
-            "api.routes.get_video_info", new_callable=AsyncMock
-        ) as mock_get_info:
+        with patch("api.routes.get_video_info", new_callable=AsyncMock) as mock_get_info:
             mock_get_info.return_value = mock_info
 
             response = client.post(
@@ -60,9 +59,7 @@ class TestEndToEndFlow:
         with tempfile.TemporaryDirectory() as tmp_dir:
             fake_path = _make_fake_audio_file(tmp_dir, "Test Video.mp3")
 
-            with patch(
-                "api.routes.download_audio", new_callable=AsyncMock
-            ) as mock_dl:
+            with patch("api.routes.download_audio", new_callable=AsyncMock) as mock_dl:
                 mock_dl.return_value = fake_path
 
                 response = client.post(
@@ -78,9 +75,7 @@ class TestEndToEndFlow:
         test_url = "https://youtube.com/watch?v=invalid"
 
         # Attempt 1: video unavailable
-        with patch(
-            "api.routes.get_video_info", new_callable=AsyncMock
-        ) as mock_get_info:
+        with patch("api.routes.get_video_info", new_callable=AsyncMock) as mock_get_info:
             mock_get_info.side_effect = Exception("Video unavailable")
 
             response = client.post("/api/video-info", json={"url": test_url})
@@ -100,9 +95,7 @@ class TestEndToEndFlow:
             "qualities": {"0": "Cao nhất (320kbps)"},
         }
 
-        with patch(
-            "api.routes.get_video_info", new_callable=AsyncMock
-        ) as mock_get_info:
+        with patch("api.routes.get_video_info", new_callable=AsyncMock) as mock_get_info:
             mock_get_info.return_value = valid_info
 
             response = client.post("/api/video-info", json={"url": valid_url})

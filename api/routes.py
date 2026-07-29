@@ -17,13 +17,13 @@ router = APIRouter()
 async def fetch_video_info(request: VideoInfoRequest):
     """
     Extract video metadata from YouTube URL.
-    
+
     Args:
         request: VideoInfoRequest containing the YouTube URL
-        
+
     Returns:
         VideoInfoResponse with metadata
-        
+
     Raises:
         HTTPException: 400 if extraction fails
     """
@@ -31,7 +31,7 @@ async def fetch_video_info(request: VideoInfoRequest):
         info = await get_video_info(str(request.url))
         return VideoInfoResponse(**info)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 # Global download queue instance
@@ -42,52 +42,49 @@ download_queue = DownloadQueue()
 async def download_audio_endpoint(request: DownloadRequest):
     """
     Download audio from YouTube URL in specified format/quality.
-    
+
     Args:
         request: DownloadRequest containing url, format, and quality
-        
+
     Returns:
         FileResponse streaming the audio file
-        
+
     Raises:
         HTTPException: 400 if download fails, 503 if queue is busy
     """
     # Check if queue is busy
     if download_queue.is_active():
-        raise HTTPException(
-            status_code=503,
-            detail="Another download is in progress. Please wait."
-        )
-    
+        raise HTTPException(status_code=503, detail="Another download is in progress. Please wait.")
+
     temp_dir = None
-    
+
     try:
         # Acquire queue lock and download
         async with download_queue:
             # Create temp directory for download
             temp_dir = tempfile.mkdtemp()
-            
+
             # Download audio
             file_path = await download_audio(
                 url=str(request.url),
                 audio_format=request.format,
                 quality=request.quality,
-                output_dir=temp_dir
+                output_dir=temp_dir,
             )
-            
+
             # Determine media type
             media_types = {
-                'mp3': 'audio/mpeg',
-                'm4a': 'audio/mp4',
-                'opus': 'audio/opus',
-                'wav': 'audio/wav',
-                'best': 'audio/mpeg',
+                "mp3": "audio/mpeg",
+                "m4a": "audio/mp4",
+                "opus": "audio/opus",
+                "wav": "audio/wav",
+                "best": "audio/mpeg",
             }
-            media_type = media_types.get(request.format, 'audio/mpeg')
-            
+            media_type = media_types.get(request.format, "audio/mpeg")
+
             # Get filename for Content-Disposition with proper Unicode encoding
             filename = Path(file_path).name
-            
+
             # Define cleanup function
             def cleanup():
                 """Cleanup temp directory after response is sent."""
@@ -96,29 +93,29 @@ async def download_audio_endpoint(request: DownloadRequest):
                         shutil.rmtree(temp_dir, ignore_errors=True)
                 except Exception:
                     pass  # Ignore cleanup errors
-            
+
             # Create FileResponse
             response = FileResponse(
-                path=file_path,
-                media_type=media_type,
-                background=BackgroundTask(cleanup)
+                path=file_path, media_type=media_type, background=BackgroundTask(cleanup)
             )
-            
+
             # Set simple Content-Disposition with ASCII filename only
             import unicodedata
-            
+
             # Convert to ASCII - strip Vietnamese accents
-            ascii_name = unicodedata.normalize('NFKD', filename).encode('ascii', 'ignore').decode('ascii')
+            ascii_name = (
+                unicodedata.normalize("NFKD", filename).encode("ascii", "ignore").decode("ascii")
+            )
             # Fallback when no real stem survives ASCII stripping
             # Path('.mp3').suffix=='' so we check for a real stem+suffix pair
             p = Path(ascii_name)
-            if not p.suffix or not p.stem.strip().lstrip('.'):
-                ascii_name = 'download.mp3'
-            
+            if not p.suffix or not p.stem.strip().lstrip("."):
+                ascii_name = "download.mp3"
+
             # Simple header with just filename parameter
             response.headers["Content-Disposition"] = f'attachment; filename="{ascii_name}"'
             return response
-            
+
     except HTTPException:
         # Re-raise HTTP exceptions (503 queue busy)
         if temp_dir and Path(temp_dir).exists():
@@ -128,5 +125,7 @@ async def download_audio_endpoint(request: DownloadRequest):
         # Clean up temp directory on error
         if temp_dir and Path(temp_dir).exists():
             shutil.rmtree(temp_dir, ignore_errors=True)
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
 # Endpoints will be added incrementally

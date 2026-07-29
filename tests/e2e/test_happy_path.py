@@ -1,8 +1,9 @@
 """E2E: Happy path — full user journey URL → info → download."""
+
 import json
-import pytest
 
 from tests.e2e.page_objects import AudioFetchPage
+
 MOCK_INFO = {
     "title": "Test Song",
     "uploader": "Test Channel",

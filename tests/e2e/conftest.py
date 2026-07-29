@@ -1,9 +1,12 @@
 """Playwright-specific fixtures for E2E tests."""
+
 import threading
+
 import pytest
 import uvicorn
 
 from main import app
+
 
 class _Server(threading.Thread):
     """Runs uvicorn on a dynamic port in a daemon thread."""
@@ -29,6 +32,7 @@ class _Server(threading.Thread):
 
     def run(self):
         import asyncio
+
         asyncio.run(self._server.serve())
 
     def stop(self):
@@ -38,8 +42,8 @@ class _Server(threading.Thread):
 @pytest.fixture(scope="session")
 def live_server():
     """Start FastAPI on a dynamic port; yield base URL; stop after session."""
-    import time
     import socket
+    import time
 
     server = _Server()
     server.start()
@@ -56,7 +60,7 @@ def live_server():
                 break
         except OSError:
             time.sleep(0.05)
-            
+
     yield f"http://127.0.0.1:{server.port}"
     server.stop()
     server.join(timeout=5)
@@ -65,11 +69,16 @@ def live_server():
 @pytest.fixture(autouse=True)
 def block_external_requests(page):
     """Block external CSS/Fonts requests to prevent test timeouts in Playwright."""
+
     def intercept_route(route):
-        if "unpkg.com" in route.request.url or "googleapis.com" in route.request.url or "gstatic.com" in route.request.url:
+        if (
+            "unpkg.com" in route.request.url
+            or "googleapis.com" in route.request.url
+            or "gstatic.com" in route.request.url
+        ):
             route.abort()
         else:
             route.continue_()
-            
+
     page.route("**/*", intercept_route)
     yield
