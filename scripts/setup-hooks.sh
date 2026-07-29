@@ -46,7 +46,7 @@ cat > "$HOOKS_DIR/pre-commit" << 'EOF'
 #!/usr/bin/env bash
 #
 # Git pre-commit hook
-# Automatically formats Python code with ruff and black before committing
+# Automatically formats Python code with ruff before committing
 #
 
 set -e
@@ -121,15 +121,10 @@ if ! ruff format --check . >/dev/null 2>&1; then
     FORMAT_NEEDED=1
 fi
 
-if ! black --check . >/dev/null 2>&1; then
-    echo -e "${YELLOW}⚠ Code is not formatted with black. Auto-formatting...${NC}"
-    FORMAT_NEEDED=1
-fi
 
 if [ $FORMAT_NEEDED -eq 1 ]; then
     echo -e "${YELLOW}Running formatters...${NC}"
     ruff format .
-    black .
     
     # Check if there are changes to commit
     if ! git diff --quiet; then
@@ -177,7 +172,7 @@ echo ""
 
 # 5. Final verification
 echo -e "${YELLOW}[5/5] Final verification...${NC}"
-if ! ruff format --check . >/dev/null 2>&1 || ! black --check . >/dev/null 2>&1; then
+if ! ruff format --check . >/dev/null 2>&1; then
     echo -e "${RED}✗ Code formatting check failed after fixes!${NC}"
     echo -e "${YELLOW}This shouldn't happen. Please check manually.${NC}"
     exit 1
