@@ -87,20 +87,20 @@ async def get_video_info(url: str) -> Dict[str, any]:
         error_msg = str(e)
         # Parse common yt-dlp errors for user-friendly messages
         if "Video unavailable" in error_msg:
-            raise Exception("Video không khả dụng. Có thể video đã bị xóa hoặc chuyển sang riêng tư.")
+            raise Exception("Video unavailable. It may have been deleted or set to private.")
         elif "This video is private" in error_msg:
-            raise Exception("Video này ở chế độ riêng tư và không thể tải xuống.")
+            raise Exception("This video is private and cannot be downloaded.")
         elif "age-restricted" in error_msg.lower():
-            raise Exception("Video giới hạn độ tuổi. Không thể tải xuống video này.")
+            raise Exception("Age-restricted video. Cannot download this content.")
         elif "This live event will begin" in error_msg:
-            raise Exception("Đây là livestream chưa bắt đầu. Vui lòng thử lại sau khi stream đang phát.")
+            raise Exception("This livestream hasn't started yet. Please try again when it's live.")
         elif "Premieres in" in error_msg:
-            raise Exception("Video này sẽ được công chiếu sau. Vui lòng thử lại khi video đã phát.")
+            raise Exception("This video will premiere later. Please try again when it's released.")
         else:
-            raise Exception(f"Lỗi trích xuất thông tin: {error_msg}")
+            raise Exception(f"Failed to extract video info: {error_msg}")
     except Exception as e:
         # Generic error fallback
-        raise Exception(f"Lỗi không xác định: {str(e)}")
+        raise Exception(f"Unknown error: {str(e)}")
 
 
 async def download_audio(
@@ -135,7 +135,7 @@ async def download_audio(
     output_path.mkdir(exist_ok=True)
     
     # Output template - single file only (no playlist support for web)
-    output_template = str(output_path / '%(title)s.%(ext)s')
+    output_template = str(output_path / '%(id)s.%(ext)s')
     
     # Configure yt-dlp options
     ydl_opts = {
@@ -180,13 +180,63 @@ async def download_audio(
                 # Download the audio
                 ydl.download([url])
                 
-                # Determine the actual output file path
+                # Sanitize title for filename (keep Unicode, remove only problematic chars)
                 title = info.get('title', 'audio')
-                # yt-dlp changes the extension after post-processing
-                actual_format = audio_format if audio_format != 'best' else info.get('ext', 'webm')
-                output_file = output_path / f"{title}.{actual_format}"
+                # Remove only characters that are illegal in filenames
+                illegal_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|']
+                safe_title = title
+                for char in illegal_chars:
+                    safe_title = safe_title.replace(char, '_')
                 
-                return str(output_file)
+                # Strip whitespace and underscores from both ends
+                safe_title = safe_title.strip().strip('_')
+                
+                if not safe_title or len(safe_title) < 2:
+                    safe_title = info.get('id', 'audio')
+                
+                # Find the actual downloaded file (yt-dlp may change extension)
+                # Filter for audio files only (exclude thumbnails, etc.)
+                import glob
+                import os
+                
+                video_id = info.get('id', 'unknown')
+                pattern = str(output_path / f"{video_id}.*")
+                all_files = glob.glob(pattern)
+                
+                # Debug: print what files were found
+                print(f"DEBUG: Looking for files matching: {pattern}")
+                print(f"DEBUG: Found files: {all_files}")
+                print(f"DEBUG: Safe title: {safe_title}")
+                
+                # Filter for audio extensions only
+                audio_extensions = ['.mp3', '.m4a', '.opus', '.wav', '.webm', '.ogg']
+                audio_files = [f for f in all_files if any(f.lower().endswith(ext) for ext in audio_extensions)]
+                
+                print(f"DEBUG: Audio files after filter: {audio_files}")
+                
+                if audio_files:
+                    # Get the actual downloaded audio file
+                    actual_file = Path(audio_files[0])
+                    final_ext = actual_file.suffix
+                    final_path = output_path / f"{safe_title}{final_ext}"
+                    
+                    print(f"DEBUG: Renaming {actual_file} -> {final_path}")
+                    
+                    # Rename file
+                    if actual_file.exists():
+                        actual_file.rename(final_path)
+                        print(f"DEBUG: Rename successful, returning: {final_path}")
+                        return str(final_path)
+                    else:
+                        print(f"DEBUG: File doesn't exist: {actual_file}")
+                
+                # Fallback: return any matching file or raise error
+                if all_files:
+                    print(f"DEBUG: Using fallback, returning first file: {all_files[0]}")
+                    return str(all_files[0])
+                    
+                print(f"DEBUG: No files found at all!")
+                raise Exception(f"Downloaded file not found in {output_path}. Pattern: {pattern}")
         
         file_path = await loop.run_in_executor(None, download)
         return file_path
@@ -195,21 +245,21 @@ async def download_audio(
         error_msg = str(e)
         # Parse common yt-dlp errors for user-friendly messages
         if "Video unavailable" in error_msg:
-            raise Exception("Video không khả dụng. Có thể video đã bị xóa hoặc chuyển sang riêng tư.")
+            raise Exception("Video unavailable. It may have been deleted or set to private.")
         elif "This video is private" in error_msg:
-            raise Exception("Video này ở chế độ riêng tư và không thể tải xuống.")
+            raise Exception("This video is private and cannot be downloaded.")
         elif "Postprocessing" in error_msg:
-            raise Exception("Lỗi chuyển đổi định dạng audio. Vui lòng thử định dạng khác.")
+            raise Exception("Audio format conversion error. Please try a different format.")
         elif "FFmpeg" in error_msg or "ffmpeg" in error_msg:
-            raise Exception("Lỗi FFmpeg khi xử lý audio. Vui lòng kiểm tra FFmpeg đã được cài đặt.")
+            raise Exception("FFmpeg error while processing audio. Please check FFmpeg installation.")
         elif "HTTP Error 429" in error_msg:
-            raise Exception("YouTube đang giới hạn tải xuống. Vui lòng thử lại sau vài phút.")
+            raise Exception("YouTube is rate limiting downloads. Please try again in a few minutes.")
         elif "network" in error_msg.lower() or "timed out" in error_msg.lower():
-            raise Exception("Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet và thử lại.")
+            raise Exception("Network connection error. Please check your internet connection and try again.")
         else:
-            raise Exception(f"Lỗi tải xuống: {error_msg}")
+            raise Exception(f"Download error: {error_msg}")
     except Exception as e:
         # Generic error fallback
         if "Failed to download audio" not in str(e):
-            raise Exception(f"Lỗi không xác định: {str(e)}")
+            raise Exception(f"Unknown error: {str(e)}")
         raise

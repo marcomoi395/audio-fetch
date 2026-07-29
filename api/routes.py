@@ -1,10 +1,9 @@
-"""API route handlers."""
-import tempfile
-import shutil
-from pathlib import Path
-
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
+from pathlib import Path
+import tempfile
+import shutil
 
 from api.models import VideoInfoRequest, VideoInfoResponse, DownloadRequest
 from services.downloader import get_video_info, download_audio
@@ -86,10 +85,11 @@ async def download_audio_endpoint(request: DownloadRequest):
             }
             media_type = media_types.get(request.format, 'audio/mpeg')
             
-            # Get filename for Content-Disposition
+            # Get filename for Content-Disposition with proper Unicode encoding
+            from urllib.parse import quote
             filename = Path(file_path).name
             
-            # Return file response with background cleanup
+            # Define cleanup function
             def cleanup():
                 """Cleanup temp directory after response is sent."""
                 try:
@@ -98,12 +98,24 @@ async def download_audio_endpoint(request: DownloadRequest):
                 except Exception:
                     pass  # Ignore cleanup errors
             
-            return FileResponse(
+            # Create FileResponse
+            response = FileResponse(
                 path=file_path,
                 media_type=media_type,
-                filename=filename,
-                background=cleanup
+                background=BackgroundTask(cleanup)
             )
+            
+            # Set simple Content-Disposition with ASCII filename only
+            import unicodedata
+            
+            # Convert to ASCII - strip Vietnamese accents
+            ascii_name = unicodedata.normalize('NFKD', filename).encode('ascii', 'ignore').decode('ascii')
+            if not ascii_name.strip():
+                ascii_name = 'download.mp3'
+            
+            # Simple header with just filename parameter
+            response.headers["Content-Disposition"] = f'attachment; filename="{ascii_name}"'
+            return response
             
     except HTTPException:
         # Re-raise HTTP exceptions (503 queue busy)
