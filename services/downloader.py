@@ -171,7 +171,7 @@ async def download_audio(
             "key": "EmbedThumbnail",
         }
     )
-    
+
     ydl_opts["postprocessors"] = postprocessors
     ydl_opts["writethumbnail"] = True
 
