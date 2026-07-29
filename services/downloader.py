@@ -1,8 +1,10 @@
 """YouTube audio downloader service using yt-dlp."""
 import asyncio
-from typing import Dict, Optional
+import logging
 
 import yt_dlp
+
+logger = logging.getLogger(__name__)
 
 
 # Format and quality constants from original AudioDownloader
@@ -21,7 +23,7 @@ QUALITY_LEVELS = {
 }
 
 
-def format_duration(seconds: Optional[int]) -> str:
+def format_duration(seconds: int | None) -> str:
     """
     Format duration from seconds to MM:SS or HH:MM:SS.
     
@@ -44,7 +46,7 @@ def format_duration(seconds: Optional[int]) -> str:
         return f"{minutes:02d}:{secs:02d}"
 
 
-async def get_video_info(url: str) -> Dict[str, any]:
+async def get_video_info(url: str) -> dict[str, any]:
     """
     Extract video metadata from YouTube URL without downloading.
     
@@ -65,13 +67,11 @@ async def get_video_info(url: str) -> Dict[str, any]:
     
     try:
         # Run yt-dlp in thread pool since it's blocking I/O
-        loop = asyncio.get_event_loop()
-        
         def extract():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 return ydl.extract_info(url, download=False)
         
-        info = await loop.run_in_executor(None, extract)
+        info = await asyncio.to_thread(extract)
         
         # Extract relevant metadata
         return {
@@ -100,14 +100,14 @@ async def get_video_info(url: str) -> Dict[str, any]:
             raise Exception(f"Failed to extract video info: {error_msg}")
     except Exception as e:
         # Generic error fallback
-        raise Exception(f"Unknown error: {str(e)}")
+        raise Exception(f"Unknown error: {e!s}")
 
 
 async def download_audio(
     url: str,
     audio_format: str = 'mp3',
     quality: str = '0',
-    output_dir: str = None
+    output_dir: str | None = None
 ) -> str:
     """
     Download audio from YouTube URL.
@@ -170,8 +170,6 @@ async def download_audio(
     
     try:
         # Run yt-dlp in thread pool since it's blocking I/O
-        loop = asyncio.get_event_loop()
-        
         def download():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 # Extract info to get final filename
@@ -197,22 +195,20 @@ async def download_audio(
                 # Find the actual downloaded file (yt-dlp may change extension)
                 # Filter for audio files only (exclude thumbnails, etc.)
                 import glob
-                import os
                 
                 video_id = info.get('id', 'unknown')
                 pattern = str(output_path / f"{video_id}.*")
                 all_files = glob.glob(pattern)
                 
-                # Debug: print what files were found
-                print(f"DEBUG: Looking for files matching: {pattern}")
-                print(f"DEBUG: Found files: {all_files}")
-                print(f"DEBUG: Safe title: {safe_title}")
+                logger.debug("Looking for files matching: %s", pattern)
+                logger.debug("Found files: %s", all_files)
+                logger.debug("Safe title: %s", safe_title)
                 
                 # Filter for audio extensions only
                 audio_extensions = ['.mp3', '.m4a', '.opus', '.wav', '.webm', '.ogg']
                 audio_files = [f for f in all_files if any(f.lower().endswith(ext) for ext in audio_extensions)]
                 
-                print(f"DEBUG: Audio files after filter: {audio_files}")
+                logger.debug("Audio files after filter: %s", audio_files)
                 
                 if audio_files:
                     # Get the actual downloaded audio file
@@ -220,25 +216,25 @@ async def download_audio(
                     final_ext = actual_file.suffix
                     final_path = output_path / f"{safe_title}{final_ext}"
                     
-                    print(f"DEBUG: Renaming {actual_file} -> {final_path}")
+                    logger.debug("Renaming %s -> %s", actual_file, final_path)
                     
                     # Rename file
                     if actual_file.exists():
                         actual_file.rename(final_path)
-                        print(f"DEBUG: Rename successful, returning: {final_path}")
+                        logger.debug("Rename successful, returning: %s", final_path)
                         return str(final_path)
                     else:
-                        print(f"DEBUG: File doesn't exist: {actual_file}")
+                        logger.debug("File doesn't exist: %s", actual_file)
                 
                 # Fallback: return any matching file or raise error
                 if all_files:
-                    print(f"DEBUG: Using fallback, returning first file: {all_files[0]}")
+                    logger.debug("Using fallback, returning first file: %s", all_files[0])
                     return str(all_files[0])
                     
-                print(f"DEBUG: No files found at all!")
+                logger.debug("No files found at all!")
                 raise Exception(f"Downloaded file not found in {output_path}. Pattern: {pattern}")
         
-        file_path = await loop.run_in_executor(None, download)
+        file_path = await asyncio.to_thread(download)
         return file_path
         
     except yt_dlp.utils.DownloadError as e:
@@ -261,5 +257,5 @@ async def download_audio(
     except Exception as e:
         # Generic error fallback
         if "Failed to download audio" not in str(e):
-            raise Exception(f"Unknown error: {str(e)}")
+            raise Exception(f"Unknown error: {e!s}")
         raise

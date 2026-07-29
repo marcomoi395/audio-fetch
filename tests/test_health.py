@@ -22,3 +22,11 @@ def test_app_initialization():
     """Test that FastAPI app initializes without errors."""
     assert app.title == "Audio Fetch"
     assert app.version == "1.0.0"
+
+
+def test_root_serves_html():
+    """Test that GET / returns 200 with HTML content."""
+    client = TestClient(app)
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers.get("content-type", "")

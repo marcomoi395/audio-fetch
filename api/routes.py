@@ -1,14 +1,14 @@
+import shutil
+import tempfile
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
-from pathlib import Path
-import tempfile
-import shutil
 
-from api.models import VideoInfoRequest, VideoInfoResponse, DownloadRequest
-from services.downloader import get_video_info, download_audio
+from api.models import DownloadRequest, VideoInfoRequest, VideoInfoResponse
+from services.downloader import download_audio, get_video_info
 from services.queue import DownloadQueue
-
 
 router = APIRouter()
 
@@ -86,7 +86,6 @@ async def download_audio_endpoint(request: DownloadRequest):
             media_type = media_types.get(request.format, 'audio/mpeg')
             
             # Get filename for Content-Disposition with proper Unicode encoding
-            from urllib.parse import quote
             filename = Path(file_path).name
             
             # Define cleanup function
@@ -110,7 +109,10 @@ async def download_audio_endpoint(request: DownloadRequest):
             
             # Convert to ASCII - strip Vietnamese accents
             ascii_name = unicodedata.normalize('NFKD', filename).encode('ascii', 'ignore').decode('ascii')
-            if not ascii_name.strip():
+            # Fallback when no real stem survives ASCII stripping
+            # Path('.mp3').suffix=='' so we check for a real stem+suffix pair
+            p = Path(ascii_name)
+            if not p.suffix or not p.stem.strip().lstrip('.'):
                 ascii_name = 'download.mp3'
             
             # Simple header with just filename parameter
