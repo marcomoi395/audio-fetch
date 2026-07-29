@@ -19,7 +19,7 @@
 class SoundEffects {
     constructor() {
         this.sounds = {};
-        this.enabled = true;
+        this.enabled = true; // Enabled by default
         this.volume = 0.5; // Default volume (0.0 - 1.0)
         
         // Initialize sounds
@@ -33,28 +33,132 @@ class SoundEffects {
      * Load all sound files
      */
     loadSounds() {
-        const soundFiles = {
-            click: '/static/sounds/click.mp3',
-            fetch: '/static/sounds/fetch.mp3',
-            download: '/static/sounds/download.mp3',
-            success: '/static/sounds/success.mp3',
-            error: '/static/sounds/error.mp3'
-        };
+        // Generate 8-bit sounds using Web Audio API (no files needed)
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         
-        for (const [name, path] of Object.entries(soundFiles)) {
-            const audio = new Audio(path);
-            audio.volume = this.volume;
+        // Sound generators for each type - optimized for minimal latency
+        this.soundGenerators = {
+            click: () => this.generateBeep(800, 0.03),
+            fetch: () => this.generateRiseBeep(400, 800, 0.1),
+            download: () => this.generateFallBeep(1000, 400, 0.12),
+            success: () => this.generateChord([523, 659, 784], 0.15),
+            error: () => this.generateBuzz(200, 0.15)
+        };
+    }
+    
+    /**
+     * Generate a simple beep sound - optimized version
+     */
+    generateBeep(frequency, duration) {
+        const now = this.audioContext.currentTime;
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+        
+        oscillator.type = 'square'; // 8-bit style
+        oscillator.frequency.value = frequency;
+        
+        // Fast attack, fast release
+        gainNode.gain.setValueAtTime(this.volume * 0.3, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+        
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+    }
+    
+    /**
+     * Generate a rising pitch beep - optimized version
+     */
+    generateRiseBeep(startFreq, endFreq, duration) {
+        const now = this.audioContext.currentTime;
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+        
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(startFreq, now);
+        oscillator.frequency.linearRampToValueAtTime(endFreq, now + duration);
+        
+        gainNode.gain.setValueAtTime(this.volume * 0.3, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+        
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+    }
+    
+    /**
+     * Generate a falling pitch beep - optimized version
+     */
+    generateFallBeep(startFreq, endFreq, duration) {
+        const now = this.audioContext.currentTime;
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+        
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(startFreq, now);
+        oscillator.frequency.linearRampToValueAtTime(endFreq, now + duration);
+        
+        gainNode.gain.setValueAtTime(this.volume * 0.3, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+        
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+    }
+    
+    /**
+     * Generate a chord (multiple frequencies) - optimized using AudioContext scheduling
+     */
+    generateChord(frequencies, duration) {
+        const now = this.audioContext.currentTime;
+        const staggerDelay = 0.03; // 30ms stagger instead of 50ms
+        
+        frequencies.forEach((freq, i) => {
+            const startTime = now + (i * staggerDelay);
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
             
-            // Preload audio
-            audio.preload = 'auto';
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
             
-            // Handle loading errors gracefully
-            audio.addEventListener('error', () => {
-                console.warn(`Failed to load sound: ${name} from ${path}`);
-            });
+            oscillator.type = 'square';
+            oscillator.frequency.value = freq;
             
-            this.sounds[name] = audio;
-        }
+            // Schedule gain envelope
+            gainNode.gain.setValueAtTime(this.volume * 0.2, startTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+            
+            // Schedule start and stop using AudioContext time
+            oscillator.start(startTime);
+            oscillator.stop(startTime + duration);
+        });
+    }
+    
+    /**
+     * Generate a buzz sound for errors - optimized version
+     */
+    generateBuzz(frequency, duration) {
+        const now = this.audioContext.currentTime;
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+        
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.value = frequency;
+        
+        gainNode.gain.setValueAtTime(this.volume * 0.3, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+        
+        oscillator.start(now);
+        oscillator.stop(now + duration);
     }
     
     /**
@@ -66,21 +170,17 @@ class SoundEffects {
             return;
         }
         
-        const sound = this.sounds[name];
-        if (!sound) {
-            console.warn(`Sound not found: ${name}`);
+        const generator = this.soundGenerators[name];
+        if (!generator) {
+            console.warn(`Sound generator not found: ${name}`);
             return;
         }
         
-        // Clone the audio to allow overlapping plays
-        const clone = sound.cloneNode();
-        clone.volume = this.volume;
-        
-        // Play and clean up
-        clone.play().catch(err => {
-            // Ignore errors (e.g., autoplay policy)
+        try {
+            generator();
+        } catch (err) {
             console.debug(`Could not play sound ${name}:`, err.message);
-        });
+        }
     }
     
     /**
