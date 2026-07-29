@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: audio-fetch
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: CORS_ORIGINS
+        sync: false
+    healthCheckPath: /health
