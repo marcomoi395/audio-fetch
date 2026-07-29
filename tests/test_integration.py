@@ -84,7 +84,7 @@ class TestEndToEndFlow:
             
             assert response.status_code == 400
             data = response.json()
-            assert 'Video không khả dụng' in data['detail']
+            assert 'Video unavailable' in data['detail']
         
         # Attempt 2: Valid URL after retry
         valid_url = "https://youtube.com/watch?v=valid"
