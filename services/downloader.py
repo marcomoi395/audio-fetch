@@ -83,8 +83,24 @@ async def get_video_info(url: str) -> Dict[str, any]:
             'qualities': QUALITY_LEVELS,
         }
         
+    except yt_dlp.utils.DownloadError as e:
+        error_msg = str(e)
+        # Parse common yt-dlp errors for user-friendly messages
+        if "Video unavailable" in error_msg:
+            raise Exception("Video không khả dụng. Có thể video đã bị xóa hoặc chuyển sang riêng tư.")
+        elif "This video is private" in error_msg:
+            raise Exception("Video này ở chế độ riêng tư và không thể tải xuống.")
+        elif "age-restricted" in error_msg.lower():
+            raise Exception("Video giới hạn độ tuổi. Không thể tải xuống video này.")
+        elif "This live event will begin" in error_msg:
+            raise Exception("Đây là livestream chưa bắt đầu. Vui lòng thử lại sau khi stream đang phát.")
+        elif "Premieres in" in error_msg:
+            raise Exception("Video này sẽ được công chiếu sau. Vui lòng thử lại khi video đã phát.")
+        else:
+            raise Exception(f"Lỗi trích xuất thông tin: {error_msg}")
     except Exception as e:
-        raise Exception(f"Failed to extract video info: {str(e)}")
+        # Generic error fallback
+        raise Exception(f"Lỗi không xác định: {str(e)}")
 
 
 async def download_audio(
@@ -175,5 +191,25 @@ async def download_audio(
         file_path = await loop.run_in_executor(None, download)
         return file_path
         
+    except yt_dlp.utils.DownloadError as e:
+        error_msg = str(e)
+        # Parse common yt-dlp errors for user-friendly messages
+        if "Video unavailable" in error_msg:
+            raise Exception("Video không khả dụng. Có thể video đã bị xóa hoặc chuyển sang riêng tư.")
+        elif "This video is private" in error_msg:
+            raise Exception("Video này ở chế độ riêng tư và không thể tải xuống.")
+        elif "Postprocessing" in error_msg:
+            raise Exception("Lỗi chuyển đổi định dạng audio. Vui lòng thử định dạng khác.")
+        elif "FFmpeg" in error_msg or "ffmpeg" in error_msg:
+            raise Exception("Lỗi FFmpeg khi xử lý audio. Vui lòng kiểm tra FFmpeg đã được cài đặt.")
+        elif "HTTP Error 429" in error_msg:
+            raise Exception("YouTube đang giới hạn tải xuống. Vui lòng thử lại sau vài phút.")
+        elif "network" in error_msg.lower() or "timed out" in error_msg.lower():
+            raise Exception("Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet và thử lại.")
+        else:
+            raise Exception(f"Lỗi tải xuống: {error_msg}")
     except Exception as e:
-        raise Exception(f"Failed to download audio: {str(e)}")
+        # Generic error fallback
+        if "Failed to download audio" not in str(e):
+            raise Exception(f"Lỗi không xác định: {str(e)}")
+        raise
