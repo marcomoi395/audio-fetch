@@ -17,3 +17,10 @@ class VideoInfoResponse(BaseModel):
     formats: List[str]
     qualities: Dict[str, str]
 # Response models will be added as endpoints are implemented
+
+
+class DownloadRequest(BaseModel):
+    """Request model for download endpoint."""
+    url: HttpUrl
+    format: str
+    quality: str

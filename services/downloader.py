@@ -85,3 +85,95 @@ async def get_video_info(url: str) -> Dict[str, any]:
         
     except Exception as e:
         raise Exception(f"Failed to extract video info: {str(e)}")
+
+
+async def download_audio(
+    url: str,
+    audio_format: str = 'mp3',
+    quality: str = '0',
+    output_dir: str = None
+) -> str:
+    """
+    Download audio from YouTube URL.
+    
+    Args:
+        url: YouTube video URL
+        audio_format: Audio format (mp3, m4a, opus, wav, best)
+        quality: Audio quality (0=highest, 5=medium, 9=low)
+        output_dir: Directory to save file (temp dir if None)
+        
+    Returns:
+        Path to downloaded audio file
+        
+    Raises:
+        Exception: If download fails
+    """
+    import tempfile
+    from pathlib import Path
+    
+    # Create temp directory if not provided
+    if output_dir is None:
+        output_dir = tempfile.mkdtemp()
+    
+    output_path = Path(output_dir)
+    output_path.mkdir(exist_ok=True)
+    
+    # Output template - single file only (no playlist support for web)
+    output_template = str(output_path / '%(title)s.%(ext)s')
+    
+    # Configure yt-dlp options
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': output_template,
+        'noplaylist': True,  # Web version doesn't support playlists
+        'quiet': True,
+        'no_warnings': True,
+    }
+    
+    # Configure post-processor based on format
+    if audio_format != 'best':
+        ydl_opts['postprocessors'] = [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': audio_format,
+            'preferredquality': quality,
+        }]
+    
+    # Add metadata embedding (always enabled for web)
+    if 'postprocessors' not in ydl_opts:
+        ydl_opts['postprocessors'] = []
+    ydl_opts['postprocessors'].append({
+        'key': 'FFmpegMetadata',
+        'add_metadata': True,
+    })
+    
+    # Add thumbnail embedding (always enabled for web)
+    ydl_opts['postprocessors'].append({
+        'key': 'EmbedThumbnail',
+    })
+    ydl_opts['writethumbnail'] = True
+    
+    try:
+        # Run yt-dlp in thread pool since it's blocking I/O
+        loop = asyncio.get_event_loop()
+        
+        def download():
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                # Extract info to get final filename
+                info = ydl.extract_info(url, download=False)
+                
+                # Download the audio
+                ydl.download([url])
+                
+                # Determine the actual output file path
+                title = info.get('title', 'audio')
+                # yt-dlp changes the extension after post-processing
+                actual_format = audio_format if audio_format != 'best' else info.get('ext', 'webm')
+                output_file = output_path / f"{title}.{actual_format}"
+                
+                return str(output_file)
+        
+        file_path = await loop.run_in_executor(None, download)
+        return file_path
+        
+    except Exception as e:
+        raise Exception(f"Failed to download audio: {str(e)}")
