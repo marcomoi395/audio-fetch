@@ -147,31 +147,32 @@ async def download_audio(
     }
 
     # Configure post-processor based on format
+    postprocessors: list[dict[str, str]] = []
     if audio_format != "best":
-        ydl_opts["postprocessors"] = [
+        postprocessors.append(
             {
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": audio_format,
                 "preferredquality": quality,
             }
-        ]
+        )
 
     # Add metadata embedding (always enabled for web)
-    if "postprocessors" not in ydl_opts:
-        ydl_opts["postprocessors"] = []  # type: ignore[index]
-    ydl_opts["postprocessors"].append(
+    postprocessors.append(
         {
             "key": "FFmpegMetadata",
-            "add_metadata": True,
+            "add_metadata": "True",
         }
     )
 
     # Add thumbnail embedding (always enabled for web)
-    ydl_opts["postprocessors"].append(
+    postprocessors.append(
         {
             "key": "EmbedThumbnail",
         }
     )
+    
+    ydl_opts["postprocessors"] = postprocessors
     ydl_opts["writethumbnail"] = True
 
     try:
