@@ -1,5 +1,6 @@
 """FastAPI application for audio-fetch web app."""
 
+import os
 import shutil
 from pathlib import Path
 
@@ -16,10 +17,13 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS configuration for local development
+# CORS configuration - configurable via environment variable
+cors_origins = os.getenv("CORS_ORIGINS", "*")
+allowed_origins = cors_origins.split(",") if cors_origins != "*" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify exact origins
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,11 +65,13 @@ async def health_check():
     Returns:
         dict: Status information including FFmpeg availability and queue status
     """
+    from api.routes import download_queue
+
     # Check if FFmpeg is available
     ffmpeg_available = shutil.which("ffmpeg") is not None
 
     return {
         "status": "ok",
         "ffmpeg_available": ffmpeg_available,
-        "queue_active": False,  # Will be updated when queue is implemented
+        "queue_active": download_queue.is_active(),
     }

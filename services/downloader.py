@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from typing import Any
 
 import yt_dlp
 
@@ -43,7 +44,7 @@ def format_duration(seconds: int | None) -> str:
         return f"{minutes:02d}:{secs:02d}"
 
 
-async def get_video_info(url: str) -> dict[str, any]:
+async def get_video_info(url: str) -> dict[str, Any]:
     """
     Extract video metadata from YouTube URL without downloading.
 
@@ -145,36 +146,37 @@ async def download_audio(
     }
 
     # Configure post-processor based on format
+    postprocessors: list[dict[str, str]] = []
     if audio_format != "best":
-        ydl_opts["postprocessors"] = [
+        postprocessors.append(
             {
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": audio_format,
                 "preferredquality": quality,
             }
-        ]
+        )
 
     # Add metadata embedding (always enabled for web)
-    if "postprocessors" not in ydl_opts:
-        ydl_opts["postprocessors"] = []
-    ydl_opts["postprocessors"].append(
+    postprocessors.append(
         {
             "key": "FFmpegMetadata",
-            "add_metadata": True,
+            "add_metadata": "True",
         }
     )
 
     # Add thumbnail embedding (always enabled for web)
-    ydl_opts["postprocessors"].append(
+    postprocessors.append(
         {
             "key": "EmbedThumbnail",
         }
     )
+
+    ydl_opts["postprocessors"] = postprocessors
     ydl_opts["writethumbnail"] = True
 
     try:
         # Run yt-dlp in thread pool since it's blocking I/O
-        def download():
+        def download() -> str:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 # Extract info to get final filename
                 info = ydl.extract_info(url, download=False)
