@@ -50,7 +50,10 @@ async def root(request: Request):
     Returns:
         TemplateResponse rendering index.html
     """
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html"
+    )
 
 
 @app.get("/health")
