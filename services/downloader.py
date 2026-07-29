@@ -74,14 +74,14 @@ def get_bypass_opts(config_index: int = 0) -> dict[str, Any]:
         Dictionary of yt-dlp options with bypass settings
     """
     config = BYPASS_CONFIGS[config_index % len(BYPASS_CONFIGS)]
-    
+
     opts = {
         "quiet": True,
         "no_warnings": True,
         "user_agent": config["user_agent"],
         "extractor_args": config["extractor_args"],
     }
-    
+
     logger.debug(f"Using bypass config: {config['name']}")
     return opts
 
@@ -124,16 +124,16 @@ async def get_video_info(url: str) -> dict[str, Any]:
         Exception: If URL is invalid or extraction fails with all strategies
     """
     last_error = None
-    
+
     # Try each bypass config until one works
     for i, config in enumerate(BYPASS_CONFIGS):
         try:
             ydl_opts = get_bypass_opts(i)
             ydl_opts["extract_flat"] = False
-            
+
             # Run yt-dlp in thread pool since it's blocking I/O
-            def extract():
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            def extract(opts=ydl_opts):
+                with yt_dlp.YoutubeDL(opts) as ydl:
                     return ydl.extract_info(url, download=False)
 
             info = await asyncio.to_thread(extract)
@@ -152,15 +152,17 @@ async def get_video_info(url: str) -> dict[str, Any]:
         except yt_dlp.utils.DownloadError as e:
             error_msg = str(e)
             last_error = e
-            
+
             # Check if it's a bot detection error
             if "Sign in to confirm" in error_msg or "bot" in error_msg.lower():
                 logger.warning(f"Bot detection with {config['name']} client, trying next...")
                 continue  # Try next config
-            
+
             # Parse other common errors - these won't be fixed by retrying
             if "Video unavailable" in error_msg:
-                raise Exception("Video unavailable. It may have been deleted or set to private.") from e
+                raise Exception(
+                    "Video unavailable. It may have been deleted or set to private."
+                ) from e
             elif "This video is private" in error_msg:
                 raise Exception("This video is private and cannot be downloaded.") from e
             elif "age-restricted" in error_msg.lower():
@@ -177,15 +179,17 @@ async def get_video_info(url: str) -> dict[str, Any]:
                 # Unknown error, try next config
                 logger.warning(f"Error with {config['name']}: {error_msg}")
                 continue
-                
+
         except Exception as e:
             last_error = e
             logger.warning(f"Unexpected error with {config['name']}: {e}")
             continue
-    
+
     # All configs failed
     error_msg = str(last_error) if last_error else "Unknown error"
-    raise Exception(f"Failed to extract video info after trying all bypass methods. Last error: {error_msg}") from last_error
+    raise Exception(
+        f"Failed to extract video info after trying all bypass methods. Last error: {error_msg}"
+    ) from last_error
 
 
 async def download_audio(
@@ -247,23 +251,25 @@ async def download_audio(
     )
 
     last_error = None
-    
+
     # Try each bypass config until one works
     for i, config in enumerate(BYPASS_CONFIGS):
         try:
             # Get bypass options and merge with download options
             ydl_opts = get_bypass_opts(i)
-            ydl_opts.update({
-                "format": "bestaudio/best",
-                "outtmpl": output_template,
-                "noplaylist": True,  # Web version doesn't support playlists
-                "postprocessors": postprocessors,
-                "writethumbnail": True,
-            })
+            ydl_opts.update(
+                {
+                    "format": "bestaudio/best",
+                    "outtmpl": output_template,
+                    "noplaylist": True,  # Web version doesn't support playlists
+                    "postprocessors": postprocessors,
+                    "writethumbnail": True,
+                }
+            )
 
             # Run yt-dlp in thread pool since it's blocking I/O
-            def download() -> str:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            def download(opts=ydl_opts) -> str:
+                with yt_dlp.YoutubeDL(opts) as ydl:
                     # Extract info to get final filename
                     info = ydl.extract_info(url, download=False)
 
@@ -299,7 +305,9 @@ async def download_audio(
                     # Filter for audio extensions only
                     audio_extensions = [".mp3", ".m4a", ".opus", ".wav", ".webm", ".ogg"]
                     audio_files = [
-                        f for f in all_files if any(f.lower().endswith(ext) for ext in audio_extensions)
+                        f
+                        for f in all_files
+                        if any(f.lower().endswith(ext) for ext in audio_extensions)
                     ]
 
                     logger.debug("Audio files after filter: %s", audio_files)
@@ -326,7 +334,9 @@ async def download_audio(
                         return str(all_files[0])
 
                     logger.debug("No files found at all!")
-                    raise Exception(f"Downloaded file not found in {output_path}. Pattern: {pattern}")
+                    raise Exception(
+                        f"Downloaded file not found in {output_path}. Pattern: {pattern}"
+                    )
 
             file_path = await asyncio.to_thread(download)
             logger.info(f"Successfully downloaded using {config['name']} client")
@@ -335,19 +345,23 @@ async def download_audio(
         except yt_dlp.utils.DownloadError as e:
             error_msg = str(e)
             last_error = e
-            
+
             # Check if it's a bot detection error
             if "Sign in to confirm" in error_msg or "bot" in error_msg.lower():
                 logger.warning(f"Bot detection with {config['name']} client, trying next...")
                 continue  # Try next config
-            
+
             # Parse other common errors - these won't be fixed by retrying
             if "Video unavailable" in error_msg:
-                raise Exception("Video unavailable. It may have been deleted or set to private.") from e
+                raise Exception(
+                    "Video unavailable. It may have been deleted or set to private."
+                ) from e
             elif "This video is private" in error_msg:
                 raise Exception("This video is private and cannot be downloaded.") from e
             elif "Postprocessing" in error_msg:
-                raise Exception("Audio format conversion error. Please try a different format.") from e
+                raise Exception(
+                    "Audio format conversion error. Please try a different format."
+                ) from e
             elif "FFmpeg" in error_msg or "ffmpeg" in error_msg:
                 raise Exception(
                     "FFmpeg error while processing audio. Please check FFmpeg installation."
@@ -364,12 +378,14 @@ async def download_audio(
                 # Unknown error, try next config
                 logger.warning(f"Download error with {config['name']}: {error_msg}")
                 continue
-                
+
         except Exception as e:
             last_error = e
             logger.warning(f"Unexpected error with {config['name']}: {e}")
             continue
-    
+
     # All configs failed
     error_msg = str(last_error) if last_error else "Unknown error"
-    raise Exception(f"Failed to download after trying all bypass methods. Last error: {error_msg}") from last_error
+    raise Exception(
+        f"Failed to download after trying all bypass methods. Last error: {error_msg}"
+    ) from last_error
