@@ -2,7 +2,7 @@
 import shutil
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -39,6 +39,20 @@ templates = Jinja2Templates(directory=str(templates_path))
 app.include_router(api_router, prefix="/api")
 
 
+@app.get("/")
+async def root(request: Request):
+    """
+    Serve the main application page.
+    
+    Args:
+        request: FastAPI request object
+        
+    Returns:
+        TemplateResponse rendering index.html
+    """
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
 @app.get("/health")
 async def health_check():
     """
@@ -55,6 +69,3 @@ async def health_check():
         "ffmpeg_available": ffmpeg_available,
         "queue_active": False,  # Will be updated when queue is implemented
     }
-
-
-# Root route will be added when frontend is ready
