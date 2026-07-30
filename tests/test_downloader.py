@@ -16,7 +16,7 @@ from services.downloader import (
 
 
 @contextlib.contextmanager
-def dummy_context():
+def dummy_context(*args, **kwargs):
     """Dummy context manager to mock youtube_cookies_context during tests."""
     yield "/fake/path/cookies.txt"
 
@@ -40,38 +40,24 @@ class TestFormatDuration:
 class TestYoutubeCookiesContext:
     """Tests for the cookie file lifecycle manager."""
 
-    def test_missing_cookies_returns_none(self, monkeypatch):
-        """Test missing cookies now returns None instead of raising (cookies optional)."""
-        monkeypatch.delenv("YOUTUBE_COOKIES_FILE", raising=False)
-        monkeypatch.delenv("YOUTUBE_COOKIES", raising=False)
+    def test_youtube_cookies_context_creates_temp_file(self):
+        """Test that context manager creates a temp file with cookies."""
+        cookies = "# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\ttest\tvalue\n"
+        with youtube_cookies_context(cookies=cookies) as cookie_path:
+            assert cookie_path is not None
+            assert os.path.exists(cookie_path)
+            with open(cookie_path) as f:
+                content = f.read()
+                assert ".youtube.com" in content
 
-        with youtube_cookies_context() as path:
-            assert path is None
-
-    def test_cookie_file_path_not_exists_returns_none(self, monkeypatch):
-        """Test that a non-existent cookie file returns None with warning."""
-        monkeypatch.setenv("YOUTUBE_COOKIES_FILE", "/path/to/my/cookies.txt")
-        monkeypatch.delenv("YOUTUBE_COOKIES", raising=False)
-
-        with youtube_cookies_context() as path:
-            assert path is None  # Returns None when file doesn't exist
-
-    def test_cookie_string_creates_and_deletes_temp_file(self, monkeypatch):
-        """Test that a raw cookie string creates a temp file and cleans it up."""
-        monkeypatch.delenv("YOUTUBE_COOKIES_FILE", raising=False)
-        monkeypatch.setenv("YOUTUBE_COOKIES", "my_raw_cookie_string")
-
-        yielded_path = None
-        with youtube_cookies_context() as path:
-            assert path is not None, "Expected path to be set when YOUTUBE_COOKIES is provided"
-            yielded_path = path
-            assert os.path.exists(path)
-            with open(path) as f:
-                assert f.read() == "my_raw_cookie_string"
-
-        # Verify deletion
-        assert yielded_path is not None
-        assert not os.path.exists(yielded_path)
+    def test_youtube_cookies_context_cleans_up(self):
+        """Test that context manager deletes temp file after use."""
+        cookies = "# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\ttest\tvalue\n"
+        with youtube_cookies_context(cookies=cookies) as cookie_path:
+            temp_path = cookie_path
+            assert os.path.exists(temp_path)
+        # After context exits, file should be deleted
+        assert not os.path.exists(temp_path)
 
 
 @patch("services.downloader.youtube_cookies_context", side_effect=dummy_context)
@@ -94,7 +80,9 @@ class TestGetVideoInfo:
             mock_instance.__exit__.return_value = None
             mock_instance.extract_info.return_value = mock_info
 
-            result = await get_video_info("https://youtube.com/watch?v=test")
+            result = await get_video_info(
+                "https://youtube.com/watch?v=test", cookies="# Netscape HTTP Cookie File\n"
+            )
 
             assert result["title"] == "Test Video"
             assert result["uploader"] == "Test Channel"
@@ -115,7 +103,7 @@ class TestGetVideoInfo:
             )
 
             with pytest.raises(Exception, match="Invalid URL"):
-                await get_video_info("invalid-url")
+                await get_video_info("invalid-url", cookies="# Netscape HTTP Cookie File\n")
 
 
 @patch("services.downloader.youtube_cookies_context", side_effect=dummy_context)
@@ -138,7 +126,10 @@ class TestDownloadAudio:
             mock_instance.prepare_filename.return_value = str(tmp_path / "Test Video.m4a")
 
             result = await download_audio(
-                "https://youtube.com/watch?v=test", audio_format="m4a", output_dir=str(tmp_path)
+                "https://youtube.com/watch?v=test",
+                cookies="# Netscape HTTP Cookie File\n",
+                audio_format="m4a",
+                output_dir=str(tmp_path),
             )
 
             assert "Test Video.m4a" in result
@@ -159,7 +150,10 @@ class TestDownloadAudio:
             mock_instance.prepare_filename.return_value = str(tmp_path / "Test Video.webm")
 
             result = await download_audio(
-                "https://youtube.com/watch?v=test", audio_format="mp3", output_dir=str(tmp_path)
+                "https://youtube.com/watch?v=test",
+                cookies="# Netscape HTTP Cookie File\n",
+                audio_format="mp3",
+                output_dir=str(tmp_path),
             )
 
             assert result.endswith(".mp3")
@@ -174,4 +168,8 @@ class TestDownloadAudio:
             mock_instance.extract_info.side_effect = yt_dlp.utils.DownloadError("Video unavailable")
 
             with pytest.raises(Exception, match="Video unavailable"):
-                await download_audio("https://youtube.com/watch?v=test", output_dir=str(tmp_path))
+                await download_audio(
+                    "https://youtube.com/watch?v=test",
+                    cookies="# Netscape HTTP Cookie File\n",
+                    output_dir=str(tmp_path),
+                )
