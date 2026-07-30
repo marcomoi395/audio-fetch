@@ -224,3 +224,5 @@ test_downloads/
 *~
 *.swp
 *.swo
+test_fix.py
+tasks/
