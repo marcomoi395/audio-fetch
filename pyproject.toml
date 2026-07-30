@@ -24,6 +24,7 @@ select = [
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
+    "E402",  # module level import not at top (needed for dotenv/PATH setup)
     "B008",  # do not perform function calls in argument defaults
 ]
 
