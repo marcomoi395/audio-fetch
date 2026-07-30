@@ -53,6 +53,16 @@ class AudioFetchPage:
         self.page.click("#retry-btn")
 
     # ------------------------------------------------------------------
+    # Cookie helpers
+    # ------------------------------------------------------------------
+
+    def add_mock_cookies(self):
+        """Add mock cookies to sessionStorage and update button states."""
+        self.page.evaluate(
+            'sessionStorage.setItem("youtube_cookies", "# Netscape HTTP Cookie File\\n.youtube.com\\tTRUE\\t/\\tTRUE\\t0\\ttest\\tvalue"); updateButtonStates();'
+        )
+
+    # ------------------------------------------------------------------
     # Visibility helpers
     # ------------------------------------------------------------------
 

@@ -47,6 +47,9 @@ def test_happy_path_full_flow(page, live_server):
     ap = AudioFetchPage(page, live_server)
     ap.navigate()
 
+    # Add cookies to enable buttons (required since Task 5)
+    ap.add_mock_cookies()
+
     # Initial state: only input-section visible
     ap.wait_for_input()
 

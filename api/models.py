@@ -7,6 +7,7 @@ class VideoInfoRequest(BaseModel):
     """Request model for video info endpoint."""
 
     url: HttpUrl
+    cookies: str
 
 
 class VideoInfoResponse(BaseModel):
@@ -29,3 +30,4 @@ class DownloadRequest(BaseModel):
     url: HttpUrl
     format: str
     quality: str
+    cookies: str
