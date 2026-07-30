@@ -63,44 +63,28 @@ def _clean_cookie_content(raw_content: str) -> str:
 
 
 @contextlib.contextmanager
-def youtube_cookies_context() -> Generator[str | None, None, None]:
+def youtube_cookies_context(cookies: str) -> Generator[str, None, None]:
     """
-    Context manager that yields the path to a YouTube cookies file, or None if not available.
-    Cookies are now OPTIONAL since android client works without them.
-    It prefers YOUTUBE_COOKIES_FILE if set.
-    Otherwise, it reads YOUTUBE_COOKIES, writes it to a temp file, yields the temp file path,
-    and cleans up the temp file on exit.
+    Context manager that yields the path to a YouTube cookies temp file.
+
+    Args:
+        cookies: Netscape-format cookie string from user (required)
+
+    Yields:
+        Path to temporary cookie file
     """
-    cookie_file = os.getenv("YOUTUBE_COOKIES_FILE")
-    cookie_raw = os.getenv("YOUTUBE_COOKIES")
-
-    if cookie_file:
-        if not os.path.exists(cookie_file):
-            logger.warning(f"Cookie file {cookie_file} not found, continuing without cookies.")
-            yield None
-        else:
-            yield cookie_file
-        return
-
-    if cookie_raw:
-        # Clean cookie content to remove #HttpOnly_ prefixes
-        cleaned_cookies = _clean_cookie_content(cookie_raw)
-
-        fd, temp_path = tempfile.mkstemp(suffix=".txt")
+    # Clean and write to temp file
+    cleaned_cookies = _clean_cookie_content(cookies)
+    fd, temp_path = tempfile.mkstemp(suffix=".txt")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(cleaned_cookies)
+        yield temp_path
+    finally:
         try:
-            with os.fdopen(fd, "w") as f:
-                f.write(cleaned_cookies)
-            yield temp_path
-        finally:
-            try:
-                os.unlink(temp_path)
-            except OSError as e:
-                logger.error(f"Failed to delete temp cookie file {temp_path}: {e}")
-        return
-
-    # No cookies available - that's OK, android client doesn't need them
-    logger.info("No cookies configured, using android client which doesn't require cookies.")
-    yield None
+            os.unlink(temp_path)
+        except OSError as e:
+            logger.error(f"Failed to delete temp cookie file {temp_path}: {e}")
 
 
 def format_duration(seconds: int | None) -> str:
@@ -126,35 +110,29 @@ def format_duration(seconds: int | None) -> str:
         return f"{minutes:02d}:{secs:02d}"
 
 
-async def get_video_info(url: str) -> dict[str, Any]:
+async def get_video_info(url: str, cookies: str) -> dict[str, Any]:
     """
     Get video information using yt-dlp.
-    Uses android client by default which works without cookies.
+
+    Args:
+        url: YouTube video URL
+        cookies: Netscape-format cookie string (required)
     """
-    with youtube_cookies_context() as cookie_path:
+    with youtube_cookies_context(cookies=cookies) as cookie_path:
         ydl_opts: dict[str, Any] = {
             "quiet": False,
             "verbose": True,
             "no_warnings": False,
             "extract_flat": False,
-            # Use android client which works without cookies
-            "extractor_args": {
-                "youtube": {
-                    "player_client": ["android"],
-                }
-            },
-            # Additional options
             "nocheckcertificate": True,
             "prefer_insecure": False,
+            "cookiefile": cookie_path,
         }
 
-        # Only add cookiefile if cookies are available
-        # Note: android client doesn't support cookies anyway
-        if cookie_path:
-            logger.info("Cookies available but android client doesn't use them")
+        logger.info(f"Using provided cookies for {url}")
 
         try:
-            logger.info(f"Extracting info for {url} using android client...")
+            logger.info(f"Extracting info for {url}...")
             info = await asyncio.to_thread(_extract_info_sync, url, ydl_opts)
             return info
         except yt_dlp.utils.DownloadError as e:
@@ -179,10 +157,21 @@ def _extract_info_sync(url: str, opts: dict[str, Any]) -> dict[str, Any]:
 
 
 async def download_audio(
-    url: str, audio_format: str = "mp3", quality: str = "0", output_dir: str | None = None
+    url: str,
+    cookies: str,
+    audio_format: str = "mp3",
+    quality: str = "0",
+    output_dir: str | None = None,
 ) -> str:
     """
     Download audio from YouTube and optionally convert it.
+
+    Args:
+        url: YouTube video URL
+        audio_format: Audio format (mp3, m4a, opus, wav, best)
+        quality: Quality level (0=highest, 5=medium, 9=lowest)
+        output_dir: Directory to save file
+        cookies: Netscape-format cookie string (required)
     """
     if not output_dir:
         output_dir = os.getcwd()
@@ -191,19 +180,15 @@ async def download_audio(
     output_path.mkdir(exist_ok=True)
     output_template = str(output_path / "%(title)s.%(ext)s")
 
-    with youtube_cookies_context() as _cookie_path:
-        # Note: cookie_path intentionally unused - android client doesn't support cookies
+    with youtube_cookies_context(cookies=cookies) as cookie_path:
         ydl_opts: dict[str, Any] = {
             "outtmpl": output_template,
             "quiet": False,
             "no_warnings": False,
-            # Use android client which works without cookies
-            "extractor_args": {
-                "youtube": {
-                    "player_client": ["android"],
-                }
-            },
+            "cookiefile": cookie_path,
         }
+
+        logger.info(f"Using provided cookies for {url}")
 
         # Add format conversion options if needed
         if audio_format != "best" and audio_format != "m4a":
@@ -229,7 +214,7 @@ async def download_audio(
             logger.info(f"Starting download for {url} in format {audio_format}...")
             return await asyncio.to_thread(_download_sync, url, ydl_opts)
         except yt_dlp.utils.DownloadError as e:
-            logger.error(f"Failed to download {url}: {e}")
+            logger.error(f"Download failed for {url}: {e}")
             raise Exception(str(e)) from e
 
 
