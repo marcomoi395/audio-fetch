@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from tests.e2e.page_objects import AudioFetchPage
 
 MOCK_INFO = {
@@ -35,6 +37,7 @@ def _intercept_download(route):
     )
 
 
+@pytest.mark.e2e
 def test_happy_path_full_flow(page, live_server):
     """URL input → fetch info → video info displayed → download triggered."""
     # Intercept API calls so no real YouTube network needed
@@ -66,6 +69,7 @@ def test_happy_path_full_flow(page, live_server):
     assert download.suggested_filename == "Test Song.mp3"
 
 
+@pytest.mark.e2e
 def test_initial_state_only_input_visible(page, live_server):
     """On load only input-section is visible; others are hidden."""
     ap = AudioFetchPage(page, live_server)
