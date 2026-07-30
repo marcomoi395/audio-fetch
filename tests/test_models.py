@@ -27,8 +27,8 @@ class TestVideoInfoRequest:
     def test_accepts_valid_cookies(self):
         """Test that valid cookies are accepted."""
         request = VideoInfoRequest(
-            url="https://youtube.com/watch?v=test",
-            cookies="session_token=abc123",  # type: ignore[arg-type]
+            url="https://youtube.com/watch?v=test",  # type: ignore[arg-type]
+            cookies="session_token=abc123",
         )
         assert request.cookies == "session_token=abc123"
 
@@ -49,10 +49,10 @@ class TestDownloadRequest:
         """Test that model accepts empty cookies (route validation will reject)."""
         # Pydantic model accepts empty string - route validation handles this
         request = DownloadRequest(
-            url="https://youtube.com/watch?v=test",
+            url="https://youtube.com/watch?v=test",  # type: ignore[arg-type]
             format="m4a",
             quality="128",
-            cookies="",  # type: ignore[arg-type]
+            cookies="",
         )
         assert request.cookies == ""
 
