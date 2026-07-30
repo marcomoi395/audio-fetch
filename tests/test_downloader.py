@@ -40,22 +40,21 @@ class TestFormatDuration:
 class TestYoutubeCookiesContext:
     """Tests for the cookie file lifecycle manager."""
 
-    def test_missing_cookies_raises_value_error(self, monkeypatch):
-        """Test missing cookies environment variables raise ValueError."""
+    def test_missing_cookies_returns_none(self, monkeypatch):
+        """Test missing cookies now returns None instead of raising (cookies optional)."""
         monkeypatch.delenv("YOUTUBE_COOKIES_FILE", raising=False)
         monkeypatch.delenv("YOUTUBE_COOKIES", raising=False)
 
-        with pytest.raises(ValueError, match="YouTube cookies are strictly required"):
-            with youtube_cookies_context():
-                pass
+        with youtube_cookies_context() as path:
+            assert path is None
 
-    def test_cookie_file_path_yielded(self, monkeypatch):
-        """Test that a predefined cookie file is yielded without deletion."""
+    def test_cookie_file_path_not_exists_returns_none(self, monkeypatch):
+        """Test that a non-existent cookie file returns None with warning."""
         monkeypatch.setenv("YOUTUBE_COOKIES_FILE", "/path/to/my/cookies.txt")
         monkeypatch.delenv("YOUTUBE_COOKIES", raising=False)
 
         with youtube_cookies_context() as path:
-            assert path == "/path/to/my/cookies.txt"
+            assert path is None  # Returns None when file doesn't exist
 
     def test_cookie_string_creates_and_deletes_temp_file(self, monkeypatch):
         """Test that a raw cookie string creates a temp file and cleans it up."""
