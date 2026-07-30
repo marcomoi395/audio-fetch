@@ -25,10 +25,14 @@ async def fetch_video_info(request: VideoInfoRequest):
         VideoInfoResponse with metadata
 
     Raises:
-        HTTPException: 400 if extraction fails
+        HTTPException: 400 if extraction fails or cookies are invalid
     """
+    # Validate cookies are not empty or whitespace-only
+    if not request.cookies or not request.cookies.strip():
+        raise HTTPException(status_code=400, detail="YouTube cookies required")
+
     try:
-        info = await get_video_info(str(request.url))
+        info = await get_video_info(str(request.url), cookies=request.cookies)
         return VideoInfoResponse(**info)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -50,8 +54,12 @@ async def download_audio_endpoint(request: DownloadRequest):
         FileResponse streaming the audio file
 
     Raises:
-        HTTPException: 400 if download fails, 503 if queue is busy
+        HTTPException: 400 if download fails or cookies are invalid, 503 if queue is busy
     """
+    # Validate cookies are not empty or whitespace-only
+    if not request.cookies or not request.cookies.strip():
+        raise HTTPException(status_code=400, detail="YouTube cookies required")
+
     # Check if queue is busy
     if download_queue.is_active():
         raise HTTPException(status_code=503, detail="Another download is in progress. Please wait.")
@@ -70,6 +78,7 @@ async def download_audio_endpoint(request: DownloadRequest):
                 audio_format=request.format,
                 quality=request.quality,
                 output_dir=temp_dir,
+                cookies=request.cookies,
             )
 
             # Determine media type

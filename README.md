@@ -22,11 +22,26 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## YouTube Authentication (Cookies)
+## YouTube Authentication (Required)
 
-This application **strictly requires** YouTube cookies to bypass bot detection and download audio successfully.
+YouTube cookies are **required** for all fetch and download operations. You must provide cookies through the web interface:
 
-See [docs/YOUTUBE_COOKIES.md](docs/YOUTUBE_COOKIES.md) for step-by-step instructions on how to extract and configure your cookies.
+1. Click "🍪 Add Cookies (Required)" in the input form
+2. Paste your YouTube cookies in Netscape format
+3. Cookies are stored in your browser and sent with each request
+
+### How to Export Cookies
+
+**Chrome:** Install "Get cookies.txt LOCALLY" extension
+**Firefox:** Install "cookies.txt" extension
+
+1. Visit youtube.com while logged in
+2. Use the extension to export cookies in Netscape format
+3. Copy and paste into the web interface
+
+**Security Note:** Cookies are processed server-side in temporary files and deleted after use. Never share cookies or use untrusted cookie export tools.
+
+For detailed instructions, see `docs/COOKIE_EXPORT_GUIDE.md`.
 
 ## Running
 

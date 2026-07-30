@@ -63,6 +63,7 @@ addopts = [
     "--cov=.",
     "--cov-report=term-missing",
     "--cov-report=html",
+    "-m", "not e2e",  # Exclude E2E tests by default (run separately: pytest -m e2e)
 ]
 
 [tool.coverage.run]

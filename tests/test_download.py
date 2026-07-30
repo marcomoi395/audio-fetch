@@ -33,6 +33,7 @@ class TestDownloadEndpoint:
                         "url": "https://youtube.com/watch?v=test",
                         "format": "mp3",
                         "quality": "0",
+                        "cookies": "# Netscape HTTP Cookie File\n",
                     },
                 )
 
@@ -47,7 +48,12 @@ class TestDownloadEndpoint:
 
             response = client.post(
                 "/api/download",
-                json={"url": "https://youtube.com/watch?v=test", "format": "mp3", "quality": "0"},
+                json={
+                    "url": "https://youtube.com/watch?v=test",
+                    "format": "mp3",
+                    "quality": "0",
+                    "cookies": "# Netscape HTTP Cookie File\n",
+                },
             )
 
             assert response.status_code == 503
@@ -62,6 +68,7 @@ class TestDownloadEndpoint:
                 "url": "https://youtube.com/watch?v=test",
                 "format": "invalid_format",
                 "quality": "0",
+                "cookies": "# Netscape HTTP Cookie File\n",
             },
         )
 
@@ -100,6 +107,7 @@ class TestDownloadFilenameAndCleanup:
                         "url": "https://youtube.com/watch?v=test",
                         "format": "mp3",
                         "quality": "0",
+                        "cookies": "# Netscape HTTP Cookie File\n",
                     },
                 )
 
@@ -121,6 +129,7 @@ class TestDownloadFilenameAndCleanup:
                         "url": "https://youtube.com/watch?v=test",
                         "format": "mp3",
                         "quality": "0",
+                        "cookies": "# Netscape HTTP Cookie File\n",
                     },
                 )
 
@@ -149,6 +158,7 @@ class TestDownloadFilenameAndCleanup:
                         "url": "https://youtube.com/watch?v=test",
                         "format": "mp3",
                         "quality": "0",
+                        "cookies": "# Netscape HTTP Cookie File\n",
                     },
                 )
 
@@ -169,6 +179,7 @@ class TestDownloadFilenameAndCleanup:
                     "url": "https://youtube.com/watch?v=test",
                     "format": "mp3",
                     "quality": "0",
+                    "cookies": "# Netscape HTTP Cookie File\n",
                 },
             )
             assert response.status_code == 503

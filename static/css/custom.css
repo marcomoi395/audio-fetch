@@ -293,3 +293,110 @@ button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+/* Cookie UI Styles */
+.cookies-section {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+}
+
+#add-cookies-btn {
+    width: 100%;
+    font-size: 0.7rem;
+    padding: 0.5rem;
+}
+
+#cookies-container {
+    margin-top: 0.5rem;
+}
+
+#youtube-cookies {
+    width: 100%;
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.cookie-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.cookie-buttons button {
+    flex: 1;
+    min-width: 100px;
+    font-size: 0.7rem;
+    padding: 0.5rem;
+}
+
+#cookie-status-msg {
+    margin-top: 0.5rem;
+    font-size: 0.7rem;
+    min-height: 1.5rem;
+}
+
+/* Cookie Status Indicator */
+#cookie-status-indicator {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    z-index: 100;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Cookie Security Dialog */
+#cookie-security-dialog {
+    max-width: 500px;
+    padding: 2rem;
+}
+
+#cookie-security-dialog .title {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+}
+
+#cookie-security-dialog ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+#cookie-security-dialog li {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+    position: relative;
+}
+
+.dialog-menu {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding: 0;
+}
+
+/* Responsive cookie UI */
+@media (max-width: 480px) {
+    .cookie-buttons {
+        flex-direction: column;
+    }
+    
+    .cookie-buttons button {
+        width: 100%;
+    }
+    
+    #cookie-status-indicator {
+        bottom: 60px;
+        right: 10px;
+        font-size: 0.6rem;
+        padding: 0.3rem 0.6rem;
+    }
+}
