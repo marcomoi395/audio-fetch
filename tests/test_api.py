@@ -74,7 +74,7 @@ class TestVideoInfoEndpoint:
 
         # Test model accepts cookies field and makes it accessible
         request_with_cookies = VideoInfoRequest(
-            url="https://youtube.com/watch?v=test",
+            url="https://youtube.com/watch?v=test",  # type: ignore[arg-type]
             cookies="# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\tCONSENT\tYES+1",
         )
         assert hasattr(request_with_cookies, "cookies")
