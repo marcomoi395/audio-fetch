@@ -46,9 +46,12 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+# E2E tests must be run separately: pytest tests/e2e/ -v
+markers = [
+    "e2e: End-to-end tests using playwright (run separately)",
+]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

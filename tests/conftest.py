@@ -41,3 +41,19 @@ def mock_download_audio(tmp_path, monkeypatch):
     mock = AsyncMock(return_value=str(fake_file))
     monkeypatch.setattr(routes_module, "download_audio", mock)
     return mock
+
+
+def pytest_collection_modifyitems(config, items):
+    """Auto-mark e2e tests and disable playwright if no e2e tests collected."""
+    has_e2e = False
+
+    for item in items:
+        if "e2e" in str(item.fspath):
+            item.add_marker(pytest.mark.e2e)
+            has_e2e = True
+
+    # If no e2e tests in this run, unregister playwright to avoid event loop conflicts
+    if not has_e2e and config.pluginmanager.has_plugin("playwright"):
+        playwright_plugin = config.pluginmanager.get_plugin("playwright")
+        if playwright_plugin:
+            config.pluginmanager.unregister(playwright_plugin)
