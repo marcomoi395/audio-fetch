@@ -128,6 +128,15 @@ async def get_video_info(url: str, cookies: str) -> dict[str, Any]:
             "prefer_insecure": False,
             "cookiefile": cookie_path,
             "js_runtimes": {"node": {}},  # Enable Node.js for JavaScript challenge solving
+            # Use mweb client with PO Token provider to bypass bot detection
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["mweb"],
+                },
+                "youtubepot-bgutilhttp": {
+                    "base_url": "http://127.0.0.1:4416",
+                },
+            },
         }
 
         logger.info(f"Using provided cookies for {url}")
@@ -188,6 +197,15 @@ async def download_audio(
             "no_warnings": False,
             "cookiefile": cookie_path,
             "js_runtimes": {"node": {}},  # Enable Node.js for JavaScript challenge solving
+            # Use mweb client with PO Token provider to bypass bot detection
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["mweb"],
+                },
+                "youtubepot-bgutilhttp": {
+                    "base_url": "http://127.0.0.1:4416",
+                },
+            },
         }
 
         logger.info(f"Using provided cookies for {url}")

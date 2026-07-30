@@ -43,6 +43,20 @@ YouTube cookies are **required** for all fetch and download operations. You must
 
 For detailed instructions, see `docs/COOKIE_EXPORT_GUIDE.md`.
 
+### PO Token Setup (Bot Detection Bypass)
+
+YouTube now requires PO Tokens in addition to cookies. Audio Fetch automatically handles this using the bgutil plugin.
+
+**For local development**, you need to run the bgutil server:
+```bash
+./start_bgutil.sh  # In one terminal
+./start.sh         # In another terminal
+```
+
+**For Docker deployment**, the bgutil server starts automatically.
+
+See `docs/PO_TOKEN_SETUP.md` for detailed setup and troubleshooting.
+
 ## Running
 
 ```bash
