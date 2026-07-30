@@ -1,4 +1,4 @@
-version: '3.8'
+# Docker Compose configuration for Audio Fetch
 
 services:
   app:
@@ -7,7 +7,9 @@ services:
       dockerfile: Dockerfile
     container_name: audio-fetch
     ports:
-      - "8000:8000"
+      - "8000:8000"  # Main FastAPI application
+      # Port 4416 is used internally by bgutil PO Token provider
+      # No need to expose externally unless debugging
     environment:
       - PORT=8000
       - CORS_ORIGINS=http://localhost:8000
