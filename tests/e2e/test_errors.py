@@ -30,6 +30,7 @@ def test_invalid_url_shows_error_section(page, live_server):
 
     ap = AudioFetchPage(page, live_server)
     ap.navigate()
+    ap.add_mock_cookies()
     ap.enter_url("https://youtube.com/watch?v=invalid")
     ap.click_fetch()
 
@@ -44,6 +45,7 @@ def test_retry_returns_to_input_section(page, live_server):
 
     ap = AudioFetchPage(page, live_server)
     ap.navigate()
+    ap.add_mock_cookies()
     ap.enter_url("https://youtube.com/watch?v=invalid")
     ap.click_fetch()
 
@@ -79,6 +81,7 @@ def test_new_url_clears_input(page, live_server):
 
     ap = AudioFetchPage(page, live_server)
     ap.navigate()
+    ap.add_mock_cookies()
     ap.enter_url("https://youtube.com/watch?v=dQw4w9WgXcQ")
     ap.click_fetch()
     ap.wait_for_video_info(timeout=6000)
@@ -125,6 +128,10 @@ def test_queue_busy_shows_error_on_download(page, live_server):
 
     ap = AudioFetchPage(page, live_server)
     ap.navigate()
+
+    # Add cookies to enable buttons (required since Task 5)
+    ap.add_mock_cookies()
+
     ap.enter_url("https://youtube.com/watch?v=test")
     ap.click_fetch()
     ap.wait_for_video_info(timeout=6000)

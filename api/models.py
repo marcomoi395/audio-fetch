@@ -1,6 +1,6 @@
 """Pydantic models for request/response validation."""
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, HttpUrl
 
 
 class VideoInfoRequest(BaseModel):

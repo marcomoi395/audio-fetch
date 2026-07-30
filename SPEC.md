@@ -210,12 +210,12 @@ def valid_netscape_cookies():
 .youtube.com\tTRUE\t/\tFALSE\t1234567890\tSID\tmock_sid_value
 """
 
+
 # Test cookie parameter passing
 async def test_get_video_info_with_cookies(valid_netscape_cookies):
     """Test video info extraction with user-provided cookies."""
     info = await get_video_info(
-        url="https://www.youtube.com/watch?v=test",
-        cookies=valid_netscape_cookies
+        url="https://www.youtube.com/watch?v=test", cookies=valid_netscape_cookies
     )
     assert info["title"]
     assert info["duration"] > 0

@@ -3,8 +3,8 @@
 ## Phase 1: Backend Foundation
 
 - [x] Task 1: Update API models to require cookies
-- [ ] Task 2: Update downloader service to require cookies (+ security verification)
-- [ ] Task 3: Add cookie validation in API routes
+- [x] Task 2: Update downloader service to require cookies (+ security verification)
+- [x] Task 3: Add cookie validation in API routes
 
 **Checkpoint: Backend Foundation**
 - [ ] All backend code requires cookies
@@ -27,10 +27,10 @@
 
 ## Phase 3: Testing & Cleanup
 
-- [ ] Task 6: Update unit tests to pass required cookies
-- [ ] Task 7: Update integration tests for cookie validation
-- [ ] Task 8: Remove environment variable support and documentation
-- [ ] Task 9: Add E2E test for complete cookie flow
+- [x] Task 6: Update unit tests to pass required cookies
+- [x] Task 7: Update integration tests for cookie validation
+- [x] Task 8: Remove environment variable support and documentation
+- [x] Task 9: Add E2E test for complete cookie flow
 
 **Checkpoint: Complete**
 - [ ] All tests pass: `pytest -v`
