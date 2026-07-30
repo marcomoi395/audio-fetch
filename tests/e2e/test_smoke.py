@@ -1,6 +1,9 @@
 """Smoke test: verify E2E infrastructure works."""
 
+import pytest
 
+
+@pytest.mark.e2e
 def test_homepage_loads(page, live_server):
     """Homepage must return 200 and render the URL input."""
     page.goto(live_server)

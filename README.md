@@ -22,6 +22,12 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+## YouTube Authentication (Cookies)
+
+This application **strictly requires** YouTube cookies to bypass bot detection and download audio successfully.
+
+See [docs/YOUTUBE_COOKIES.md](docs/YOUTUBE_COOKIES.md) for step-by-step instructions on how to extract and configure your cookies.
+
 ## Running
 
 ```bash
@@ -44,15 +50,21 @@ Hooks are automatically active in `.git/hooks/`. See [docs/GIT_HOOKS.md](docs/GI
 
 ### Running Tests
 
+Due to event loop conflicts between `pytest-asyncio` and `pytest-playwright`, tests must be run separately:
+
 ```bash
-# Run all tests
-pytest
+# Run all tests (recommended)
+./run_all_tests.sh
 
-# Run with coverage
-pytest --cov=. --cov-report=html
+# Or run separately:
+# Unit tests only
+pytest tests/ -m "not e2e" -v
 
-# Run specific test file
-pytest tests/test_download.py -v
+# E2E tests only  
+pytest tests/e2e/ -v
+
+# With coverage
+pytest tests/ -m "not e2e" --cov=. --cov-report=html
 ```
 
 ### Code Quality
