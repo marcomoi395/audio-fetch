@@ -251,4 +251,4 @@ def _download_sync(url: str, opts: dict[str, Any]) -> str:
                     codec = pp.get("preferredcodec", "mp3")
                     filename = f"{base}.{codec}"
 
-        return filename
+        return str(filename)
