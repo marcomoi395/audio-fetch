@@ -127,6 +127,7 @@ async def get_video_info(url: str, cookies: str) -> dict[str, Any]:
             "nocheckcertificate": True,
             "prefer_insecure": False,
             "cookiefile": cookie_path,
+            "js_runtimes": {"node": {}},  # Enable Node.js for JavaScript challenge solving
         }
 
         logger.info(f"Using provided cookies for {url}")
@@ -186,6 +187,7 @@ async def download_audio(
             "quiet": False,
             "no_warnings": False,
             "cookiefile": cookie_path,
+            "js_runtimes": {"node": {}},  # Enable Node.js for JavaScript challenge solving
         }
 
         logger.info(f"Using provided cookies for {url}")
