@@ -63,6 +63,7 @@ class TestYoutubeCookiesContext:
 
         yielded_path = None
         with youtube_cookies_context() as path:
+            assert path is not None, "Expected path to be set when YOUTUBE_COOKIES is provided"
             yielded_path = path
             assert os.path.exists(path)
             with open(path) as f:
