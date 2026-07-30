@@ -1,14 +1,13 @@
 """FastAPI application for audio-fetch web app."""
 
-
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
-
 import os
 import shutil
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Load environment variables from .env file before importing app modules
+load_dotenv()
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware

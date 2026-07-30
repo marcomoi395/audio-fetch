@@ -9,7 +9,6 @@ from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
-
 # Ensure Node.js is in PATH for yt-dlp to use
 node_paths = [
     "/home/ym/.local/share/nvm/v22.22.2/bin",
@@ -42,25 +41,25 @@ def _clean_cookie_content(raw_content: str) -> str:
     Clean cookie content to ensure yt-dlp can parse it correctly.
     Removes #HttpOnly_ prefix from cookie lines while preserving actual comments.
     """
-    lines = raw_content.split('\n')
+    lines = raw_content.split("\n")
     cleaned_lines = []
-    
+
     for line in lines:
         # Skip empty lines
         if not line.strip():
             cleaned_lines.append(line)
             continue
-            
+
         # Handle #HttpOnly_ prefix - these are actual cookies, not comments
-        if line.startswith('#HttpOnly_'):
+        if line.startswith("#HttpOnly_"):
             # Remove the #HttpOnly_ prefix to make it a valid cookie line
-            cleaned_line = line[len('#HttpOnly_'):]
+            cleaned_line = line[len("#HttpOnly_") :]
             cleaned_lines.append(cleaned_line)
         else:
             # Keep regular comment lines and normal cookie lines as-is
             cleaned_lines.append(line)
-    
-    return '\n'.join(cleaned_lines)
+
+    return "\n".join(cleaned_lines)
 
 
 @contextlib.contextmanager
@@ -86,7 +85,7 @@ def youtube_cookies_context() -> Generator[str | None, None, None]:
     if cookie_raw:
         # Clean cookie content to remove #HttpOnly_ prefixes
         cleaned_cookies = _clean_cookie_content(cookie_raw)
-        
+
         fd, temp_path = tempfile.mkstemp(suffix=".txt")
         try:
             with os.fdopen(fd, "w") as f:
@@ -125,6 +124,8 @@ def format_duration(seconds: int | None) -> str:
         return f"{hours:02d}:{minutes:02d}:{secs:02d}"
     else:
         return f"{minutes:02d}:{secs:02d}"
+
+
 async def get_video_info(url: str) -> dict[str, Any]:
     """
     Get video information using yt-dlp.
@@ -146,7 +147,7 @@ async def get_video_info(url: str) -> dict[str, Any]:
             "nocheckcertificate": True,
             "prefer_insecure": False,
         }
-        
+
         # Only add cookiefile if cookies are available
         # Note: android client doesn't support cookies anyway
         if cookie_path:
@@ -190,8 +191,8 @@ async def download_audio(
     output_path.mkdir(exist_ok=True)
     output_template = str(output_path / "%(title)s.%(ext)s")
 
-    with youtube_cookies_context() as cookie_path:
-        # Base yt-dlp options - use android client which works without cookies
+    with youtube_cookies_context() as _cookie_path:
+        # Note: cookie_path intentionally unused - android client doesn't support cookies
         ydl_opts: dict[str, Any] = {
             "outtmpl": output_template,
             "quiet": False,
