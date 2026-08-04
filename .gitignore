@@ -226,3 +226,4 @@ test_downloads/
 *.swo
 test_fix.py
 tasks/
+SPEC.md
