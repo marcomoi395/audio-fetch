@@ -40,13 +40,22 @@ class TierStrategy:
     when encountering bot detection or access restrictions.
     """
 
-    def __init__(self, browser: str = "chrome") -> None:
+    def __init__(
+        self,
+        browser: str = "chrome",
+        tier2_enabled: bool = True,
+        tier3_enabled: bool = False,
+    ) -> None:
         """Initialize tier strategy.
 
         Args:
             browser: Browser to extract cookies from (chrome, firefox, edge, brave)
+            tier2_enabled: Enable Tier 2 browser cookie authentication
+            tier3_enabled: Enable Tier 3 advanced strategies
         """
         self.browser = browser
+        self.tier2_enabled = tier2_enabled
+        self.tier3_enabled = tier3_enabled
         self.tiers: dict[DownloadTier, list[TierConfig]] = {}
         self._define_tiers()
 

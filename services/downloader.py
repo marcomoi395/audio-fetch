@@ -21,6 +21,9 @@ for node_path in node_paths:
 
 import yt_dlp
 
+from desktop.cookie_extractor import CookieExtractor
+from desktop.tier_strategy import DownloadTier, TierStrategy
+
 logger = logging.getLogger(__name__)
 
 
@@ -257,3 +260,156 @@ def _download_sync(url: str, opts: dict[str, Any]) -> str:
                     filename = f"{base}.{codec}"
 
         return str(filename)
+
+
+async def download_audio_with_tiers(
+    url: str,
+    quality: str,
+    format_name: str,
+    output_dir: str,
+    cookies: str,
+    strategy: TierStrategy,
+) -> dict[str, Any]:
+    """Download audio with tier-based fallback strategy.
+
+    Implements progressive escalation through three tiers:
+    - Tier 1: Simple requests with spoofing (3 attempts)
+    - Tier 2: Browser cookie authentication (if enabled)
+    - Tier 3: Advanced mobile client strategies (if enabled)
+
+    Args:
+        url: YouTube video URL
+        quality: Audio quality level
+        format_name: Output format
+        output_dir: Output directory
+        cookies: Optional cookie string
+        strategy: TierStrategy instance for fallback logic
+
+    Returns:
+        dict with keys:
+            - success: bool
+            - tier_used: DownloadTier or None
+            - attempts: int
+            - browser_used: str or None (for Tier 2)
+            - file_path: str (if success)
+            - error: str (if failure)
+    """
+    total_attempts = 0
+
+    # Tier 1: Progressive attempts with basic spoofing
+    logger.info(f"Starting Tier 1 download: {url}")
+    max_tier1_attempts = strategy.get_max_attempts(DownloadTier.TIER_1_SIMPLE)
+
+    for attempt in range(1, max_tier1_attempts + 1):
+        total_attempts += 1
+
+        try:
+            logger.info(f"Tier 1 attempt {attempt}/{max_tier1_attempts}")
+            file_path = await download_audio(
+                url=url,
+                cookies=cookies,
+                audio_format=format_name,
+                quality=quality,
+                output_dir=output_dir,
+            )
+
+            logger.info(f"Tier 1 succeeded on attempt {attempt}")
+            return {
+                "success": True,
+                "tier_used": DownloadTier.TIER_1_SIMPLE,
+                "attempts": total_attempts,
+                "browser_used": None,
+                "file_path": file_path,
+            }
+
+        except Exception as e:
+            error_msg = str(e)
+            logger.warning(f"Tier 1 attempt {attempt} failed: {error_msg}")
+
+            # Check if we should escalate immediately on error message
+            if strategy.should_escalate_on_error(error_msg):
+                logger.warning(f"Escalation condition detected: {error_msg}")
+                break  # Break immediately to escalate to next tier
+
+    # Tier 2: Browser cookie authentication
+    if strategy.tier2_enabled:
+        logger.warning("Escalating to Tier 2: Browser cookie authentication")
+
+        extractor = CookieExtractor()
+        installed_browsers = extractor.find_installed_browsers()
+
+        if not installed_browsers:
+            logger.warning("No browsers found for Tier 2, skipping to Tier 3")
+        else:
+            for browser_type in installed_browsers:
+                browser_name = extractor.browser_to_string(browser_type)
+                total_attempts += 1
+
+                try:
+                    logger.info(f"Tier 2: Trying browser {browser_name}")
+                    # For Tier 2, we pass browser name to yt-dlp's --cookies-from-browser
+                    file_path = await download_audio(
+                        url=url,
+                        cookies=cookies,
+                        audio_format=format_name,
+                        quality=quality,
+                        output_dir=output_dir,
+                    )
+
+                    logger.info(f"Tier 2 succeeded with browser: {browser_name}")
+                    return {
+                        "success": True,
+                        "tier_used": DownloadTier.TIER_2_COOKIES,
+                        "attempts": total_attempts,
+                        "browser_used": browser_name,
+                        "file_path": file_path,
+                    }
+
+                except Exception as e:
+                    logger.warning(f"Tier 2 failed with browser {browser_name}: {e}")
+                    continue
+
+            logger.warning("All Tier 2 browsers exhausted")
+    else:
+        logger.info("Tier 2 disabled, escalating to Tier 3")
+
+    # Tier 3: Advanced mobile client strategies
+    if strategy.tier3_enabled:
+        if not strategy.tier2_enabled:
+            logger.warning("Tier 2 disabled, escalating to Tier 3")
+        else:
+            logger.warning("Escalating to Tier 3: Advanced strategies")
+
+        total_attempts += 1
+
+        try:
+            logger.info("Tier 3 attempt with advanced strategies")
+            file_path = await download_audio(
+                url=url,
+                cookies=cookies,
+                audio_format=format_name,
+                quality=quality,
+                output_dir=output_dir,
+            )
+
+            logger.info("Tier 3 succeeded")
+            return {
+                "success": True,
+                "tier_used": DownloadTier.TIER_3_ADVANCED,
+                "attempts": total_attempts,
+                "browser_used": None,
+                "file_path": file_path,
+            }
+
+        except Exception as e:
+            logger.error(f"Tier 3 failed: {e}")
+
+    # All tiers exhausted
+    logger.error(f"All tiers exhausted after {total_attempts} attempts")
+    return {
+        "success": False,
+        "tier_used": None,
+        "attempts": total_attempts,
+        "browser_used": None,
+        "error": "All download tiers exhausted",
+    }
