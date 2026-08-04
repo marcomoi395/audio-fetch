@@ -54,7 +54,7 @@ You should see `(venv)` in your command prompt.
 
 ```cmd
 pip install --upgrade pip
-pip install -r requirements-desktop.txt
+pip install -r requirements.txt
 ```
 
 This installs:
@@ -236,7 +236,7 @@ Edit `audio-fetch.spec`, uncomment the `COLLECT` section and comment out the sin
 - [ ] Python 3.11+ installed and in PATH
 - [ ] Visual C++ Redistributables installed
 - [ ] Virtual environment activated
-- [ ] Dependencies installed (`requirements-desktop.txt`)
+- [ ] Dependencies installed (`requirements.txt`)
 - [ ] PyInstaller spec file present (`audio-fetch.spec`)
 - [ ] Build completed without errors
 - [ ] Executable created in `dist/`

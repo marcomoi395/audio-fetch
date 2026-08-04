@@ -1,14 +1,46 @@
-# Audio Fetch
+# Audio Fetch Desktop
 
-A simple YouTube audio downloader with an 8-bit themed web interface.
+A native desktop application for downloading YouTube audio with automatic cookie extraction and multi-tier fallback strategies.
+
+## Features
+
+- **Native Desktop Window**: Qt-based application with embedded web interface
+- **Single Instance Lock**: Prevents multiple instances from running simultaneously
+- **Auto Cookie Extraction**: Automatically extracts browser cookies for YouTube authentication (Chrome, Firefox, Edge, Brave)
+- **3-Tier Download Strategy**: Progressive fallback system for robust downloading
+- **Quit Confirmation**: Warns before closing if downloads are in progress
+- **Cross-Platform**: Runs on Linux, Windows, and macOS
+- **Standalone Binary**: Can be packaged as a single executable with PyInstaller
 
 ## Prerequisites
 
-- Python 3.9+
-- FFmpeg (for audio conversion)
+- **Python 3.11+** (for running from source)
+- **FFmpeg** (for audio format conversion)
 
-## Installation
+### Installing FFmpeg
 
+**Linux (Debian/Ubuntu):**
+```bash
+sudo apt install ffmpeg
+```
+
+**Linux (Arch):**
+```bash
+sudo pacman -S ffmpeg
+```
+
+**Windows:**
+- Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+- Add to PATH
+
+**macOS:**
+```bash
+brew install ffmpeg
+```
+
+## Quick Start
+
+### Option 1: Run from Source
 ```bash
 # Clone the repository
 git clone <repository-url>
@@ -20,97 +52,17 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
-```
 
-## YouTube Authentication (Required)
-
-YouTube cookies are **required** for all fetch and download operations. You must provide cookies through the web interface:
-
-1. Click "🍪 Add Cookies (Required)" in the input form
-2. Paste your YouTube cookies in Netscape format
-3. Cookies are stored in your browser and sent with each request
-
-### How to Export Cookies
-
-**Chrome:** Install "Get cookies.txt LOCALLY" extension
-**Firefox:** Install "cookies.txt" extension
-
-1. Visit youtube.com while logged in
-2. Use the extension to export cookies in Netscape format
-3. Copy and paste into the web interface
-
-**Security Note:** Cookies are processed server-side in temporary files and deleted after use. Never share cookies or use untrusted cookie export tools.
-
-For detailed instructions, see `docs/COOKIE_EXPORT_GUIDE.md`.
-
-### PO Token Setup (Bot Detection Bypass)
-
-YouTube now requires PO Tokens in addition to cookies. Audio Fetch automatically handles this using the bgutil plugin.
-
-**For local development**, you need to run the bgutil server:
-```bash
-./start_bgutil.sh  # In one terminal
-./start.sh         # In another terminal
-```
-
-**For Docker deployment**, the bgutil server starts automatically.
-
-See `docs/PO_TOKEN_SETUP.md` for detailed setup and troubleshooting.
-
-## Running
-
-```bash
-# Start the server
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Access the app at `http://localhost:8000`
-
-## Desktop Application
-
-Audio Fetch includes a native desktop application built with PySide6 that wraps the web interface in a standalone executable.
-
-### Features
-
-- **Native Window**: Embedded web UI in a native desktop window
-- **Single Instance**: Prevents multiple instances from running simultaneously
-- **Quit Confirmation**: Warns before closing if downloads are in progress
-- **Auto Cookie Extraction**: Automatically extracts browser cookies for YouTube authentication (Chrome, Firefox, Edge, Brave)
-- **3-Tier Download Strategy**: Progressive fallback system for robust downloading
-- **System Tray**: (Future feature) Minimize to system tray
-
-### Installation
-
-```bash
-# Install desktop dependencies
-pip install -r requirements-desktop.txt
-```
-
-### Running the Desktop App
-
-```bash
-# Run directly with Python
+# Run the application
 python desktop_main.py
 ```
 
-The desktop app will:
-1. Check for another running instance (shows error if found)
-2. Load configuration from `~/.config/audio-fetch/config.json` (Linux) or `%APPDATA%/audio-fetch/config.json` (Windows)
-3. Start the FastAPI server on configured port (default 8000)
-4. Open the native window with embedded web UI
-5. Log to `~/.config/audio-fetch/logs/app.log`
-
-### Building from Source
+### Option 2: Build Standalone Binary
 
 **Linux:**
 ```bash
-# Install dependencies
-pip install -r requirements-desktop.txt
-
-# Build binary
-pyinstaller audio-fetch.spec
-
-# Run binary
+pip install -r requirements.txt
+pyinstaller audio-fetch.spec --clean
 ./dist/audio-fetch
 ```
 
@@ -118,15 +70,28 @@ pyinstaller audio-fetch.spec
 
 See [docs/BUILD_WINDOWS.md](docs/BUILD_WINDOWS.md) for detailed Windows build instructions.
 
-### Configuration
+## How It Works
 
-Desktop app configuration is stored in platform-specific locations:
+1. **Application starts** → checks for existing instance via lock file
+2. **FastAPI server starts** on configured port (default: 8000)
+3. **Qt window opens** with embedded WebEngine browser
+4. **User pastes YouTube URL** → app extracts cookies from installed browsers
+5. **Download uses 3-tier strategy**:
+   - Tier 1: Basic yt-dlp with cookies
+   - Tier 2: Advanced yt-dlp options (ignore errors, extract-audio)
+   - Tier 3: Mobile client emulation and OAuth2
+6. **Files saved** to configured download directory
+
+## Configuration
+
+Configuration is stored in platform-specific locations:
 
 - **Linux**: `~/.config/audio-fetch/config.json`
-- **Windows**: `%APPDATA%/audio-fetch/config.json`
+- **Windows**: `%APPDATA%\audio-fetch\config.json`
 - **macOS**: `~/Library/Application Support/audio-fetch/config.json`
 
-Default configuration:
+### Default Configuration
+
 ```json
 {
   "version": "1.0",
@@ -144,52 +109,146 @@ Default configuration:
 }
 ```
 
-### Troubleshooting
+### Configuration Options
 
-**"Audio Fetch is already running"**
-- Another instance is already running
-- Check for stale lock file at `~/.config/audio-fetch/app.lock` (Linux) or `%APPDATA%/audio-fetch/app.lock` (Windows)
-- If process is dead, manually delete the lock file
+- `server.port`: Port for embedded FastAPI server (default: 8000)
+- `server.auto_detect_port`: Automatically find available port if default is busy (default: true)
+- `download.default_path`: Where downloaded files are saved
+- `logging.level`: Log verbosity (DEBUG, INFO, WARNING, ERROR)
+- `logging.file`: Path to log file
 
-**Browser cookies not found**
-- Ensure your browser (Chrome/Firefox/Edge/Brave) is installed
-- Cookies are extracted automatically when needed
-- Fallback: Use web interface to manually add cookies
+See [docs/CONFIG_SCHEMA.md](docs/CONFIG_SCHEMA.md) for complete schema documentation.
 
-**Logs not appearing**
-- Check `~/.config/audio-fetch/logs/app.log`
-- Default log level is WARNING (set to INFO in config for more details)
+## YouTube Authentication
 
-For more details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+YouTube requires authentication to download videos. Audio Fetch handles this automatically:
+
+### Automatic Cookie Extraction
+
+The app automatically extracts cookies from installed browsers:
+- Chrome / Chromium
+- Firefox
+- Microsoft Edge
+- Brave
+
+**How it works:**
+1. App detects installed browsers on your system
+2. When a download starts, cookies are extracted from browser profiles
+3. Cookies are passed to yt-dlp for authentication
+4. No manual cookie export needed!
+
+### Manual Cookie Export (Fallback)
+
+If automatic extraction fails, you can manually export cookies:
+
+1. Install browser extension:
+   - **Chrome**: "Get cookies.txt LOCALLY"
+   - **Firefox**: "cookies.txt"
+2. Visit youtube.com while logged in
+3. Export cookies in Netscape format
+4. Paste into the web interface cookie field
+
+**Security Note:** Cookies contain authentication tokens. Never share cookies or use untrusted export tools.
+
+For detailed instructions, see [docs/COOKIE_EXPORT_GUIDE.md](docs/COOKIE_EXPORT_GUIDE.md).
+
+## Troubleshooting
+
+### "Audio Fetch is already running"
+
+**Cause:** Another instance is already running, or a stale lock file exists.
+
+**Solution:**
+1. Check if the app is running in Task Manager / System Monitor
+2. If not running, manually delete the lock file:
+   - Linux: `~/.config/audio-fetch/app.lock`
+   - Windows: `%APPDATA%\audio-fetch\app.lock`
+   - macOS: `~/Library/Application Support/audio-fetch/app.lock`
+
+### "Port 8000 is already in use"
+
+**Cause:** Another application is using port 8000.
+
+**Solution:**
+1. Enable auto port detection in config:
+   ```json
+   {
+     "server": {
+       "auto_detect_port": true
+     }
+   }
+   ```
+2. Or manually specify a different port
+
+### Browser cookies not found
+
+**Cause:** Browser is not installed or cookies cannot be accessed.
+
+**Solution:**
+1. Ensure browser (Chrome/Firefox/Edge/Brave) is installed
+2. Log in to YouTube at least once
+3. Try running app with elevated permissions (may be needed for Firefox)
+4. Fallback: Use manual cookie export
+
+### Downloads fail with "Sign in to confirm you're not a bot"
+
+**Cause:** YouTube bot detection, cookies expired, or no authentication.
+
+**Solution:**
+1. Ensure you're logged in to YouTube in your browser
+2. Clear browser cache and log in again
+3. Try manual cookie export
+4. The 3-tier strategy will automatically retry with different methods
+
+### Qt/PySide6 errors on Linux
+
+**Cause:** Missing system Qt libraries.
+
+**Solution:**
+```bash
+# Debian/Ubuntu
+sudo apt install libxcb-xinerama0 libxcb-cursor0
+
+# Arch
+sudo pacman -S qt6-base
+```
+
+### FFmpeg not found
+
+**Cause:** FFmpeg not installed or not in PATH.
+
+**Solution:**
+- Install FFmpeg (see Prerequisites section)
+- Verify: `ffmpeg -version`
+- Without FFmpeg, only m4a format is available
+
+### Logs not appearing
+
+**Cause:** Default log level is WARNING.
+
+**Solution:**
+- Change `logging.level` to `INFO` or `DEBUG` in config
+- Check log file location: `~/.config/audio-fetch/logs/app.log`
 
 ## Development
 
-### Git Hooks
-
-This project uses git hooks to ensure code quality:
-
-- **pre-commit**: Auto-formats code with `ruff` before each commit
-- **pre-push**: Runs tests and validates formatting before pushing
-
-Hooks are automatically active in `.git/hooks/`. See [docs/GIT_HOOKS.md](docs/GIT_HOOKS.md) for details.
-
 ### Running Tests
 
-Due to event loop conflicts between `pytest-asyncio` and `pytest-playwright`, tests must be run separately:
-
 ```bash
-# Run all tests (recommended)
-./run_all_tests.sh
+# Activate virtual environment
+source venv/bin/activate
 
-# Or run separately:
-# Unit tests only
-pytest tests/ -m "not e2e" -v
+# Run all tests
+pytest tests/
 
-# E2E tests only  
-pytest tests/e2e/ -v
+# Run desktop tests only
+pytest tests/desktop/ -v
 
-# With coverage
-pytest tests/ -m "not e2e" --cov=. --cov-report=html
+# Run with coverage
+pytest tests/ --cov=desktop --cov=services --cov=api --cov-report=html
+
+# Run specific test file
+pytest tests/desktop/test_server_manager.py -v
 ```
 
 ### Code Quality
@@ -208,41 +267,23 @@ ruff check --fix .
 mypy . --ignore-missing-imports
 ```
 
-## Deployment
+## Architecture
 
-### Quick Deploy to Render
+Audio Fetch uses a hybrid architecture:
 
-**Recommended: Docker Deployment (with FFmpeg support)**
+- **Desktop Layer** (Qt/PySide6): Native window, system integration, process management
+- **Server Layer** (FastAPI/Uvicorn): Embedded HTTP server running in background thread
+- **UI Layer** (HTML/CSS/JS): Web interface rendered in Qt WebEngine
+- **Service Layer** (yt-dlp): Download orchestration with tier strategy
 
-1. Push code to GitHub
-2. Create new Web Service on [Render](https://dashboard.render.com/)
-3. Select **Docker** as environment
-4. Set environment variable: `PORT=8000`
-5. Deploy!
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
 
-See [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) for detailed instructions.
+## Documentation
 
-### Local Production Mode
-
-```bash
-# Install production dependencies only
-pip install -r requirements-prod.txt
-
-# Run with production settings
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
-**Production Requirements:**
-- FFmpeg installed on server (for MP3/OPUS/WAV conversion)
-- Configure CORS via `CORS_ORIGINS` environment variable
-- Use reverse proxy (nginx/caddy) for HTTPS in self-hosted setups
-
-**Format Support Without FFmpeg:**
-- ✅ m4a (native YouTube format)
-- ✅ best (no conversion needed)
-- ❌ mp3, opus, wav (requires FFmpeg)
-
-For complete deployment guide including Docker setup, see [docs/RENDER_DEPLOYMENT.md](docs/RENDER_DEPLOYMENT.md)
+- [Architecture Overview](docs/ARCHITECTURE.md)
+- [Configuration Schema](docs/CONFIG_SCHEMA.md)
+- [Building for Windows](docs/BUILD_WINDOWS.md)
+- [Cookie Export Guide](docs/COOKIE_EXPORT_GUIDE.md)
 
 ## License
 
