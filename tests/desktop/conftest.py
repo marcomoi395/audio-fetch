@@ -1,10 +1,31 @@
 """Pytest fixtures for desktop application tests."""
 
+import sys
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+from PySide6.QtWidgets import QApplication
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    """Create Qt application instance for tests.
+
+    This is a session-scoped fixture that creates a single QApplication
+    instance for all GUI tests. Qt requires exactly one QApplication
+    instance per process.
+
+    Yields:
+        QApplication instance
+    """
+    # Check if QApplication already exists
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication(sys.argv)
+    yield app
+    # QApplication cleanup happens automatically at process exit
 
 
 @pytest.fixture
