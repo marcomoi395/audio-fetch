@@ -12,6 +12,7 @@ import sys
 from PySide6.QtWidgets import QApplication
 
 from desktop.app_window import AudioFetchWindow
+from desktop.config_manager import ConfigManager
 from desktop.server_manager import ServerManager
 
 logger = logging.getLogger(__name__)
@@ -50,16 +51,36 @@ class DesktopApp:
                 self.app = QApplication(sys.argv)
             else:
                 self.app = QApplication.instance()
+            # Load configuration
+            config_manager = ConfigManager()
+            try:
+                config = config_manager.load()
+                logger.info("Configuration loaded successfully")
+            except Exception as e:
+                logger.warning(f"Failed to load config: {e}, using defaults")
+                config = config_manager.get_config()
 
-            # Start FastAPI server
+            # Start FastAPI server with config values
+            server_port = config["server"]["port"]
+            server_auto_detect = config["server"]["auto_detect"]
             logger.info("Starting FastAPI server...")
-            self.server = ServerManager(host="127.0.0.1", port=8000, auto_detect=True)
+            self.server = ServerManager(
+                host="127.0.0.1", port=server_port, auto_detect=server_auto_detect
+            )
             await self.server.start(timeout=10)
             server_url = self.server.get_url()
             logger.info(f"Server started at {server_url}")
 
-            # Create main window
-            self.window = AudioFetchWindow(server_url=server_url)
+            # Create main window with config values
+            window_width = config["ui"]["window_width"]
+            window_height = config["ui"]["window_height"]
+            window_title = config["ui"]["window_title"]
+            self.window = AudioFetchWindow(
+                server_url=server_url,
+                width=window_width,
+                height=window_height,
+                title=window_title,
+            )
 
             # Connect window close signal to cleanup
             self.window.window_closed.connect(self._on_window_closed)
