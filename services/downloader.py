@@ -136,9 +136,6 @@ async def get_video_info(url: str, cookies: str) -> dict[str, Any]:
                 "youtube": {
                     "player_client": ["mweb"],
                 },
-                "youtubepot-bgutilhttp": {
-                    "base_url": "http://127.0.0.1:4416",
-                },
             },
         }
 
@@ -204,9 +201,6 @@ async def download_audio(
             "extractor_args": {
                 "youtube": {
                     "player_client": ["mweb"],
-                },
-                "youtubepot-bgutilhttp": {
-                    "base_url": "http://127.0.0.1:4416",
                 },
             },
         }

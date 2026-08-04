@@ -55,7 +55,6 @@ hiddenimports = [
     'yt_dlp.postprocessor',
     'yt_dlp.downloader',
     'yt_dlp_plugins',
-    'bgutil_ytdlp_pot_provider',
     'yt_dlp_ejs',
     
     # HTTP and async libraries
