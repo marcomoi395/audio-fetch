@@ -1,0 +1,26 @@
+{
+  "server": {
+    "port": 8000,
+    "host": "127.0.0.1",
+    "auto_detect": true
+  },
+  "downloads": {
+    "default_path": "~/Downloads/AudioFetch"
+  },
+  "tier_strategy": {
+    "browser": "chrome",
+    "fallback_enabled": true,
+    "tier_1_attempts": 3
+  },
+  "ui": {
+    "window_width": 1200,
+    "window_height": 800,
+    "window_title": "Audio Fetch"
+  },
+  "logging": {
+    "level": "WARNING",
+    "file": "~/.local/share/audio-fetch/logs/app.log",
+    "max_bytes": 10485760,
+    "backup_count": 3
+  }
+}
