@@ -156,7 +156,7 @@ Audio Fetch Desktop is a PySide6-based desktop application that embeds the FastA
 
 **Tier 3: Advanced (optional)**
 - Mobile user agents
-- PO token generation (bgutil)
+- Mobile clients and OAuth2
 - Bypasses bot detection
 
 **Escalation Logic:**
