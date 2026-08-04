@@ -66,6 +66,102 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 Access the app at `http://localhost:8000`
 
+## Desktop Application
+
+Audio Fetch includes a native desktop application built with PySide6 that wraps the web interface in a standalone executable.
+
+### Features
+
+- **Native Window**: Embedded web UI in a native desktop window
+- **Single Instance**: Prevents multiple instances from running simultaneously
+- **Quit Confirmation**: Warns before closing if downloads are in progress
+- **Auto Cookie Extraction**: Automatically extracts browser cookies for YouTube authentication (Chrome, Firefox, Edge, Brave)
+- **3-Tier Download Strategy**: Progressive fallback system for robust downloading
+- **System Tray**: (Future feature) Minimize to system tray
+
+### Installation
+
+```bash
+# Install desktop dependencies
+pip install -r requirements-desktop.txt
+```
+
+### Running the Desktop App
+
+```bash
+# Run directly with Python
+python desktop_main.py
+```
+
+The desktop app will:
+1. Check for another running instance (shows error if found)
+2. Load configuration from `~/.config/audio-fetch/config.json` (Linux) or `%APPDATA%/audio-fetch/config.json` (Windows)
+3. Start the FastAPI server on configured port (default 8000)
+4. Open the native window with embedded web UI
+5. Log to `~/.config/audio-fetch/logs/app.log`
+
+### Building from Source
+
+**Linux:**
+```bash
+# Install dependencies
+pip install -r requirements-desktop.txt
+
+# Build binary
+pyinstaller audio-fetch.spec
+
+# Run binary
+./dist/audio-fetch
+```
+
+**Windows:**
+
+See [docs/BUILD_WINDOWS.md](docs/BUILD_WINDOWS.md) for detailed Windows build instructions.
+
+### Configuration
+
+Desktop app configuration is stored in platform-specific locations:
+
+- **Linux**: `~/.config/audio-fetch/config.json`
+- **Windows**: `%APPDATA%/audio-fetch/config.json`
+- **macOS**: `~/Library/Application Support/audio-fetch/config.json`
+
+Default configuration:
+```json
+{
+  "version": "1.0",
+  "server": {
+    "port": 8000,
+    "auto_detect_port": true
+  },
+  "download": {
+    "default_path": "~/Downloads/audio-fetch"
+  },
+  "logging": {
+    "level": "WARNING",
+    "file": "~/.config/audio-fetch/logs/app.log"
+  }
+}
+```
+
+### Troubleshooting
+
+**"Audio Fetch is already running"**
+- Another instance is already running
+- Check for stale lock file at `~/.config/audio-fetch/app.lock` (Linux) or `%APPDATA%/audio-fetch/app.lock` (Windows)
+- If process is dead, manually delete the lock file
+
+**Browser cookies not found**
+- Ensure your browser (Chrome/Firefox/Edge/Brave) is installed
+- Cookies are extracted automatically when needed
+- Fallback: Use web interface to manually add cookies
+
+**Logs not appearing**
+- Check `~/.config/audio-fetch/logs/app.log`
+- Default log level is WARNING (set to INFO in config for more details)
+
+For more details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## Development
 
 ### Git Hooks
