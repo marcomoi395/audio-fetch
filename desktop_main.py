@@ -1,0 +1,149 @@
+"""Entry point for Audio Fetch desktop application.
+
+Manages the lifecycle of the FastAPI server and Qt GUI, including graceful
+shutdown on user close or system signals (SIGINT/SIGTERM).
+"""
+
+import asyncio
+import logging
+import signal
+import sys
+
+from PySide6.QtWidgets import QApplication
+
+from desktop.app_window import AudioFetchWindow
+from desktop.server_manager import ServerManager
+
+logger = logging.getLogger(__name__)
+
+
+class DesktopApp:
+    """Desktop application lifecycle manager.
+
+    Coordinates server startup/shutdown with Qt window lifecycle.
+
+    Attributes:
+        server: ServerManager instance
+        window: AudioFetchWindow instance
+        app: QApplication instance
+    """
+
+    def __init__(self) -> None:
+        """Initialize application components."""
+        self.server: ServerManager | None = None
+        self.window: AudioFetchWindow | None = None
+        self.app: QApplication | None = None
+        self._cleanup_pending = False
+
+    async def run(self) -> int:
+        """Run the desktop application.
+
+        Starts the FastAPI server, creates the main window, and runs the Qt
+        event loop until the window is closed or a system signal is received.
+
+        Returns:
+            Exit code (0 for success, non-zero for failure)
+        """
+        try:
+            # Initialize Qt application
+            if not QApplication.instance():
+                self.app = QApplication(sys.argv)
+            else:
+                self.app = QApplication.instance()
+
+            # Start FastAPI server
+            logger.info("Starting FastAPI server...")
+            self.server = ServerManager(host="127.0.0.1", port=8000, auto_detect=True)
+            await self.server.start(timeout=10)
+            server_url = self.server.get_url()
+            logger.info(f"Server started at {server_url}")
+
+            # Create main window
+            self.window = AudioFetchWindow(server_url=server_url)
+
+            # Connect window close signal to cleanup
+            self.window.window_closed.connect(self._on_window_closed)
+
+            # Show window
+            self.window.show()
+
+            # Set up signal handlers for graceful shutdown
+            self._setup_signal_handlers()
+
+            # Run Qt event loop
+            logger.info("Starting Qt event loop...")
+            exit_code = self.app.exec()
+            logger.info(f"Qt event loop exited with code {exit_code}")
+
+            return exit_code
+
+        except Exception as e:
+            logger.error(f"Failed to start application: {e}", exc_info=True)
+            await self._cleanup()
+            return 1
+
+    def _on_window_closed(self) -> None:
+        """Handle window close event.
+
+        Triggers application shutdown and cleanup.
+        """
+        logger.info("Window closed, shutting down...")
+        if self.app:
+            self.app.quit()
+
+    def _setup_signal_handlers(self) -> None:
+        """Set up signal handlers for SIGINT and SIGTERM.
+
+        Enables graceful shutdown when user presses Ctrl+C or system sends
+        termination signal.
+        """
+
+        def handle_signal(signum, frame):
+            """Signal handler for SIGINT and SIGTERM."""
+            logger.info(f"Received signal {signum}, shutting down...")
+            if self.app:
+                self.app.quit()
+
+        # Register signal handlers
+        signal.signal(signal.SIGINT, handle_signal)
+        signal.signal(signal.SIGTERM, handle_signal)
+
+        # Note: Ctrl+C will trigger SIGINT. On some systems, we also need to
+        # ensure the event loop periodically processes signals. This is handled
+        # by Qt's event loop, which checks for signals during processing.
+
+    async def _cleanup(self) -> None:
+        """Stop server and clean up resources.
+
+        Ensures server is stopped and all resources are released before exit.
+        """
+        if self._cleanup_pending:
+            return
+        self._cleanup_pending = True
+
+        if self.server and self.server.is_running():
+            logger.info("Stopping server...")
+            try:
+                await self.server.stop()
+                logger.info("Server stopped successfully")
+            except Exception as e:
+                logger.error(f"Error stopping server: {e}", exc_info=True)
+
+
+async def main() -> int:
+    """Main entry point for the desktop application.
+
+    Returns:
+        Exit code (0 for success, non-zero for failure)
+    """
+    app_manager = DesktopApp()
+    try:
+        return await app_manager.run()
+    finally:
+        # Ensure cleanup happens
+        await app_manager._cleanup()
+
+
+if __name__ == "__main__":
+    exit_code = asyncio.run(main())
+    sys.exit(exit_code)
