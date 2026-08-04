@@ -8,11 +8,13 @@ import asyncio
 import logging
 import signal
 import sys
+from pathlib import Path
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from desktop.app_window import AudioFetchWindow
 from desktop.config_manager import ConfigManager
+from desktop.instance_lock import InstanceLock
 from desktop.server_manager import ServerManager
 
 logger = logging.getLogger(__name__)
@@ -27,6 +29,7 @@ class DesktopApp:
         server: ServerManager instance
         window: AudioFetchWindow instance
         app: QApplication instance
+        instance_lock: InstanceLock instance for single-instance enforcement
     """
 
     def __init__(self) -> None:
@@ -34,7 +37,18 @@ class DesktopApp:
         self.server: ServerManager | None = None
         self.window: AudioFetchWindow | None = None
         self.app: QApplication | None = None
+        self.instance_lock: InstanceLock | None = None
         self._cleanup_pending = False
+
+    def _get_lock_file_path(self) -> Path:
+        """Get platform-specific lock file path.
+
+        Returns:
+            Path to lock file in config directory
+        """
+        config_manager = ConfigManager()
+        config_dir = config_manager.get_config_dir()
+        return config_dir / "app.lock"
 
     async def run(self) -> int:
         """Run the desktop application.
@@ -51,6 +65,28 @@ class DesktopApp:
                 self.app = QApplication(sys.argv)
             else:
                 self.app = QApplication.instance()
+
+            # Check for another running instance
+            lock_file = self._get_lock_file_path()
+            self.instance_lock = InstanceLock(str(lock_file))
+
+            # Try to acquire lock (port will be set after config loads)
+            # For now, use a placeholder - we'll update after getting actual port
+            if not self.instance_lock.acquire(port=8000):
+                # Another instance is running
+                info = self.instance_lock.get_lock_info()
+                if info:
+                    port = info.get("port", "unknown")
+                    message = f"Audio Fetch is already running on port {port}."
+                else:
+                    message = "Audio Fetch is already running."
+
+                QMessageBox.critical(
+                    None,
+                    "Already Running",
+                    message,
+                )
+                return 1
             # Load configuration
             config_manager = ConfigManager()
             try:
@@ -149,6 +185,11 @@ class DesktopApp:
                 logger.info("Server stopped successfully")
             except Exception as e:
                 logger.error(f"Error stopping server: {e}", exc_info=True)
+
+        # Release instance lock
+        if self.instance_lock:
+            logger.info("Releasing instance lock...")
+            self.instance_lock.release()
 
 
 async def main() -> int:
