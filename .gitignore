@@ -228,3 +228,5 @@ test_downloads/
 test_fix.py
 tasks/
 SPEC.md
+dist/
+build/
