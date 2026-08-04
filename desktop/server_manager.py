@@ -87,7 +87,7 @@ class ServerManager:
         ready = await self._wait_for_ready(timeout)
         if not ready:
             self._running = False
-            raise RuntimeError("Server failed to start within timeout")
+            raise TimeoutError("Server failed to start within timeout")
 
         logger.warning(f"FastAPI server started at {self.get_url()}")
 
@@ -99,7 +99,7 @@ class ServerManager:
         self._running = False
 
         if self._server:
-            self._server.should_exit = True
+            await self._server.shutdown()
 
         if self._thread:
             self._thread.join(timeout=5)
@@ -155,17 +155,14 @@ class ServerManager:
         Returns:
             True if server became ready, False if timeout
         """
-        import httpx
-
         start_time = asyncio.get_event_loop().time()
 
         while asyncio.get_event_loop().time() - start_time < timeout:
             try:
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(f"{self.get_url()}/health", timeout=1.0)
-                    if response.status_code == 200:
-                        return True
-            except (httpx.ConnectError, httpx.TimeoutException):
+                # Try to connect to the server port
+                socket.create_connection((self.host, self.port), timeout=1.0)
+                return True
+            except (ConnectionRefusedError, OSError):
                 await asyncio.sleep(0.1)
 
         return False
