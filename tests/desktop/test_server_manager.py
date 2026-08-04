@@ -194,7 +194,7 @@ class TestServerManagerLifecycle:
 
         mock_server = AsyncMock()
         mock_server.serve = AsyncMock()
-        mock_server.shutdown = AsyncMock()
+        mock_server.should_exit = False
 
         with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
             with patch.object(manager, "_wait_for_ready", return_value=True):
@@ -205,8 +205,8 @@ class TestServerManagerLifecycle:
                 # Stop the server
                 await manager.stop()
 
-                # Should call shutdown
-                mock_server.shutdown.assert_called_once()
+                # Should set should_exit flag
+                assert mock_server.should_exit is True
 
                 # Should no longer be running
                 assert manager.is_running() is False

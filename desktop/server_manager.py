@@ -98,9 +98,11 @@ class ServerManager:
 
         self._running = False
 
+        # Signal uvicorn server to exit
         if self._server:
-            await self._server.shutdown()
+            self._server.should_exit = True
 
+        # Wait for thread to finish
         if self._thread:
             self._thread.join(timeout=5)
 

@@ -48,7 +48,7 @@ class DesktopApp:
             Path to lock file in config directory
         """
         config_manager = ConfigManager()
-        config_dir = config_manager.get_config_dir()
+        config_dir = config_manager.get_config_path().parent
         return config_dir / "app.lock"
 
     async def run(self) -> int:
@@ -98,7 +98,7 @@ class DesktopApp:
                 config = config_manager.get_config()
 
             # Initialize logging
-            log_file = config_manager.get_config_dir() / "logs" / "app.log"
+            log_file = config_manager.get_config_path().parent / "logs" / "app.log"
             log_level = config.get("logging", {}).get("level", "WARNING")
             setup_logging(str(log_file), level=log_level)
             logger.info("Application starting...")
