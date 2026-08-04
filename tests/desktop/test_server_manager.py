@@ -1,5 +1,6 @@
 """Tests for ServerManager - FastAPI server lifecycle management."""
 
+import asyncio
 import socket
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -112,7 +113,9 @@ class TestServerManagerLifecycle:
         mock_server.serve = AsyncMock()
 
         with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
-            with patch.object(manager, "_wait_for_ready", return_value=True):
+            with patch.object(
+                manager, "_wait_for_ready", new_callable=AsyncMock, return_value=True
+            ):
                 await manager.start(timeout=5)
 
                 assert manager.is_running() is True
@@ -141,7 +144,9 @@ class TestServerManagerLifecycle:
                 mock_server.serve = AsyncMock()
 
                 with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
-                    with patch.object(manager, "_wait_for_ready", return_value=True):
+                    with patch.object(
+                        manager, "_wait_for_ready", new_callable=AsyncMock, return_value=True
+                    ):
                         await manager.start(timeout=5)
 
                         # Port should have been changed to 8001
@@ -156,19 +161,36 @@ class TestServerManagerLifecycle:
         """Test that starting server twice raises RuntimeError."""
         manager = ServerManager(port=8002, auto_detect=False)
 
+        # Create an event to keep the mock server running
+        server_running = asyncio.Event()
+
+        async def mock_serve():
+            """Mock serve that waits until signaled to stop."""
+            await server_running.wait()
+
         mock_server = AsyncMock()
-        mock_server.serve = AsyncMock()
+        mock_server.serve = mock_serve
 
-        with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
-            with patch.object(manager, "_wait_for_ready", return_value=True):
-                await manager.start(timeout=5)
-
-                # Try to start again - should raise error
-                with pytest.raises(RuntimeError, match="Server is already running"):
+        try:
+            with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
+                with patch.object(
+                    manager, "_wait_for_ready", new_callable=AsyncMock, return_value=True
+                ):
                     await manager.start(timeout=5)
 
-        # Cleanup
-        await manager.stop()
+                    # Give thread time to fully start
+                    await asyncio.sleep(0.1)
+
+                    # Verify server is running
+                    assert manager.is_running() is True
+
+                    # Try to start again - should raise error
+                    with pytest.raises(RuntimeError, match="Server is already running"):
+                        await manager.start(timeout=5)
+        finally:
+            # Signal server to stop and cleanup
+            server_running.set()
+            await manager.stop()
 
     @pytest.mark.asyncio
     async def test_start_server_timeout(self):
@@ -180,7 +202,9 @@ class TestServerManagerLifecycle:
 
         with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
             # Mock _wait_for_ready to return False (timeout)
-            with patch.object(manager, "_wait_for_ready", return_value=False):
+            with patch.object(
+                manager, "_wait_for_ready", new_callable=AsyncMock, return_value=False
+            ):
                 with pytest.raises(TimeoutError, match="Server failed to start"):
                     await manager.start(timeout=1)
 
@@ -197,7 +221,9 @@ class TestServerManagerLifecycle:
         mock_server.should_exit = False
 
         with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
-            with patch.object(manager, "_wait_for_ready", return_value=True):
+            with patch.object(
+                manager, "_wait_for_ready", new_callable=AsyncMock, return_value=True
+            ):
                 await manager.start(timeout=5)
 
                 assert manager.is_running() is True
@@ -236,7 +262,9 @@ class TestServerManagerLifecycle:
         mock_server.serve = AsyncMock()
 
         with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
-            with patch.object(manager, "_wait_for_ready", return_value=True):
+            with patch.object(
+                manager, "_wait_for_ready", new_callable=AsyncMock, return_value=True
+            ):
                 await manager.start(timeout=5)
                 assert manager.is_running() is True
 
