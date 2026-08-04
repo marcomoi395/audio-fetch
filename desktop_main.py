@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from desktop.app_window import AudioFetchWindow
 from desktop.config_manager import ConfigManager
 from desktop.instance_lock import InstanceLock
+from desktop.logging_config import setup_logging
 from desktop.server_manager import ServerManager
 
 logger = logging.getLogger(__name__)
@@ -95,6 +96,12 @@ class DesktopApp:
             except Exception as e:
                 logger.warning(f"Failed to load config: {e}, using defaults")
                 config = config_manager.get_config()
+
+            # Initialize logging
+            log_file = config_manager.get_config_dir() / "logs" / "app.log"
+            log_level = config.get("logging", {}).get("level", "WARNING")
+            setup_logging(str(log_file), level=log_level)
+            logger.info("Application starting...")
 
             # Start FastAPI server with config values
             server_port = config["server"]["port"]
