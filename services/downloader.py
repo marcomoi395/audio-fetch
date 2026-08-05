@@ -1,11 +1,8 @@
 """YouTube audio downloader service using yt-dlp."""
 
 import asyncio
-import contextlib
 import logging
 import os
-import tempfile
-from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
@@ -39,62 +36,6 @@ SUPPORTED_FORMATS = {
 QUALITY_LEVELS = {"0": "Cao nhất (320kbps)", "5": "Trung bình (192kbps)", "9": "Thấp (128kbps)"}
 
 
-def _clean_cookie_content(raw_content: str) -> str:
-    """
-    Clean cookie content to ensure yt-dlp can parse it correctly.
-    Removes #HttpOnly_ prefix from cookie lines while preserving actual comments.
-    """
-    lines = raw_content.split("\n")
-    cleaned_lines = []
-
-    for line in lines:
-        # Skip empty lines
-        if not line.strip():
-            cleaned_lines.append(line)
-            continue
-
-        # Handle #HttpOnly_ prefix - these are actual cookies, not comments
-        if line.startswith("#HttpOnly_"):
-            # Remove the #HttpOnly_ prefix to make it a valid cookie line
-            cleaned_line = line[len("#HttpOnly_") :]
-            cleaned_lines.append(cleaned_line)
-        else:
-            # Keep regular comment lines and normal cookie lines as-is
-            cleaned_lines.append(line)
-
-    return "\n".join(cleaned_lines)
-
-
-@contextlib.contextmanager
-def youtube_cookies_context(cookies: str | None) -> Generator[str | None, None, None]:
-    """
-    Context manager that yields the path to a YouTube cookies temp file.
-
-    Args:
-        cookies: Optional Netscape-format cookie string from user
-
-    Yields:
-        Path to temporary cookie file, or None if no cookies provided
-    """
-    # If no cookies provided or empty, yield None
-    if not cookies or not cookies.strip():
-        yield None
-        return
-
-    # Clean and write to temp file
-    cleaned_cookies = _clean_cookie_content(cookies)
-    fd, temp_path = tempfile.mkstemp(suffix=".txt")
-    try:
-        with os.fdopen(fd, "w") as f:
-            f.write(cleaned_cookies)
-        yield temp_path
-    finally:
-        try:
-            os.unlink(temp_path)
-        except OSError as e:
-            logger.error(f"Failed to delete temp cookie file {temp_path}: {e}")
-
-
 def format_duration(seconds: int | None) -> str:
     """
     Format duration from seconds to MM:SS or HH:MM:SS.
@@ -126,40 +67,31 @@ async def get_video_info(url: str, cookies: str | None = None) -> dict[str, Any]
         url: YouTube video URL
         cookies: Optional Netscape-format cookie string
     """
-    # Use cookies if provided, otherwise empty string for context manager
-    cookie_str = cookies if cookies else ""
+    ydl_opts: dict[str, Any] = {
+        "quiet": False,
+        "verbose": True,
+        "no_warnings": False,
+        "extract_flat": False,
+        "nocheckcertificate": True,
+        "prefer_insecure": False,
+        "js_runtimes": {"node": {}},  # Enable Node.js for JavaScript challenge solving
+    }
 
-    with youtube_cookies_context(cookies=cookie_str) as cookie_path:
-        ydl_opts: dict[str, Any] = {
-            "quiet": False,
-            "verbose": True,
-            "no_warnings": False,
-            "extract_flat": False,
-            "nocheckcertificate": True,
-            "prefer_insecure": False,
-            "js_runtimes": {"node": {}},  # Enable Node.js for JavaScript challenge solving
-        }
+    logger.info(f"Fetching info without cookies for {url}")
+    # Use basic spoofing for no-cookie requests
+    ydl_opts["extractor_args"] = {
+        "youtube": {
+            "player_client": ["mweb", "web"],
+        },
+    }
 
-        # Only add cookie file if cookies were provided and file was created
-        if cookies and cookie_path:
-            ydl_opts["cookiefile"] = cookie_path
-            logger.info(f"Using provided cookies for {url}")
-        else:
-            logger.info(f"Fetching info without cookies for {url}")
-            # Use basic spoofing for no-cookie requests
-            ydl_opts["extractor_args"] = {
-                "youtube": {
-                    "player_client": ["mweb", "web"],
-                },
-            }
-
-        try:
-            logger.info(f"Extracting info for {url}...")
-            info = await asyncio.to_thread(_extract_info_sync, url, ydl_opts)
-            return info
-        except yt_dlp.utils.DownloadError as e:
-            logger.error(f"Failed to extract info for {url}: {e}")
-            raise Exception(str(e)) from e
+    try:
+        logger.info(f"Extracting info for {url}...")
+        info = await asyncio.to_thread(_extract_info_sync, url, ydl_opts)
+        return info
+    except yt_dlp.utils.DownloadError as e:
+        logger.error(f"Failed to extract info for {url}: {e}")
+        raise Exception(str(e)) from e
 
 
 def _extract_info_sync(url: str, opts: dict[str, Any]) -> dict[str, Any]:
@@ -206,125 +138,114 @@ async def download_audio(
     output_path.mkdir(exist_ok=True)
     output_template = str(output_path / "%(title)s.%(ext)s")
 
-    # Use cookies if provided, otherwise empty string for context manager
-    cookie_str = cookies if cookies else ""
+    ydl_opts: dict[str, Any] = {
+        "outtmpl": output_template,
+        "quiet": False,
+        "no_warnings": False,
+    }
 
-    with youtube_cookies_context(cookies=cookie_str) as cookie_path:
-        ydl_opts: dict[str, Any] = {
-            "outtmpl": output_template,
-            "quiet": False,
-            "no_warnings": False,
+    # Configure authentication method
+    if cookies_from_browser:
+        # Tier 2: Use browser cookie extraction
+        ydl_opts["cookiesfrombrowser"] = (cookies_from_browser,)
+        logger.info(f"Using cookies from browser: {cookies_from_browser}")
+
+    # Configure player client
+    if player_client:
+        # Custom player client (e.g., Tier 3)
+        ydl_opts["extractor_args"] = {
+            "youtube": {
+                "player_client": player_client,
+            },
         }
+        logger.info(f"Using player clients: {player_client}")
+    elif not cookies_from_browser:
+        # Default Tier 1: Android client (fast, reliable, no auth needed)
+        # High quality (format 399+251: 1080p video + opus 160kbps audio)
+        logger.info("🥇 TIER 1 CONFIG: Using Android client (default, no auth)")
+        ydl_opts["extractor_args"] = {
+            "youtube": {
+                "player_client": ["android"],
+            },
+        }
+        logger.info("   └─ Player client: ['android']")
+        logger.info("   └─ Auth: None required")
+        logger.info("   └─ Expected quality: High (format 399+251)")
 
-        # Configure authentication method
-        if cookies_from_browser:
-            # Tier 2: Use browser cookie extraction
-            ydl_opts["cookiesfrombrowser"] = (cookies_from_browser,)
-            logger.info(f"Using cookies from browser: {cookies_from_browser}")
-        elif cookies and cookie_path:
-            # User-supplied cookies
-            ydl_opts["cookiefile"] = cookie_path
-            logger.info(f"Using provided cookies for {url}")
+    # Enable thumbnail download (postprocessors handle embedding)
+    ydl_opts["writethumbnail"] = True
+
+    # Configure format-specific postprocessors
+    postprocessors = []
+
+    if audio_format == "best":
+        # For best format, no audio conversion needed
+        pass
+    elif audio_format == "m4a":
+        # For m4a, extract audio to ensure proper container
+        postprocessors.append(
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "m4a",
+            }
+        )
+    elif audio_format == "opus":
+        postprocessors.append(
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "opus",
+            }
+        )
+    elif audio_format == "wav":
+        postprocessors.append(
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "wav",
+            }
+        )
+    else:  # mp3
+        postprocessors.append(
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+            }
+        )
+        # Set quality for mp3
+        if quality == "0":
+            postprocessors[0]["preferredquality"] = "320"
+        elif quality == "5":
+            postprocessors[0]["preferredquality"] = "192"
         else:
-            logger.info(f"Downloading without cookies for {url}")
+            postprocessors[0]["preferredquality"] = "128"
 
-        # Configure player client
-        if player_client:
-            # Custom player client (e.g., Tier 3)
-            ydl_opts["extractor_args"] = {
-                "youtube": {
-                    "player_client": player_client,
-                },
-            }
-            logger.info(f"Using player clients: {player_client}")
-        elif not cookies and not cookies_from_browser:
-            # Default Tier 1: Android client (fast, reliable, no auth needed)
-            # High quality (format 399+251: 1080p video + opus 160kbps audio)
-            logger.info("🥇 TIER 1 CONFIG: Using Android client (default, no auth)")
-            ydl_opts["extractor_args"] = {
-                "youtube": {
-                    "player_client": ["android"],
-                },
-            }
-            logger.info("   └─ Player client: ['android']")
-            logger.info("   └─ Auth: None required")
-            logger.info("   └─ Expected quality: High (format 399+251)")
+    # Add thumbnail conversion and embedding
+    postprocessors.append(
+        {
+            "key": "FFmpegThumbnailsConvertor",
+            "format": "jpg",
+        }
+    )
+    postprocessors.append(
+        {
+            "key": "EmbedThumbnail",
+        }
+    )
 
-        # Enable thumbnail download (postprocessors handle embedding)
-        ydl_opts["writethumbnail"] = True
+    ydl_opts["postprocessors"] = postprocessors
 
-        # Configure format-specific postprocessors
-        postprocessors = []
-
-        if audio_format == "best":
-            # For best format, no audio conversion needed
-            pass
-        elif audio_format == "m4a":
-            # For m4a, extract audio to ensure proper container
-            postprocessors.append(
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": "m4a",
-                }
-            )
-        elif audio_format == "opus":
-            postprocessors.append(
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": "opus",
-                }
-            )
-        elif audio_format == "wav":
-            postprocessors.append(
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": "wav",
-                }
-            )
-        else:  # mp3
-            postprocessors.append(
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": "mp3",
-                }
-            )
-            # Set quality for mp3
-            if quality == "0":
-                postprocessors[0]["preferredquality"] = "320"
-            elif quality == "5":
-                postprocessors[0]["preferredquality"] = "192"
-            else:
-                postprocessors[0]["preferredquality"] = "128"
-
-        # Add thumbnail conversion and embedding
-        postprocessors.append(
-            {
-                "key": "FFmpegThumbnailsConvertor",
-                "format": "jpg",
-            }
+    try:
+        logger.info("📥 Starting yt-dlp download:")
+        logger.info(f"   └─ URL: {url}")
+        logger.info(f"   └─ Format: {audio_format}")
+        logger.info(f"   └─ Quality: {quality}")
+        logger.info(
+            f"   └─ Player client: {ydl_opts.get('extractor_args', {}).get('youtube', {}).get('player_client', 'default')}"
         )
-        postprocessors.append(
-            {
-                "key": "EmbedThumbnail",
-            }
-        )
-
-        ydl_opts["postprocessors"] = postprocessors
-
-        try:
-            logger.info("📥 Starting yt-dlp download:")
-            logger.info(f"   └─ URL: {url}")
-            logger.info(f"   └─ Format: {audio_format}")
-            logger.info(f"   └─ Quality: {quality}")
-            logger.info(
-                f"   └─ Player client: {ydl_opts.get('extractor_args', {}).get('youtube', {}).get('player_client', 'default')}"
-            )
-            logger.info(f"   └─ Cookies: {bool(cookie_path)}")
-            logger.info(f"   └─ Browser cookies: {bool(cookies_from_browser)}")
-            return await asyncio.to_thread(_download_sync, url, ydl_opts)
-        except yt_dlp.utils.DownloadError as e:
-            logger.error(f"Download failed for {url}: {e}")
-            raise Exception(str(e)) from e
+        logger.info(f"   └─ Browser cookies: {bool(cookies_from_browser)}")
+        return await asyncio.to_thread(_download_sync, url, ydl_opts)
+    except yt_dlp.utils.DownloadError as e:
+        logger.error(f"Download failed for {url}: {e}")
+        raise Exception(str(e)) from e
 
 
 def _download_sync(url: str, opts: dict[str, Any]) -> str:
