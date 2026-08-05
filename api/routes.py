@@ -26,12 +26,10 @@ async def fetch_video_info(request: VideoInfoRequest):
         VideoInfoResponse with metadata
 
     Raises:
-        HTTPException: 400 if extraction fails or cookies are invalid
+        HTTPException: 400 if extraction fails
     """
-    # Cookies are optional - will use tier-based approach if not provided
-
     try:
-        info = await get_video_info(str(request.url), cookies=request.cookies)
+        info = await get_video_info(str(request.url))
         return VideoInfoResponse(**info)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
