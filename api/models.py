@@ -7,7 +7,6 @@ class VideoInfoRequest(BaseModel):
     """Request model for video info endpoint."""
 
     url: HttpUrl
-    cookies: str | None = None
 
 
 class VideoInfoResponse(BaseModel):
