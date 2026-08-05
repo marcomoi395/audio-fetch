@@ -44,40 +44,6 @@
                     <button id="fetch-btn" class="nes-btn is-primary">Fetch Info</button>
                 </div>
                 
-                <!-- Optional Cookies Section -->
-                <div class="cookies-section" style="margin-top: 1rem;">
-                    <button id="add-cookies-btn" class="nes-btn is-warning" style="font-size: 0.7rem; margin-bottom: 0.5rem;">
-                        🍪 Add Cookies (Required)
-                    </button>
-                    <div id="cookies-container" style="margin-top: 0.5rem;">
-                        <textarea 
-                            id="youtube-cookies" 
-                            class="nes-textarea" 
-                            rows="4"
-                            placeholder="# Netscape HTTP Cookie File&#10;.youtube.com	TRUE	/	TRUE	0	CONSENT	YES+1&#10;.youtube.com	TRUE	/	FALSE	1234567890	VISITOR_INFO1_LIVE	xxx"
-                            style="font-family: monospace; font-size: 0.7rem; resize: vertical;"
-                        ></textarea>
-                        <p class="nes-text is-warning" style="font-size: 0.6rem; margin-top: 0.5rem;">
-                            ⚠️ YouTube cookies are REQUIRED for all operations. Files are deleted after use.
-                        </p>
-                        
-                        <!-- Remember Cookies Checkbox -->
-                        <label style="font-size: 0.8rem; margin-top: 0.5rem; display: block;">
-                            <input type="checkbox" class="nes-checkbox" id="persist-cookies-checkbox">
-                            <span>Remember cookies (keep across sessions)</span>
-                        </label>
-                        
-                        <!-- Cookie Action Buttons -->
-                        <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <button id="save-cookies-btn" class="nes-btn is-success" style="font-size: 0.7rem;">Save Cookies</button>
-                            <button id="clear-cookies-btn" class="nes-btn is-error" style="font-size: 0.7rem;">Clear Cookies</button>
-                            <button id="cancel-cookies-btn" class="nes-btn" style="font-size: 0.7rem;">Cancel</button>
-                        </div>
-                        
-                        <!-- Cookie Status Message Area -->
-                        <div id="cookie-status-message" style="display: none; margin-top: 0.5rem; font-size: 0.7rem;"></div>
-                    </div>
-                </div>
             </section>
 
             <!-- Loading State -->
@@ -161,10 +127,6 @@
         </main>
 
         <!-- Footer -->
-        <!-- Cookie Status Indicator -->
-        <div id="cookie-status-indicator" class="nes-badge" style="display: none; position: fixed; bottom: 80px; right: 20px; background: #92cc41; padding: 0.5rem 1rem; font-size: 0.7rem;">
-            <span class="is-success">🍪 Cookies Active</span>
-        </div>
 
         <!-- Footer -->
         <footer class="footer">
@@ -179,29 +141,7 @@
 
 
     <!-- Security Warning Dialog -->
-    <dialog id="cookie-security-dialog" class="nes-dialog">
-        <form method="dialog">
-            <p class="title">⚠️ Cookie Security Warning</p>
-            <p style="font-size: 0.8rem; line-height: 1.6;">
-                Before proceeding, please understand:
-            </p>
-            <ul style="font-size: 0.75rem; line-height: 1.8; margin: 1rem 0;">
-                <li>🔒 Cookies are stored in your browser only (localStorage/sessionStorage)</li>
-                <li>📤 Cookies are sent to the server for each request</li>
-                <li>📁 Server creates temporary files that are deleted after use</li>
-                <li>📝 Cookie content may appear in server debug logs</li>
-                <li>⚠️ Only use cookies you trust and understand the risks</li>
-            </ul>
-            <p style="font-size: 0.75rem; margin-top: 1rem;">
-                🔍 Source code: <a href="https://github.com/youngmarco/audio-fetch" target="_blank" rel="noopener noreferrer" style="color: #209cee;">github.com/youngmarco/audio-fetch</a>
-            </p>
-            <menu class="dialog-menu" style="margin-top: 1.5rem;">
-                <button class="nes-btn is-primary" style="font-size: 0.8rem;">I Understand</button>
-            </menu>
-        </form>
-    </dialog>
 
     <!-- Scripts -->
     <script src="/static/js/audio.js"></script>
-    <script src="/static/js/cookies.js"></script>
     <script src="/static/js/app.js"></script>
