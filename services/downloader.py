@@ -271,7 +271,6 @@ async def download_audio_with_tiers(
     quality: str,
     format_name: str,
     output_dir: str,
-    cookies: str,
     strategy: TierStrategy,
 ) -> dict[str, Any]:
     """Download audio with tier-based fallback strategy.
@@ -286,7 +285,6 @@ async def download_audio_with_tiers(
         quality: Audio quality level
         format_name: Output format
         output_dir: Output directory
-        cookies: Optional cookie string
         strategy: TierStrategy instance for fallback logic
 
     Returns:

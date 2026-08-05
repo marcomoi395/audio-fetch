@@ -81,7 +81,6 @@ async def download_audio_endpoint(request: DownloadRequest):
                 quality=request.quality,
                 format_name=request.format,
                 output_dir=temp_dir,
-                cookies=request.cookies or "",
                 strategy=strategy,
             )
 
