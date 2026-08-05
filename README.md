@@ -182,8 +182,7 @@ The app automatically extracts cookies from installed browsers:
 **Solution:**
 1. Ensure you're logged in to YouTube in your browser
 2. Clear browser cache and log in again
-3. Try manual cookie export
-4. The 3-tier strategy will automatically retry with different methods
+3. The 3-tier strategy will automatically retry with different methods
 
 ### Qt/PySide6 errors on Linux
 
