@@ -111,7 +111,6 @@ def _extract_info_sync(url: str, opts: dict[str, Any]) -> dict[str, Any]:
 
 async def download_audio(
     url: str,
-    cookies: str | None = None,
     audio_format: str = "mp3",
     quality: str = "0",
     output_dir: str | None = None,
@@ -123,7 +122,6 @@ async def download_audio(
 
     Args:
         url: YouTube video URL
-        cookies: Optional Netscape-format cookie string
         audio_format: Audio format (mp3, m4a, opus, wav, best)
         quality: Quality level (0=highest, 5=medium, 9=lowest)
         output_dir: Directory to save file
@@ -321,7 +319,6 @@ async def download_audio_with_tiers(
             logger.info(f"🔄 Tier 1 attempt {attempt}/{max_tier1_attempts}")
             file_path = await download_audio(
                 url=url,
-                cookies=cookies,
                 audio_format=format_name,
                 quality=quality,
                 output_dir=output_dir,
@@ -376,7 +373,6 @@ async def download_audio_with_tiers(
                     # For Tier 2, use yt-dlp's --cookies-from-browser
                     file_path = await download_audio(
                         url=url,
-                        cookies=None,  # Don't use user cookies
                         cookies_from_browser=browser_name.lower(),  # Extract from browser
                         audio_format=format_name,
                         quality=quality,
@@ -421,7 +417,6 @@ async def download_audio_with_tiers(
             # For Tier 3, use mobile clients that sometimes bypass restrictions
             file_path = await download_audio(
                 url=url,
-                cookies=cookies if cookies else None,
                 audio_format=format_name,
                 quality=quality,
                 output_dir=output_dir,
