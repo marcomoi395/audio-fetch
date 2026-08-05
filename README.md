@@ -137,20 +137,6 @@ The app automatically extracts cookies from installed browsers:
 3. Cookies are passed to yt-dlp for authentication
 4. No manual cookie export needed!
 
-### Manual Cookie Export (Fallback)
-
-If automatic extraction fails, you can manually export cookies:
-
-1. Install browser extension:
-   - **Chrome**: "Get cookies.txt LOCALLY"
-   - **Firefox**: "cookies.txt"
-2. Visit youtube.com while logged in
-3. Export cookies in Netscape format
-4. Paste into the web interface cookie field
-
-**Security Note:** Cookies contain authentication tokens. Never share cookies or use untrusted export tools.
-
-For detailed instructions, see [docs/COOKIE_EXPORT_GUIDE.md](docs/COOKIE_EXPORT_GUIDE.md).
 
 ## Troubleshooting
 
@@ -188,7 +174,6 @@ For detailed instructions, see [docs/COOKIE_EXPORT_GUIDE.md](docs/COOKIE_EXPORT_
 1. Ensure browser (Chrome/Firefox/Edge/Brave) is installed
 2. Log in to YouTube at least once
 3. Try running app with elevated permissions (may be needed for Firefox)
-4. Fallback: Use manual cookie export
 
 ### Downloads fail with "Sign in to confirm you're not a bot"
 
