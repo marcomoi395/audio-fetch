@@ -25,7 +25,6 @@ class TestDownloadWithTiers:
                 quality="5",
                 format_name="m4a",
                 output_dir=str(tmp_path),
-                cookies="",
                 strategy=strategy,
             )
 
@@ -52,7 +51,6 @@ class TestDownloadWithTiers:
                 quality="5",
                 format_name="m4a",
                 output_dir=str(tmp_path),
-                cookies="",
                 strategy=strategy,
             )
 
@@ -88,7 +86,6 @@ class TestDownloadWithTiers:
                         quality="5",
                         format_name="m4a",
                         output_dir=str(tmp_path),
-                        cookies="",
                         strategy=strategy,
                     )
 
@@ -127,7 +124,6 @@ class TestDownloadWithTiers:
                     quality="5",
                     format_name="m4a",
                     output_dir=str(tmp_path),
-                    cookies="",
                     strategy=strategy,
                 )
 
@@ -156,7 +152,6 @@ class TestDownloadWithTiers:
                     quality="5",
                     format_name="m4a",
                     output_dir=str(tmp_path),
-                    cookies="",
                     strategy=strategy,
                 )
 
@@ -183,7 +178,6 @@ class TestDownloadWithTiers:
                     quality="5",
                     format_name="m4a",
                     output_dir=str(tmp_path),
-                    cookies="",
                     strategy=strategy,
                 )
 
@@ -214,7 +208,6 @@ class TestDownloadWithTiers:
                     quality="5",
                     format_name="m4a",
                     output_dir=str(tmp_path),
-                    cookies="",
                     strategy=strategy,
                 )
 
@@ -246,7 +239,6 @@ class TestDownloadWithTiers:
                         quality="5",
                         format_name="m4a",
                         output_dir=str(tmp_path),
-                        cookies="",
                         strategy=strategy,
                     )
 
