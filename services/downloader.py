@@ -59,13 +59,12 @@ def format_duration(seconds: int | None) -> str:
         return f"{minutes:02d}:{secs:02d}"
 
 
-async def get_video_info(url: str, cookies: str | None = None) -> dict[str, Any]:
+async def get_video_info(url: str) -> dict[str, Any]:
     """
     Get video information using yt-dlp with tier-based approach.
 
     Args:
         url: YouTube video URL
-        cookies: Optional Netscape-format cookie string
     """
     ydl_opts: dict[str, Any] = {
         "quiet": False,
