@@ -25,17 +25,6 @@ const videoDuration = document.getElementById('video-duration');
 const formatSelect = document.getElementById('format-select');
 const qualitySelect = document.getElementById('quality-select');
 
-// Cookie UI elements
-const addCookiesBtn = document.getElementById('add-cookies-btn');
-const cookiesContainer = document.getElementById('cookies-container');
-const cookiesTextarea = document.getElementById('youtube-cookies');
-const persistCheckbox = document.getElementById('persist-cookies-checkbox');
-const saveCookiesBtn = document.getElementById('save-cookies-btn');
-const clearCookiesBtn = document.getElementById('clear-cookies-btn');
-const cancelCookiesBtn = document.getElementById('cancel-cookies-btn');
-const cookieStatusMsg = document.getElementById('cookie-status-message');
-const cookieStatusIndicator = document.getElementById('cookie-status-indicator');
-const cookieSecurityDialog = document.getElementById('cookie-security-dialog');
 
 
 // UI State Management
@@ -78,69 +67,24 @@ function showVideoInfo() {
     showSection(infoSection);
 }
 
-// Cookie UI Functions
-function showCookieInput() {
-    cookiesContainer.style.display = 'block';
-    addCookiesBtn.textContent = '🍪 Hide cookie input';
-}
-
-function hideCookieInput() {
-    cookiesContainer.style.display = 'none';
-    addCookiesBtn.textContent = '🍪 Add Cookies (Required)';
-}
-
-function toggleCookieInput() {
-    if (cookiesContainer.style.display === 'none' || !cookiesContainer.style.display) {
-        showCookieInput();
-    } else {
-        hideCookieInput();
-    }
-}
-
-function updateCookieStatus(message, isError = false) {
-    cookieStatusMsg.style.display = 'block';
-    cookieStatusMsg.textContent = message;
-    cookieStatusMsg.className = isError ? 'nes-text is-error' : 'nes-text is-success';
-    cookieStatusMsg.style.fontSize = '0.7rem';
-    cookieStatusMsg.style.marginTop = '0.5rem';
-}
-
-function showCookieIndicator() {
-    cookieStatusIndicator.style.display = 'block';
-}
-
-function hideCookieIndicator() {
-    cookieStatusIndicator.style.display = 'none';
-}
-
-function initializeCookieUI() {
-    if (CookieManager.hasStored()) {
-        showCookieIndicator();
-        updateCookieStatus('✓ Cookies loaded from storage');
-    } else {
-        hideCookieIndicator();
-    }
-    updateButtonStates();
-}
 
 function updateButtonStates() {
-    // Buttons are always enabled - cookies are optional now
+    // Buttons are always enabled
     fetchBtn.disabled = false;
     downloadBtn.disabled = false;
 }
 
 
 // API Functions
-async function fetchVideoInfo(url, cookies = null) {
+async function fetchVideoInfo(url) {
     try {
         const response = await fetch('/api/video-info', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                url: url,
-                cookies: cookies
+                url: url
             })
         });
 
@@ -156,17 +100,14 @@ async function fetchVideoInfo(url, cookies = null) {
     }
 }
 
-async function downloadAudio(url, format, quality, cookies = null) {
+async function downloadAudio(url, format, quality) {
     try {
         const body = {
             url: url,
             format: format,
             quality: quality
         };
-        if (cookies) {
-            body.cookies = cookies;
-        }
-        
+
         const response = await fetch('/api/download', {
             method: 'POST',
             headers: {
@@ -230,9 +171,7 @@ async function handleFetchInfo() {
     showLoading();
     
     try {
-        // Try without cookies first (Tier 1)
-        let cookies = CookieManager.get();
-        const info = await fetchVideoInfo(url, cookies);
+        const info = await fetchVideoInfo(url);
         currentVideoInfo = info;
         
         // Display video info
@@ -246,15 +185,9 @@ async function handleFetchInfo() {
         showVideoInfo();
     } catch (error) {
         soundEffects.play('error');
-        // Check if error indicates we need cookies
+        // Show error message
         const errorMsg = error.message;
-        if (errorMsg.includes('Sign in') || errorMsg.includes('bot') || errorMsg.includes('available')) {
-            showError(errorMsg + ' Please add YouTube cookies and try again.');
-            // Show cookie input UI to prompt user
-            showCookieInput();
-        } else {
-            showError(errorMsg);
-        }
+        showError(errorMsg);
     }
 }
 
@@ -275,10 +208,7 @@ async function handleDownload() {
     soundEffects.play('download');
     
     try {
-        // Get cookies from storage if available (optional)
-        const cookies = CookieManager.get();
-        
-        await downloadAudio(currentVideoUrl, format, quality, cookies);
+        await downloadAudio(currentVideoUrl, format, quality);
         
         // Show success state briefly
         soundEffects.play('success');
@@ -291,16 +221,9 @@ async function handleDownload() {
         downloadBtn.textContent = 'Download';
         downloadBtn.disabled = false;
         
-        soundEffects.play('error');
-        // Check if error indicates we need cookies
+        // Show error message
         const errorMsg = error.message;
-        if (errorMsg.includes('Sign in') || errorMsg.includes('bot') || errorMsg.includes('available')) {
-            showError(errorMsg + ' Please add YouTube cookies and try again.');
-            // Show cookie input UI to prompt user
-            showCookieInput();
-        } else {
-            showError(errorMsg);
-        }
+        showError(errorMsg);
     }
 }
 
@@ -341,64 +264,9 @@ retryBtn.addEventListener('click', handleRetry);
 newUrlBtn.addEventListener('click', handleNewUrl);
 downloadBtn.addEventListener('click', handleDownload);
 
-// Cookie UI event listeners
-addCookiesBtn.addEventListener('click', toggleCookieInput);
 
-saveCookiesBtn.addEventListener('click', () => {
-    const cookies = cookiesTextarea.value.trim();
-    const persist = persistCheckbox.checked;
-    
-    if (!cookies) {
-        updateCookieStatus('Please enter cookies', true);
-        return;
-    }
-    
-    if (CookieManager.save(cookies, persist)) {
-        updateCookieStatus(`✓ Cookies saved ${persist ? '(persistent)' : '(session only)'}`);
-        showCookieIndicator();
-        updateButtonStates();
-    } else {
-        updateCookieStatus('Failed to save cookies', true);
-    }
-});
-
-clearCookiesBtn.addEventListener('click', () => {
-    if (CookieManager.clear()) {
-        cookiesTextarea.value = '';
-        persistCheckbox.checked = false;
-        updateCookieStatus('Cookies cleared');
-        hideCookieIndicator();
-        updateButtonStates();
-    } else {
-        updateCookieStatus('Failed to clear cookies', true);
-    }
-});
-
-cancelCookiesBtn.addEventListener('click', () => {
-    hideCookieInput();
-});
-
-// Allow Enter key to trigger fetch
-urlInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        handleFetchInfo();
-    }
-});
-
-// Listen for storage changes (e.g., cookies cleared in another tab or by test)
-window.addEventListener('storage', (e) => {
-    if (e.key === 'youtube_cookies' || e.key === null) {
-        updateButtonStates();
-        if (CookieManager.hasStored()) {
-            showCookieIndicator();
-        } else {
-            hideCookieIndicator();
-        }
-    }
-});
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     showInput();
-    initializeCookieUI();
 });
