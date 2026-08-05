@@ -151,7 +151,7 @@ pip install PySide6>=6.6.0
 
 This usually means Qt plugins are missing. Check the spec file includes:
 ```python
-datas += collect_data_files('PySide6')
+datas += collect_data_files("PySide6")
 ```
 
 **Error: `Templates not found`**
@@ -159,8 +159,8 @@ datas += collect_data_files('PySide6')
 Ensure `templates/` and `static/` directories are in the spec file:
 ```python
 datas = [
-    ('templates', 'templates'),
-    ('static', 'static'),
+    ("templates", "templates"),
+    ("static", "static"),
 ]
 ```
 
@@ -207,7 +207,7 @@ For production releases, consider code signing to avoid Windows SmartScreen warn
 
 Edit `audio-fetch.spec`, change:
 ```python
-console=True,  # Change to False
+console = (True,)  # Change to False
 ```
 
 **Note:** This hides debugging output. Use during final release only.
@@ -217,7 +217,7 @@ console=True,  # Change to False
 1. Create or obtain a `.ico` file (256x256 recommended)
 2. Edit `audio-fetch.spec`:
    ```python
-   icon='path/to/icon.ico',
+   icon = ("path/to/icon.ico",)
    ```
 
 ### One-Folder Distribution

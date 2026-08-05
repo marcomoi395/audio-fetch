@@ -1,6 +1,5 @@
 """Tests for API models."""
 
-
 from api.models import DownloadRequest, VideoInfoRequest
 
 
