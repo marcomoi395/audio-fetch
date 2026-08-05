@@ -51,9 +51,8 @@ async def download_audio_endpoint(request: DownloadRequest):
         FileResponse streaming the audio file
 
     Raises:
-        HTTPException: 400 if download fails or cookies are invalid, 503 if queue is busy
+        HTTPException: 400 if download fails, 503 if queue is busy
     """
-    # Cookies are optional - will use tier-based approach if not provided
 
     # Check if queue is busy
     if download_queue.is_active():
