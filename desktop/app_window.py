@@ -1,9 +1,10 @@
 """Desktop application window using PySide6 QWebEngineView."""
 
 import httpx
-from PySide6.QtCore import QUrl, Signal
+from PySide6.QtCore import QStandardPaths, QUrl, Signal
+from PySide6.QtWebEngineCore import QWebEngineDownloadRequest
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWidgets import QMainWindow, QMessageBox
+from PySide6.QtWidgets import QFileDialog, QMainWindow, QMessageBox
 
 
 class AudioFetchWindow(QMainWindow):
@@ -22,8 +23,8 @@ class AudioFetchWindow(QMainWindow):
     def __init__(
         self,
         server_url: str,
-        width: int = 1200,
-        height: int = 800,
+        width: int = 900,
+        height: int = 700,
         title: str = "Audio Fetch",
         parent: QMainWindow | None = None,
     ) -> None:
@@ -49,12 +50,15 @@ class AudioFetchWindow(QMainWindow):
             title: Window title
         """
         self.setWindowTitle(title)
-        self.resize(width, height)
+        self.setFixedSize(width, height)  # Fixed size, non-resizable
 
         # Embed web UI
         self.browser = QWebEngineView()
         self.browser.setUrl(QUrl(self.server_url))
         self.setCentralWidget(self.browser)
+
+        # Set up download handler
+        self.browser.page().profile().downloadRequested.connect(self._handle_download)
 
     def closeEvent(self, event) -> None:
         """Handle window close event with quit confirmation.
@@ -104,3 +108,50 @@ class AudioFetchWindow(QMainWindow):
         except Exception:
             # Fail-safe: if we can't check queue, allow quit
             return False
+
+    def _handle_download(self, download: QWebEngineDownloadRequest) -> None:
+        """Handle download requests with file save dialog.
+
+        Args:
+            download: QWebEngineDownloadRequest object
+        """
+        # Get suggested filename from download
+        suggested_filename = download.downloadFileName()
+
+        # Clean up the filename - remove extra extensions and sanitize
+        import re
+        from pathlib import Path
+
+        # Parse filename
+        path = Path(suggested_filename)
+
+        # Clean the stem (remove invalid characters for Windows/Linux)
+        clean_stem = re.sub(r'[<>:"|?*]', "", path.stem)
+        clean_stem = re.sub(r"[\x00-\x1f\x7f]", "", clean_stem)
+        clean_stem = clean_stem.strip()
+
+        # Reconstruct filename
+        if clean_stem:
+            suggested_filename = f"{clean_stem}{path.suffix}"
+
+        # Get default download directory
+        default_dir = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.DownloadLocation
+        )
+        default_path = f"{default_dir}/{suggested_filename}"
+
+        # Show save file dialog
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Audio File",
+            default_path,
+            "Audio Files (*.mp3 *.m4a *.opus *.wav);;All Files (*)",
+        )
+
+        # If user selected a path, proceed with download
+        if file_path:
+            download.setDownloadFileName(file_path)
+            download.accept()
+        else:
+            # User cancelled
+            download.cancel()
