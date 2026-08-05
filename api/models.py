@@ -29,4 +29,3 @@ class DownloadRequest(BaseModel):
     url: HttpUrl
     format: str
     quality: str
-    cookies: str | None = None
