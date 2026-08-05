@@ -124,35 +124,34 @@ function initializeCookieUI() {
 }
 
 function updateButtonStates() {
-    const hasCookies = CookieManager.hasStored();
-    fetchBtn.disabled = !hasCookies;
-    downloadBtn.disabled = !hasCookies;
+    // Buttons are always enabled - cookies are optional now
+    fetchBtn.disabled = false;
+    downloadBtn.disabled = false;
 }
 
 
 // API Functions
 async function fetchVideoInfo(url, cookies = null) {
     try {
-        const body = { url: url };
-        if (cookies) {
-            body.cookies = cookies;
-        }
-        
         const response = await fetch('/api/video-info', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify({
+                url: url,
+                cookies: cookies
+            })
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Failed to fetch video info');
         }
-        
+
         return await response.json();
     } catch (error) {
+        console.error('Error fetching video info:', error);
         throw error;
     }
 }
@@ -183,11 +182,19 @@ async function downloadAudio(url, format, quality, cookies = null) {
         
         // Get filename from Content-Disposition header
         const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = 'audio';
+        let filename = 'audio.mp3';
+        
         if (contentDisposition) {
-            const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
-            if (filenameMatch) {
-                filename = filenameMatch[1];
+            // Try to get UTF-8 encoded filename first (RFC 5987)
+            const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/);
+            if (utf8Match) {
+                filename = decodeURIComponent(utf8Match[1]);
+            } else {
+                // Fallback to regular filename parameter
+                const asciiMatch = contentDisposition.match(/filename="([^"]+)"/);
+                if (asciiMatch) {
+                    filename = asciiMatch[1];
+                }
             }
         }
         
@@ -219,21 +226,12 @@ async function handleFetchInfo() {
     }
     
     currentVideoUrl = url;
-    
-    // Get cookies from storage if available
-    const cookies = CookieManager.get();
-
-    // Validate cookies are present
-    if (!cookies) {
-        soundEffects.play('error');
-        showError('YouTube cookies required. Please add cookies before fetching.');
-        return;
-    }
-    
     soundEffects.play('fetch');
     showLoading();
     
     try {
+        // Try without cookies first (Tier 1)
+        let cookies = CookieManager.get();
         const info = await fetchVideoInfo(url, cookies);
         currentVideoInfo = info;
         
@@ -248,7 +246,15 @@ async function handleFetchInfo() {
         showVideoInfo();
     } catch (error) {
         soundEffects.play('error');
-        showError(error.message);
+        // Check if error indicates we need cookies
+        const errorMsg = error.message;
+        if (errorMsg.includes('Sign in') || errorMsg.includes('bot') || errorMsg.includes('available')) {
+            showError(errorMsg + ' Please add YouTube cookies and try again.');
+            // Show cookie input UI to prompt user
+            showCookieInput();
+        } else {
+            showError(errorMsg);
+        }
     }
 }
 
@@ -269,17 +275,8 @@ async function handleDownload() {
     soundEffects.play('download');
     
     try {
-        // Get cookies from storage if available
+        // Get cookies from storage if available (optional)
         const cookies = CookieManager.get();
-
-        // Validate cookies are present
-        if (!cookies) {
-            downloadBtn.disabled = false;
-            downloadBtn.textContent = 'Download';
-            soundEffects.play('error');
-            showError('YouTube cookies required. Please add cookies before downloading.');
-            return;
-        }
         
         await downloadAudio(currentVideoUrl, format, quality, cookies);
         
@@ -295,8 +292,15 @@ async function handleDownload() {
         downloadBtn.disabled = false;
         
         soundEffects.play('error');
-        // Show error in modal or toast
-        showError(error.message);
+        // Check if error indicates we need cookies
+        const errorMsg = error.message;
+        if (errorMsg.includes('Sign in') || errorMsg.includes('bot') || errorMsg.includes('available')) {
+            showError(errorMsg + ' Please add YouTube cookies and try again.');
+            // Show cookie input UI to prompt user
+            showCookieInput();
+        } else {
+            showError(errorMsg);
+        }
     }
 }
 

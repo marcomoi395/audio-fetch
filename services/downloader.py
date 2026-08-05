@@ -66,16 +66,21 @@ def _clean_cookie_content(raw_content: str) -> str:
 
 
 @contextlib.contextmanager
-def youtube_cookies_context(cookies: str) -> Generator[str, None, None]:
+def youtube_cookies_context(cookies: str | None) -> Generator[str | None, None, None]:
     """
     Context manager that yields the path to a YouTube cookies temp file.
 
     Args:
-        cookies: Netscape-format cookie string from user (required)
+        cookies: Optional Netscape-format cookie string from user
 
     Yields:
-        Path to temporary cookie file
+        Path to temporary cookie file, or None if no cookies provided
     """
+    # If no cookies provided or empty, yield None
+    if not cookies or not cookies.strip():
+        yield None
+        return
+
     # Clean and write to temp file
     cleaned_cookies = _clean_cookie_content(cookies)
     fd, temp_path = tempfile.mkstemp(suffix=".txt")
@@ -113,15 +118,18 @@ def format_duration(seconds: int | None) -> str:
         return f"{minutes:02d}:{secs:02d}"
 
 
-async def get_video_info(url: str, cookies: str) -> dict[str, Any]:
+async def get_video_info(url: str, cookies: str | None = None) -> dict[str, Any]:
     """
-    Get video information using yt-dlp.
+    Get video information using yt-dlp with tier-based approach.
 
     Args:
         url: YouTube video URL
-        cookies: Netscape-format cookie string (required)
+        cookies: Optional Netscape-format cookie string
     """
-    with youtube_cookies_context(cookies=cookies) as cookie_path:
+    # Use cookies if provided, otherwise empty string for context manager
+    cookie_str = cookies if cookies else ""
+
+    with youtube_cookies_context(cookies=cookie_str) as cookie_path:
         ydl_opts: dict[str, Any] = {
             "quiet": False,
             "verbose": True,
@@ -129,17 +137,21 @@ async def get_video_info(url: str, cookies: str) -> dict[str, Any]:
             "extract_flat": False,
             "nocheckcertificate": True,
             "prefer_insecure": False,
-            "cookiefile": cookie_path,
             "js_runtimes": {"node": {}},  # Enable Node.js for JavaScript challenge solving
-            # Use mweb client with PO Token provider to bypass bot detection
-            "extractor_args": {
-                "youtube": {
-                    "player_client": ["mweb"],
-                },
-            },
         }
 
-        logger.info(f"Using provided cookies for {url}")
+        # Only add cookie file if cookies were provided and file was created
+        if cookies and cookie_path:
+            ydl_opts["cookiefile"] = cookie_path
+            logger.info(f"Using provided cookies for {url}")
+        else:
+            logger.info(f"Fetching info without cookies for {url}")
+            # Use basic spoofing for no-cookie requests
+            ydl_opts["extractor_args"] = {
+                "youtube": {
+                    "player_client": ["mweb", "web"],
+                },
+            }
 
         try:
             logger.info(f"Extracting info for {url}...")
@@ -168,20 +180,24 @@ def _extract_info_sync(url: str, opts: dict[str, Any]) -> dict[str, Any]:
 
 async def download_audio(
     url: str,
-    cookies: str,
+    cookies: str | None = None,
     audio_format: str = "mp3",
     quality: str = "0",
     output_dir: str | None = None,
+    cookies_from_browser: str | None = None,
+    player_client: list[str] | None = None,
 ) -> str:
     """
     Download audio from YouTube and optionally convert it.
 
     Args:
         url: YouTube video URL
+        cookies: Optional Netscape-format cookie string
         audio_format: Audio format (mp3, m4a, opus, wav, best)
         quality: Quality level (0=highest, 5=medium, 9=lowest)
         output_dir: Directory to save file
-        cookies: Netscape-format cookie string (required)
+        cookies_from_browser: Browser name for cookie extraction (chrome, firefox, etc)
+        player_client: Custom player clients for yt-dlp (e.g., ["ios"], ["android"])
     """
     if not output_dir:
         output_dir = os.getcwd()
@@ -190,45 +206,121 @@ async def download_audio(
     output_path.mkdir(exist_ok=True)
     output_template = str(output_path / "%(title)s.%(ext)s")
 
-    with youtube_cookies_context(cookies=cookies) as cookie_path:
+    # Use cookies if provided, otherwise empty string for context manager
+    cookie_str = cookies if cookies else ""
+
+    with youtube_cookies_context(cookies=cookie_str) as cookie_path:
         ydl_opts: dict[str, Any] = {
             "outtmpl": output_template,
             "quiet": False,
             "no_warnings": False,
-            "cookiefile": cookie_path,
-            "js_runtimes": {"node": {}},  # Enable Node.js for JavaScript challenge solving
-            # Use mweb client with PO Token provider to bypass bot detection
-            "extractor_args": {
-                "youtube": {
-                    "player_client": ["mweb"],
-                },
-            },
         }
 
-        logger.info(f"Using provided cookies for {url}")
+        # Configure authentication method
+        if cookies_from_browser:
+            # Tier 2: Use browser cookie extraction
+            ydl_opts["cookiesfrombrowser"] = (cookies_from_browser,)
+            logger.info(f"Using cookies from browser: {cookies_from_browser}")
+        elif cookies and cookie_path:
+            # User-supplied cookies
+            ydl_opts["cookiefile"] = cookie_path
+            logger.info(f"Using provided cookies for {url}")
+        else:
+            logger.info(f"Downloading without cookies for {url}")
 
-        # Add format conversion options if needed
-        if audio_format != "best" and audio_format != "m4a":
-            postprocessors = [
+        # Configure player client
+        if player_client:
+            # Custom player client (e.g., Tier 3)
+            ydl_opts["extractor_args"] = {
+                "youtube": {
+                    "player_client": player_client,
+                },
+            }
+            logger.info(f"Using player clients: {player_client}")
+        elif not cookies and not cookies_from_browser:
+            # Default Tier 1: Android client (fast, reliable, no auth needed)
+            # High quality (format 399+251: 1080p video + opus 160kbps audio)
+            logger.info("🥇 TIER 1 CONFIG: Using Android client (default, no auth)")
+            ydl_opts["extractor_args"] = {
+                "youtube": {
+                    "player_client": ["android"],
+                },
+            }
+            logger.info("   └─ Player client: ['android']")
+            logger.info("   └─ Auth: None required")
+            logger.info("   └─ Expected quality: High (format 399+251)")
+
+        # Enable thumbnail download (postprocessors handle embedding)
+        ydl_opts["writethumbnail"] = True
+
+        # Configure format-specific postprocessors
+        postprocessors = []
+
+        if audio_format == "best":
+            # For best format, no audio conversion needed
+            pass
+        elif audio_format == "m4a":
+            # For m4a, extract audio to ensure proper container
+            postprocessors.append(
                 {
                     "key": "FFmpegExtractAudio",
-                    "preferredcodec": audio_format,
+                    "preferredcodec": "m4a",
                 }
-            ]
-
-            # Map quality levels based on standard yt-dlp expectations
-            # Note: yt-dlp uses 0 for best, 9 for worst
+            )
+        elif audio_format == "opus":
+            postprocessors.append(
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "opus",
+                }
+            )
+        elif audio_format == "wav":
+            postprocessors.append(
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "wav",
+                }
+            )
+        else:  # mp3
+            postprocessors.append(
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                }
+            )
+            # Set quality for mp3
             if quality == "0":
                 postprocessors[0]["preferredquality"] = "320"
             elif quality == "5":
                 postprocessors[0]["preferredquality"] = "192"
-            elif quality == "9":
+            else:
                 postprocessors[0]["preferredquality"] = "128"
 
-            ydl_opts["postprocessors"] = postprocessors
+        # Add thumbnail conversion and embedding
+        postprocessors.append(
+            {
+                "key": "FFmpegThumbnailsConvertor",
+                "format": "jpg",
+            }
+        )
+        postprocessors.append(
+            {
+                "key": "EmbedThumbnail",
+            }
+        )
+
+        ydl_opts["postprocessors"] = postprocessors
 
         try:
-            logger.info(f"Starting download for {url} in format {audio_format}...")
+            logger.info("📥 Starting yt-dlp download:")
+            logger.info(f"   └─ URL: {url}")
+            logger.info(f"   └─ Format: {audio_format}")
+            logger.info(f"   └─ Quality: {quality}")
+            logger.info(
+                f"   └─ Player client: {ydl_opts.get('extractor_args', {}).get('youtube', {}).get('player_client', 'default')}"
+            )
+            logger.info(f"   └─ Cookies: {bool(cookie_path)}")
+            logger.info(f"   └─ Browser cookies: {bool(cookies_from_browser)}")
             return await asyncio.to_thread(_download_sync, url, ydl_opts)
         except yt_dlp.utils.DownloadError as e:
             logger.error(f"Download failed for {url}: {e}")
@@ -291,14 +383,22 @@ async def download_audio_with_tiers(
     total_attempts = 0
 
     # Tier 1: Progressive attempts with basic spoofing
+    logger.info("")
+    logger.info(f"{'=' * 70}")
+    logger.info("🥇 TIER 1: ANDROID CLIENT (Default Strategy)")
+    logger.info(f"{'=' * 70}")
     logger.info(f"Starting Tier 1 download: {url}")
+    logger.info(f"   └─ Max attempts: {strategy.get_max_attempts(DownloadTier.TIER_1_SIMPLE)}")
+    logger.info("   └─ Strategy: Android client, no authentication")
+    logger.info("   └─ Expected: 95% success, ~1-2 seconds")
     max_tier1_attempts = strategy.get_max_attempts(DownloadTier.TIER_1_SIMPLE)
 
     for attempt in range(1, max_tier1_attempts + 1):
         total_attempts += 1
 
         try:
-            logger.info(f"Tier 1 attempt {attempt}/{max_tier1_attempts}")
+            logger.info("")
+            logger.info(f"🔄 Tier 1 attempt {attempt}/{max_tier1_attempts}")
             file_path = await download_audio(
                 url=url,
                 cookies=cookies,
@@ -307,7 +407,10 @@ async def download_audio_with_tiers(
                 output_dir=output_dir,
             )
 
-            logger.info(f"Tier 1 succeeded on attempt {attempt}")
+            logger.info("")
+            logger.info(f"✅ TIER 1 SUCCEEDED on attempt {attempt}/{max_tier1_attempts}")
+            logger.info(f"   └─ File: {file_path}")
+            logger.info(f"   └─ Total attempts: {total_attempts}")
             return {
                 "success": True,
                 "tier_used": DownloadTier.TIER_1_SIMPLE,
@@ -318,15 +421,22 @@ async def download_audio_with_tiers(
 
         except Exception as e:
             error_msg = str(e)
-            logger.warning(f"Tier 1 attempt {attempt} failed: {error_msg}")
+            logger.warning(f"❌ Tier 1 attempt {attempt} failed:")
+            logger.warning(f"   └─ Error: {error_msg[:200]}")  # Truncate long errors
 
             # Check if we should escalate immediately on error message
             if strategy.should_escalate_on_error(error_msg):
-                logger.warning(f"Escalation condition detected: {error_msg}")
+                logger.warning("⚡ Escalation condition detected!")
+                logger.warning("   └─ Breaking out of Tier 1 attempts")
+                logger.warning(f"   └─ Reason: {error_msg[:100]}")
                 break  # Break immediately to escalate to next tier
 
     # Tier 2: Browser cookie authentication
     if strategy.tier2_enabled:
+        logger.info("")
+        logger.info(f"{'=' * 70}")
+        logger.info("🥈 TIER 2: BROWSER COOKIES (Fallback Strategy)")
+        logger.info(f"{'=' * 70}")
         logger.warning("Escalating to Tier 2: Browser cookie authentication")
 
         extractor = CookieExtractor()
@@ -340,17 +450,23 @@ async def download_audio_with_tiers(
                 total_attempts += 1
 
                 try:
-                    logger.info(f"Tier 2: Trying browser {browser_name}")
-                    # For Tier 2, we pass browser name to yt-dlp's --cookies-from-browser
+                    logger.info("")
+                    logger.info(f"🔄 Tier 2: Trying browser {browser_name}")
+                    logger.info(f"   └─ Extracting cookies from {browser_name}")
+                    # For Tier 2, use yt-dlp's --cookies-from-browser
                     file_path = await download_audio(
                         url=url,
-                        cookies=cookies,
+                        cookies=None,  # Don't use user cookies
+                        cookies_from_browser=browser_name.lower(),  # Extract from browser
                         audio_format=format_name,
                         quality=quality,
                         output_dir=output_dir,
                     )
 
-                    logger.info(f"Tier 2 succeeded with browser: {browser_name}")
+                    logger.info("")
+                    logger.info(f"✅ TIER 2 SUCCEEDED with browser: {browser_name}")
+                    logger.info(f"   └─ File: {file_path}")
+                    logger.info(f"   └─ Total attempts: {total_attempts}")
                     return {
                         "success": True,
                         "tier_used": DownloadTier.TIER_2_COOKIES,
@@ -360,7 +476,8 @@ async def download_audio_with_tiers(
                     }
 
                 except Exception as e:
-                    logger.warning(f"Tier 2 failed with browser {browser_name}: {e}")
+                    logger.warning(f"❌ Tier 2 failed with browser {browser_name}:")
+                    logger.warning(f"   └─ Error: {str(e)[:200]}")
                     continue
 
             logger.warning("All Tier 2 browsers exhausted")
@@ -372,21 +489,29 @@ async def download_audio_with_tiers(
         if not strategy.tier2_enabled:
             logger.warning("Tier 2 disabled, escalating to Tier 3")
         else:
+            logger.info("")
+            logger.info(f"{'=' * 70}")
+            logger.info("🥉 TIER 3: ANDROID + MWEB (Last Resort)")
+            logger.info(f"{'=' * 70}")
             logger.warning("Escalating to Tier 3: Advanced strategies")
-
-        total_attempts += 1
-
         try:
             logger.info("Tier 3 attempt with advanced strategies")
+            logger.info("   └─ Player clients: ['android', 'mweb']")
+            logger.info("   └─ Multiple client fallback")
+            # For Tier 3, use mobile clients that sometimes bypass restrictions
             file_path = await download_audio(
                 url=url,
-                cookies=cookies,
+                cookies=cookies if cookies else None,
                 audio_format=format_name,
                 quality=quality,
                 output_dir=output_dir,
+                player_client=["android", "mweb"],  # Android + mobile web fallback
             )
 
-            logger.info("Tier 3 succeeded")
+            logger.info("")
+            logger.info("✅ TIER 3 SUCCEEDED (Last resort)")
+            logger.info(f"   └─ File: {file_path}")
+            logger.info(f"   └─ Total attempts: {total_attempts}")
             return {
                 "success": True,
                 "tier_used": DownloadTier.TIER_3_ADVANCED,
@@ -396,10 +521,18 @@ async def download_audio_with_tiers(
             }
 
         except Exception as e:
-            logger.error(f"Tier 3 failed: {e}")
+            logger.error("")
+            logger.error("❌ TIER 3 FAILED (All tiers exhausted)")
+            logger.error(f"   └─ Error: {str(e)[:200]}")
 
     # All tiers exhausted
-    logger.error(f"All tiers exhausted after {total_attempts} attempts")
+    logger.error("")
+    logger.error(f"{'=' * 70}")
+    logger.error("💥 ALL TIERS FAILED - DOWNLOAD UNSUCCESSFUL")
+    logger.error(f"{'=' * 70}")
+    logger.error("❌ Download failed after all tier strategies exhausted")
+    logger.error(f"   └─ Total attempts: {total_attempts}")
+    logger.error(f"   └─ URL: {url}")
     return {
         "success": False,
         "tier_used": None,
