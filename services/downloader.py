@@ -228,6 +228,14 @@ async def download_audio(
         }
     )
 
+    # Add metadata embedding (artist, title, etc.)
+    postprocessors.append(
+        {
+            "key": "FFmpegMetadata",
+            "add_metadata": True,
+        }
+    )
+
     ydl_opts["postprocessors"] = postprocessors
 
     try:
