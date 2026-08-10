@@ -13,8 +13,8 @@
     "tier_1_attempts": 3
   },
   "ui": {
-    "window_width": 1200,
-    "window_height": 800,
+    "window_width": 850,
+    "window_height": 650,
     "window_title": "Audio Fetch"
   },
   "logging": {
