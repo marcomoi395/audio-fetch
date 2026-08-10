@@ -12,10 +12,86 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    overflow: hidden;
+}
+
+/* Custom Title Bar */
+.custom-title-bar {
+    height: 50px;
+    background-color: #209cee;
+    border-bottom: 4px solid #212529;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    transform: scale(0.8);
-    transform-origin: center center;
+    z-index: 9999;
+    box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
+}
+
+.title-bar-drag-area {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding-left: 20px;
+    cursor: move;
+    user-select: none;
+}
+
+.title-bar-title {
+    font-size: 14px;
+    color: #ffffff;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.title-bar-controls {
+    display: flex;
+    gap: 10px;
+    padding-right: 16px;
+}
+
+.title-bar-button {
+    width: 36px;
+    height: 36px;
+    border: 4px solid #212529;
+    background-color: #ffffff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 18px;
+    transition: all 0.1s;
+    box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.2);
+    padding: 0;
+}
+
+.title-bar-button:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0 0 rgba(0, 0, 0, 0.3);
+}
+
+.title-bar-button:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 0 rgba(0, 0, 0, 0.2);
+}
+
+.minimize-btn {
+    color: #f7d51d;
+}
+
+.minimize-btn:hover {
+    background-color: #fffacd;
+    border-color: #f7d51d;
+}
+
+.close-btn {
+    color: #e76e55;
+}
+
+.close-btn:hover {
+    background-color: #ffebe8;
+    border-color: #e76e55;
 }
 
 /* Better borders for inputs and buttons */
@@ -71,6 +147,13 @@ body {
     margin: 0 auto;
     padding: 2rem;
     width: 100%;
+    transform: scale(0.8);
+    transform-origin: center center;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow-y: auto;
 }
 
 /* Header */
@@ -92,7 +175,6 @@ body {
     font-size: 0.875rem;
     color: #666;
 }
-
 /* Main Content */
 .main-content {
     flex: 1;
@@ -106,11 +188,6 @@ body {
 /* Input Section */
 .input-group {
     margin-bottom: 1.5rem;
-}
-
-#youtube-url {
-    width: 100%;
-    margin-bottom: 1rem;
 }
 
 #fetch-btn {
@@ -212,17 +289,16 @@ body {
 .nes-select {
     width: 100%;
 }
-
 .nes-select select {
     width: 100%;
-    font-size: 0.75rem;
+    font-size: 0.55rem;
+    padding: 0.2rem;
 }
-
 /* Action Buttons */
 .action-buttons {
     display: grid;
     grid-template-columns: 2fr 1fr;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 #download-btn {

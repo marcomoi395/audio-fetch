@@ -125,6 +125,11 @@ class DesktopApp:
                 title=window_title,
             )
 
+            # Register window with API routes for window control
+            from api.routes import set_window_instance
+
+            set_window_instance(self.window)
+
             # Connect window close signal to cleanup
             self.window.window_closed.connect(self._on_window_closed)
 

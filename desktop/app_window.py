@@ -1,7 +1,7 @@
 """Desktop application window using PySide6 QWebEngineView."""
 
 import httpx
-from PySide6.QtCore import QStandardPaths, QUrl, Signal
+from PySide6.QtCore import QPoint, QStandardPaths, Qt, QUrl, Signal
 from PySide6.QtWebEngineCore import QWebEngineDownloadRequest
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QMessageBox
@@ -39,6 +39,8 @@ class AudioFetchWindow(QMainWindow):
         """
         super().__init__(parent)
         self.server_url = server_url
+        self._drag_position = QPoint()
+        self._force_closing = False  # Flag to skip download check
         self._init_ui(width, height, title)
 
     def _init_ui(self, width: int, height: int, title: str) -> None:
@@ -50,7 +52,9 @@ class AudioFetchWindow(QMainWindow):
             title: Window title
         """
         self.setWindowTitle(title)
-        self.setFixedSize(width, height)  # Fixed size, non-resizable
+        self.setFixedSize(width, height)
+        # Enable frameless window with custom title bar
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
 
         # Embed web UI
         self.browser = QWebEngineView()
@@ -60,15 +64,64 @@ class AudioFetchWindow(QMainWindow):
         # Set up download handler
         self.browser.page().profile().downloadRequested.connect(self._handle_download)
 
+        # Enable JavaScript to call window drag
+        self.browser.page().runJavaScript("""
+            window.startDrag = function(x, y) {
+                return JSON.stringify({x: x, y: y});
+            };
+        """)
+
+    def start_window_drag(self, x: int, y: int) -> None:
+        """Start dragging the window from the given position.
+
+        Args:
+            x: X coordinate relative to window
+            y: Y coordinate relative to window
+        """
+        self._drag_position = QPoint(x, y)
+
+    def mousePressEvent(self, event) -> None:
+        """Handle mouse press for window dragging."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+
+    def mouseMoveEvent(self, event) -> None:
+        """Handle mouse move for window dragging."""
+        if event.buttons() == Qt.MouseButton.LeftButton:
+            self.move(event.globalPosition().toPoint() - self._drag_position)
+            event.accept()
+
+    def force_close(self) -> None:
+        """Force close the window without confirmation (called from title bar button).
+
+        Uses non-blocking approach to avoid 'Not Responding' dialog on Hyprland.
+        """
+        from PySide6.QtCore import QTimer
+
+        # Set flag to skip download check
+        self._force_closing = True
+
+        # Emit signal immediately
+        self.window_closed.emit()
+
+        # Defer actual close to event loop (non-blocking)
+        QTimer.singleShot(0, self.close)
+
     def closeEvent(self, event) -> None:
         """Handle window close event with quit confirmation.
 
         Checks for active downloads and prompts user to confirm
-        if downloads are in progress.
+        if downloads are in progress, unless force_closing flag is set.
 
         Args:
             event: QCloseEvent
         """
+        # Skip download check if force closing from title bar button
+        if self._force_closing:
+            event.accept()
+            return
+
         # Check if downloads are in progress
         if self._has_active_downloads():
             reply = QMessageBox.question(
@@ -94,7 +147,8 @@ class AudioFetchWindow(QMainWindow):
             True if downloads are in progress or pending, False otherwise
         """
         try:
-            response = httpx.get(f"{self.server_url}/api/queue", timeout=1.0)
+            # Use very short timeout to avoid blocking on Hyprland/Wayland
+            response = httpx.get(f"{self.server_url}/api/queue", timeout=0.5)
             queue_data = response.json()
             items = queue_data.get("items", [])
 
@@ -106,7 +160,7 @@ class AudioFetchWindow(QMainWindow):
 
             return False
         except Exception:
-            # Fail-safe: if we can't check queue, allow quit
+            # Fail-safe: if we can't check queue quickly, allow quit
             return False
 
     def _handle_download(self, download: QWebEngineDownloadRequest) -> None:

@@ -13,6 +13,15 @@ from services.queue import DownloadQueue
 
 router = APIRouter()
 
+# Window control reference (set by desktop app)
+_window_instance = None
+
+
+def set_window_instance(window):
+    """Set the window instance for window control endpoints."""
+    global _window_instance
+    _window_instance = window
+
 
 @router.post("/video-info", response_model=VideoInfoResponse)
 async def fetch_video_info(request: VideoInfoRequest):
@@ -149,3 +158,22 @@ async def download_audio_endpoint(request: DownloadRequest):
 
 
 # Endpoints will be added incrementally
+
+
+@router.post("/window/minimize")
+async def minimize_window():
+    """Minimize the application window."""
+    if _window_instance:
+        _window_instance.showMinimized()
+        return {"status": "minimized"}
+    raise HTTPException(status_code=503, detail="Window instance not available")
+
+
+@router.post("/window/close")
+async def close_window():
+    """Close the application window."""
+    if _window_instance:
+        # Use force_close to bypass download check for explicit button click
+        _window_instance.force_close()
+        return {"status": "closing"}
+    raise HTTPException(status_code=503, detail="Window instance not available")

@@ -270,3 +270,77 @@ downloadBtn.addEventListener('click', handleDownload);
 document.addEventListener('DOMContentLoaded', () => {
     showInput();
 });
+
+
+// Window Control Functions
+async function minimizeWindow() {
+    try {
+        await fetch('/api/window/minimize', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    } catch (error) {
+        console.error('Failed to minimize window:', error);
+    }
+}
+async function closeWindow() {
+    try {
+        // Add a small delay to ensure the UI registers the click
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        const response = await fetch('/api/window/close', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            // Ensure request completes
+            keepalive: true,
+        });
+        
+        if (!response.ok) {
+            console.error('Failed to close window:', response.statusText);
+        }
+    } catch (error) {
+        console.error('Failed to close window:', error);
+        // Fallback: try to close via Qt if available
+        if (window.qt && window.qt.webChannelTransport) {
+            window.close();
+        }
+    }
+}
+// Window Drag Functionality
+function setupWindowDrag() {
+    const dragArea = document.getElementById('drag-area');
+    if (!dragArea) return;
+
+    let isDragging = false;
+
+    dragArea.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        e.preventDefault();
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+}
+
+// Initialize window controls
+document.addEventListener('DOMContentLoaded', () => {
+    // Setup window control buttons
+    const minimizeBtn = document.getElementById('minimize-btn');
+    const closeBtn = document.getElementById('close-btn');
+
+    if (minimizeBtn) {
+        minimizeBtn.addEventListener('click', minimizeWindow);
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeWindow);
+    }
+
+    // Setup window drag
+    setupWindowDrag();
+});

@@ -17,7 +17,7 @@ DEFAULT_CONFIG = {
     "server": {"port": 8000, "host": "127.0.0.1", "auto_detect": True},
     "downloads": {"default_path": "~/Downloads/AudioFetch"},
     "tier_strategy": {"browser": "chrome", "fallback_enabled": True, "tier_1_attempts": 3},
-    "ui": {"window_width": 1200, "window_height": 800, "window_title": "Audio Fetch"},
+    "ui": {"window_width": 900, "window_height": 700, "window_title": "Audio Fetch"},
     "logging": {
         "level": "WARNING",
         "file": "~/.local/share/audio-fetch/logs/app.log",
