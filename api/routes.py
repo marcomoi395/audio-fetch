@@ -7,10 +7,20 @@ from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
 from api.models import DownloadRequest, VideoInfoRequest, VideoInfoResponse
-from services.downloader import download_audio, get_video_info
+from desktop.tier_strategy import TierStrategy
+from services.downloader import download_audio_with_tiers, get_video_info
 from services.queue import DownloadQueue
 
 router = APIRouter()
+
+# Window control reference (set by desktop app)
+_window_instance = None
+
+
+def set_window_instance(window):
+    """Set the window instance for window control endpoints."""
+    global _window_instance
+    _window_instance = window
 
 
 @router.post("/video-info", response_model=VideoInfoResponse)
@@ -52,6 +62,7 @@ async def download_audio_endpoint(request: DownloadRequest):
     Raises:
         HTTPException: 400 if download fails, 503 if queue is busy
     """
+
     # Check if queue is busy
     if download_queue.is_active():
         raise HTTPException(status_code=503, detail="Another download is in progress. Please wait.")
@@ -59,18 +70,31 @@ async def download_audio_endpoint(request: DownloadRequest):
     temp_dir = None
 
     try:
-        # Acquire queue lock and download
         async with download_queue:
             # Create temp directory for download
             temp_dir = tempfile.mkdtemp()
 
-            # Download audio
-            file_path = await download_audio(
-                url=str(request.url),
-                audio_format=request.format,
-                quality=request.quality,
-                output_dir=temp_dir,
+            # Initialize tier strategy (enable all tiers for maximum success rate)
+            strategy = TierStrategy(
+                browser="chrome",
+                tier2_enabled=True,
+                tier3_enabled=True,
             )
+
+            # Download audio using tier-based approach with fallback
+            result = await download_audio_with_tiers(
+                url=str(request.url),
+                quality=request.quality,
+                format_name=request.format,
+                output_dir=temp_dir,
+                strategy=strategy,
+            )
+
+            # Check if download succeeded
+            if not result["success"]:
+                raise Exception(result.get("error", "Download failed after all tiers"))
+
+            file_path = result["file_path"]
 
             # Determine media type
             media_types = {
@@ -99,21 +123,26 @@ async def download_audio_endpoint(request: DownloadRequest):
                 path=file_path, media_type=media_type, background=BackgroundTask(cleanup)
             )
 
-            # Set simple Content-Disposition with ASCII filename only
+            # Set Content-Disposition with UTF-8 support (RFC 5987)
             import unicodedata
+            import urllib.parse
 
-            # Convert to ASCII - strip Vietnamese accents
+            # Convert to ASCII fallback - strip accents
             ascii_name = (
                 unicodedata.normalize("NFKD", filename).encode("ascii", "ignore").decode("ascii")
             )
             # Fallback when no real stem survives ASCII stripping
-            # Path('.mp3').suffix=='' so we check for a real stem+suffix pair
             p = Path(ascii_name)
             if not p.suffix or not p.stem.strip().lstrip("."):
                 ascii_name = "download.mp3"
 
-            # Simple header with just filename parameter
-            response.headers["Content-Disposition"] = f'attachment; filename="{ascii_name}"'
+            # UTF-8 encoded filename for modern browsers (RFC 5987)
+            utf8_encoded = urllib.parse.quote(filename)
+
+            # Set both for maximum compatibility
+            response.headers["Content-Disposition"] = (
+                f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{utf8_encoded}"
+            )
             return response
 
     except HTTPException:
@@ -129,3 +158,22 @@ async def download_audio_endpoint(request: DownloadRequest):
 
 
 # Endpoints will be added incrementally
+
+
+@router.post("/window/minimize")
+async def minimize_window():
+    """Minimize the application window."""
+    if _window_instance:
+        _window_instance.showMinimized()
+        return {"status": "minimized"}
+    raise HTTPException(status_code=503, detail="Window instance not available")
+
+
+@router.post("/window/close")
+async def close_window():
+    """Close the application window."""
+    if _window_instance:
+        # Use force_close to bypass download check for explicit button click
+        _window_instance.force_close()
+        return {"status": "closing"}
+    raise HTTPException(status_code=503, detail="Window instance not available")

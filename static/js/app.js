@@ -26,6 +26,7 @@ const formatSelect = document.getElementById('format-select');
 const qualitySelect = document.getElementById('quality-select');
 
 
+
 // UI State Management
 function showSection(section) {
     inputSection.style.display = 'none';
@@ -67,6 +68,13 @@ function showVideoInfo() {
 }
 
 
+function updateButtonStates() {
+    // Buttons are always enabled
+    fetchBtn.disabled = false;
+    downloadBtn.disabled = false;
+}
+
+
 // API Functions
 async function fetchVideoInfo(url) {
     try {
@@ -75,32 +83,37 @@ async function fetchVideoInfo(url) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ url: url })
+            body: JSON.stringify({
+                url: url
+            })
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Failed to fetch video info');
         }
-        
+
         return await response.json();
     } catch (error) {
+        console.error('Error fetching video info:', error);
         throw error;
     }
 }
 
 async function downloadAudio(url, format, quality) {
     try {
+        const body = {
+            url: url,
+            format: format,
+            quality: quality
+        };
+
         const response = await fetch('/api/download', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                url: url,
-                format: format,
-                quality: quality
-            })
+            body: JSON.stringify(body)
         });
         
         if (!response.ok) {
@@ -110,11 +123,19 @@ async function downloadAudio(url, format, quality) {
         
         // Get filename from Content-Disposition header
         const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = 'audio';
+        let filename = 'audio.mp3';
+        
         if (contentDisposition) {
-            const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
-            if (filenameMatch) {
-                filename = filenameMatch[1];
+            // Try to get UTF-8 encoded filename first (RFC 5987)
+            const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/);
+            if (utf8Match) {
+                filename = decodeURIComponent(utf8Match[1]);
+            } else {
+                // Fallback to regular filename parameter
+                const asciiMatch = contentDisposition.match(/filename="([^"]+)"/);
+                if (asciiMatch) {
+                    filename = asciiMatch[1];
+                }
             }
         }
         
@@ -164,7 +185,9 @@ async function handleFetchInfo() {
         showVideoInfo();
     } catch (error) {
         soundEffects.play('error');
-        showError(error.message);
+        // Show error message
+        const errorMsg = error.message;
+        showError(errorMsg);
     }
 }
 
@@ -198,9 +221,9 @@ async function handleDownload() {
         downloadBtn.textContent = 'Download';
         downloadBtn.disabled = false;
         
-        soundEffects.play('error');
-        // Show error in modal or toast
-        showError(error.message);
+        // Show error message
+        const errorMsg = error.message;
+        showError(errorMsg);
     }
 }
 
@@ -241,18 +264,83 @@ retryBtn.addEventListener('click', handleRetry);
 newUrlBtn.addEventListener('click', handleNewUrl);
 downloadBtn.addEventListener('click', handleDownload);
 
-// Allow Enter key to trigger fetch
-urlInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        handleFetchInfo();
-    }
+
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    showInput();
 });
 
-// Initialize
+
+// Window Control Functions
+async function minimizeWindow() {
+    try {
+        await fetch('/api/window/minimize', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    } catch (error) {
+        console.error('Failed to minimize window:', error);
+    }
+}
+async function closeWindow() {
+    try {
+        // Add a small delay to ensure the UI registers the click
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        const response = await fetch('/api/window/close', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            // Ensure request completes
+            keepalive: true,
+        });
+        
+        if (!response.ok) {
+            console.error('Failed to close window:', response.statusText);
+        }
+    } catch (error) {
+        console.error('Failed to close window:', error);
+        // Fallback: try to close via Qt if available
+        if (window.qt && window.qt.webChannelTransport) {
+            window.close();
+        }
+    }
+}
+// Window Drag Functionality
+function setupWindowDrag() {
+    const dragArea = document.getElementById('drag-area');
+    if (!dragArea) return;
+
+    let isDragging = false;
+
+    dragArea.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        e.preventDefault();
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+}
+
+// Initialize window controls
 document.addEventListener('DOMContentLoaded', () => {
-    showInput();
-});
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    showInput();
+    // Setup window control buttons
+    const minimizeBtn = document.getElementById('minimize-btn');
+    const closeBtn = document.getElementById('close-btn');
+
+    if (minimizeBtn) {
+        minimizeBtn.addEventListener('click', minimizeWindow);
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeWindow);
+    }
+
+    // Setup window drag
+    setupWindowDrag();
 });

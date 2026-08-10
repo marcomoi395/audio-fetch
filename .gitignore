@@ -33,6 +33,7 @@ MANIFEST
 # PyInstaller
 *.manifest
 *.spec
+!audio-fetch.spec
 
 # Installer logs
 pip-log.txt
@@ -224,3 +225,8 @@ test_downloads/
 *~
 *.swp
 *.swo
+test_fix.py
+tasks/
+SPEC.md
+dist/
+build/
