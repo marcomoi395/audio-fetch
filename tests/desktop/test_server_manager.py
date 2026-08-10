@@ -108,27 +108,46 @@ class TestServerManagerLifecycle:
         """Test starting server on specified port."""
         manager = ServerManager(port=8001, auto_detect=False)
 
+        # Create an event to keep the mock server running
+        server_running = asyncio.Event()
+
+        async def mock_serve():
+            """Mock serve that waits until signaled to stop."""
+            await server_running.wait()
+
         # Mock uvicorn.Server
         mock_server = AsyncMock()
-        mock_server.serve = AsyncMock()
+        mock_server.serve = mock_serve
 
-        with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
-            with patch.object(
-                manager, "_wait_for_ready", new_callable=AsyncMock, return_value=True
-            ):
-                await manager.start(timeout=5)
+        try:
+            with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
+                with patch.object(
+                    manager, "_wait_for_ready", new_callable=AsyncMock, return_value=True
+                ):
+                    await manager.start(timeout=5)
 
-                assert manager.is_running() is True
-                assert manager._thread is not None
-                assert manager._thread.is_alive()
+                    # Give thread time to fully start
+                    await asyncio.sleep(0.1)
 
-        # Cleanup
-        await manager.stop()
+                    assert manager.is_running() is True
+                    assert manager._thread is not None
+                    assert manager._thread.is_alive()
+        finally:
+            # Signal server to stop and cleanup
+            server_running.set()
+            await manager.stop()
 
     @pytest.mark.asyncio
     async def test_start_server_auto_detect_port(self):
         """Test starting server with auto port detection."""
         manager = ServerManager(port=8000, auto_detect=True)
+
+        # Create an event to keep the mock server running
+        server_running = asyncio.Event()
+
+        async def mock_serve():
+            """Mock serve that waits until signaled to stop."""
+            await server_running.wait()
 
         # Mock port availability check - simulate port 8000 is occupied
         original_is_available = manager._is_port_available
@@ -138,23 +157,28 @@ class TestServerManagerLifecycle:
                 return False
             return original_is_available(port)
 
-        with patch.object(manager, "_is_port_available", side_effect=mock_is_available):
-            with patch.object(manager, "_find_free_port", return_value=8001):
-                mock_server = AsyncMock()
-                mock_server.serve = AsyncMock()
+        try:
+            with patch.object(manager, "_is_port_available", side_effect=mock_is_available):
+                with patch.object(manager, "_find_free_port", return_value=8001):
+                    mock_server = AsyncMock()
+                    mock_server.serve = mock_serve
 
-                with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
-                    with patch.object(
-                        manager, "_wait_for_ready", new_callable=AsyncMock, return_value=True
-                    ):
-                        await manager.start(timeout=5)
+                    with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
+                        with patch.object(
+                            manager, "_wait_for_ready", new_callable=AsyncMock, return_value=True
+                        ):
+                            await manager.start(timeout=5)
 
-                        # Port should have been changed to 8001
-                        assert manager.port == 8001
-                        assert manager.is_running() is True
+                            # Give thread time to fully start
+                            await asyncio.sleep(0.1)
 
-        # Cleanup
-        await manager.stop()
+                            # Port should have been changed to 8001
+                            assert manager.port == 8001
+                            assert manager.is_running() is True
+        finally:
+            # Signal server to stop and cleanup
+            server_running.set()
+            await manager.stop()
 
     @pytest.mark.asyncio
     async def test_start_server_double_start_raises_error(self):
@@ -216,8 +240,15 @@ class TestServerManagerLifecycle:
         """Test stopping server gracefully."""
         manager = ServerManager(port=8004, auto_detect=False)
 
+        # Create an event to keep the mock server running
+        server_running = asyncio.Event()
+
+        async def mock_serve():
+            """Mock serve that waits until signaled to stop."""
+            await server_running.wait()
+
         mock_server = AsyncMock()
-        mock_server.serve = AsyncMock()
+        mock_server.serve = mock_serve
         mock_server.should_exit = False
 
         with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
@@ -226,9 +257,13 @@ class TestServerManagerLifecycle:
             ):
                 await manager.start(timeout=5)
 
+                # Give thread time to fully start
+                await asyncio.sleep(0.1)
+
                 assert manager.is_running() is True
 
-                # Stop the server
+                # Signal server to stop
+                server_running.set()
                 await manager.stop()
 
                 # Should set should_exit flag
@@ -258,18 +293,31 @@ class TestServerManagerLifecycle:
         """Test is_running returns True after successful start."""
         manager = ServerManager(port=8005, auto_detect=False)
 
+        # Create an event to keep the mock server running
+        server_running = asyncio.Event()
+
+        async def mock_serve():
+            """Mock serve that waits until signaled to stop."""
+            await server_running.wait()
+
         mock_server = AsyncMock()
-        mock_server.serve = AsyncMock()
+        mock_server.serve = mock_serve
 
-        with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
-            with patch.object(
-                manager, "_wait_for_ready", new_callable=AsyncMock, return_value=True
-            ):
-                await manager.start(timeout=5)
-                assert manager.is_running() is True
+        try:
+            with patch("desktop.server_manager.uvicorn.Server", return_value=mock_server):
+                with patch.object(
+                    manager, "_wait_for_ready", new_callable=AsyncMock, return_value=True
+                ):
+                    await manager.start(timeout=5)
 
-        # Cleanup
-        await manager.stop()
+                    # Give thread time to fully start
+                    await asyncio.sleep(0.1)
+
+                    assert manager.is_running() is True
+        finally:
+            # Signal server to stop and cleanup
+            server_running.set()
+            await manager.stop()
 
 
 class TestServerManagerWaitForReady:
