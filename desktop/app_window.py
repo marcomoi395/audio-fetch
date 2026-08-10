@@ -23,8 +23,8 @@ class AudioFetchWindow(QMainWindow):
     def __init__(
         self,
         server_url: str,
-        width: int = 900,
-        height: int = 700,
+        width: int = 1200,
+        height: int = 800,
         title: str = "Audio Fetch",
         parent: QMainWindow | None = None,
     ) -> None:

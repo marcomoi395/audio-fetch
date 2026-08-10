@@ -232,7 +232,7 @@ async def download_audio(
     postprocessors.append(
         {
             "key": "FFmpegMetadata",
-            "add_metadata": "true",  # yt-dlp expects string "true"
+            "add_metadata": True,
         }
     )
 
