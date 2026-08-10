@@ -18,7 +18,7 @@ body {
 
 /* Custom Title Bar */
 .custom-title-bar {
-    height: 40px;
+    height: 45px;
     background-color: #209cee;
     border-bottom: 4px solid #212529;
     display: flex;
@@ -40,20 +40,20 @@ body {
 }
 
 .title-bar-title {
-    font-size: 12px;
+    font-size: 13px;
     color: #ffffff;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
 }
 
 .title-bar-controls {
     display: flex;
-    gap: 6px;
-    padding-right: 10px;
+    gap: 8px;
+    padding-right: 12px;
 }
 
 .title-bar-button {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border: 3px solid #212529;
     background-color: #ffffff;
     cursor: pointer;
@@ -61,7 +61,7 @@ body {
     align-items: center;
     justify-content: center;
     font-family: 'Press Start 2P', cursive;
-    font-size: 14px;
+    font-size: 16px;
     transition: all 0.1s;
     box-shadow: 2px 2px 0 0 rgba(0, 0, 0, 0.2);
     padding: 0;
@@ -146,7 +146,7 @@ body {
 .container {
     max-width: 750px;
     margin: 0 auto;
-    padding: 1.75rem 1rem 1rem;
+    padding: 2rem 1.5rem 1.5rem;
     width: 100%;
     flex: 1;
     display: flex;
@@ -158,16 +158,16 @@ body {
 /* Header */
 .header {
     text-align: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
 }
 
 .title {
-    font-size: 1.25rem;
-    margin-bottom: 0.5rem;
+    font-size: 1.4rem;
+    margin-bottom: 0.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
 }
 
 .subtitle {
@@ -182,12 +182,12 @@ body {
 }
 
 .main-content section {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 /* Input Section */
 .input-group {
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
 }
 
 #fetch-btn {
@@ -231,8 +231,8 @@ body {
 .video-info-grid {
     display: grid;
     grid-template-columns: 1fr 1.5fr;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
 }
 
 .thumbnail-container {
@@ -249,22 +249,22 @@ body {
 .video-metadata {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
 }
 
 .metadata-item {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 0.4rem;
 }
 
 .metadata-label {
-    font-size: 0.6rem;
+    font-size: 0.65rem;
     color: #666;
 }
 
 .metadata-value {
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     word-break: break-word;
 }
 
@@ -272,18 +272,18 @@ body {
 .download-options {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.875rem;
-    margin-bottom: 1rem;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
 }
 
 .option-group {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 0.5rem;
 }
 
 .option-group label {
-    font-size: 0.6rem;
+    font-size: 0.65rem;
 }
 
 .nes-select {
@@ -292,15 +292,15 @@ body {
 
 .nes-select select {
     width: 100%;
-    font-size: 0.6rem;
-    padding: 0.2rem;
+    font-size: 0.65rem;
+    padding: 0.3rem;
 }
 
 /* Action Buttons */
 .action-buttons {
     display: grid;
     grid-template-columns: 2fr 1fr;
-    gap: 0.75rem;
+    gap: 1rem;
 }
 
 #download-btn {
@@ -314,8 +314,8 @@ body {
 /* Footer */
 .footer {
     text-align: center;
-    padding: 1rem 0;
-    font-size: 0.6rem;
+    padding: 1.25rem 0;
+    font-size: 0.65rem;
     color: #666;
 }
 
