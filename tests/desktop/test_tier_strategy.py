@@ -316,7 +316,9 @@ class TestTierOrdering:
 
         tier1 = DownloadTier.TIER_1_SIMPLE
         tier2 = strategy.get_next_tier(tier1)
+        assert tier2 is not None
         tier3 = strategy.get_next_tier(tier2)
+        assert tier3 is not None
         tier_end = strategy.get_next_tier(tier3)
 
         assert tier2 == DownloadTier.TIER_2_COOKIES

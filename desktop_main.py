@@ -65,7 +65,7 @@ class DesktopApp:
             if not QApplication.instance():
                 self.app = QApplication(sys.argv)
             else:
-                self.app = QApplication.instance()
+                self.app = QApplication.instance()  # type: ignore[assignment]
 
             # Check for another running instance
             lock_file = self._get_lock_file_path()
@@ -141,6 +141,7 @@ class DesktopApp:
 
             # Run Qt event loop
             logger.info("Starting Qt event loop...")
+            assert self.app is not None, "QApplication should be initialized"
             exit_code = self.app.exec()
             logger.info(f"Qt event loop exited with code {exit_code}")
 

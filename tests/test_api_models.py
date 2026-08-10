@@ -9,7 +9,7 @@ class TestVideoInfoRequest:
     def test_video_info_request_without_cookies_field(self):
         """VideoInfoRequest should not have a cookies field."""
         # This should work - only url is required
-        request = VideoInfoRequest(url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        request = VideoInfoRequest(url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")  # type: ignore[arg-type]
 
         # Verify the model doesn't have cookies attribute
         assert not hasattr(request, "cookies"), "VideoInfoRequest should not have cookies field"
@@ -27,7 +27,9 @@ class TestDownloadRequest:
         """DownloadRequest should not have a cookies field."""
         # This should work - required fields only
         request = DownloadRequest(
-            url="https://www.youtube.com/watch?v=dQw4w9WgXcQ", format="mp3", quality="192"
+            url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",  # type: ignore[arg-type]
+            format="mp3",
+            quality="192",
         )
 
         # Verify the model doesn't have cookies attribute

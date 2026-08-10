@@ -4,6 +4,7 @@ import json
 import os
 import platform
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,7 +14,7 @@ from desktop.config_manager import ConfigManager
 
 
 @pytest.fixture
-def temp_config_dir() -> Path:
+def temp_config_dir() -> Generator[Path, None, None]:
     """Create temporary config directory for tests."""
     with tempfile.TemporaryDirectory() as tmpdir:
         config_dir = Path(tmpdir) / "audio-fetch"

@@ -9,11 +9,12 @@ import logging
 import os
 import platform
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Default configuration schema
-DEFAULT_CONFIG = {
+DEFAULT_CONFIG: dict[str, Any] = {
     "server": {"port": 8000, "host": "127.0.0.1", "auto_detect": True},
     "downloads": {"default_path": "~/Downloads/AudioFetch"},
     "tier_strategy": {"browser": "chrome", "fallback_enabled": True, "tier_1_attempts": 3},
@@ -189,7 +190,7 @@ class ConfigManager:
             logger.error(msg)
             raise ConfigError(msg) from e
 
-    def get_config(self) -> dict:
+    def get_config(self) -> dict[str, Any]:
         """Get current configuration, loading if necessary.
 
         Returns:
@@ -197,4 +198,5 @@ class ConfigManager:
         """
         if self._config is None:
             self.load()
+        assert self._config is not None, "Config should be loaded"
         return self._config

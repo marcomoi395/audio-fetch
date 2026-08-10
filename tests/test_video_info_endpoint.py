@@ -33,7 +33,7 @@ async def test_video_info_endpoint_no_cookies_passed():
         from api.models import VideoInfoRequest
         from api.routes import fetch_video_info
 
-        request = VideoInfoRequest(url="https://youtube.com/watch?v=test")
+        request = VideoInfoRequest(url="https://youtube.com/watch?v=test")  # type: ignore[arg-type]
         await fetch_video_info(request)
 
         # Verify get_video_info was called with only url parameter

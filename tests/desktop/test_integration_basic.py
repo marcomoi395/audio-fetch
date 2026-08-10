@@ -34,7 +34,8 @@ def _find_free_port() -> int:
     """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+        port: int = s.getsockname()[1]
+        return port
 
 
 @pytest.mark.asyncio
@@ -168,7 +169,10 @@ async def test_window_with_running_server(qapp):
         assert window.windowTitle() == "Integration Test Window"
 
         # Verify window has webview pointing to server
+        from PySide6.QtWebEngineWidgets import QWebEngineView
+
         browser = window.centralWidget()
+        assert isinstance(browser, QWebEngineView)
         loaded_url = browser.url().toString()
         assert loaded_url == server_url
 

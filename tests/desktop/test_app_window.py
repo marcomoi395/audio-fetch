@@ -41,7 +41,10 @@ class TestAudioFetchWindow:
         server_url = "http://127.0.0.1:8000"
         window = AudioFetchWindow(server_url)
 
+        from PySide6.QtWebEngineWidgets import QWebEngineView
+
         browser = window.centralWidget()
+        assert isinstance(browser, QWebEngineView)
         loaded_url = browser.url().toString()
         assert loaded_url == server_url
 
