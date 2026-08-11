@@ -89,6 +89,21 @@ jobs:
           NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
           BRANCH_NAME="release/$NEW_TAG"
           
+          # Fetch all remote branches
+          git fetch origin
+          
+          # Check if release branch already exists remotely
+          if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
+            echo "Release branch $BRANCH_NAME already exists remotely, deleting it..."
+            git push origin --delete "$BRANCH_NAME" || echo "Failed to delete remote branch, continuing..."
+          fi
+          
+          # Check if release branch exists locally
+          if git show-ref --verify --quiet refs/heads/"$BRANCH_NAME"; then
+            echo "Release branch $BRANCH_NAME exists locally, deleting it..."
+            git branch -D "$BRANCH_NAME"
+          fi
+          
           # Create and switch to release branch
           git checkout -b "$BRANCH_NAME"
           
@@ -110,6 +125,14 @@ jobs:
           NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
           BRANCH_NAME="${{ steps.create_branch.outputs.branch_name }}"
           BUMP_TYPE="${{ inputs.version_bump }}"
+          
+          # Check if PR already exists for this branch
+          EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number' --repo ${{ github.repository }} || echo "")
+          
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR already exists for branch $BRANCH_NAME (PR #$EXISTING_PR), closing it..."
+            gh pr close "$EXISTING_PR" --repo ${{ github.repository }} || echo "Failed to close existing PR"
+          fi
           
           # Create PR body
           PR_BODY="## Release $NEW_TAG
