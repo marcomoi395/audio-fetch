@@ -235,3 +235,7 @@ build/
 build-appimage/
 *.AppImage
 appimagetool-*.AppImage
+
+# Local build testing (not for repo)
+Dockerfile.build-test
+scripts/test-build-local.sh
