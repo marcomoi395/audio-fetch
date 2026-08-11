@@ -238,7 +238,6 @@ build_deb_package() {
         -v "${VERSION_NUMBER}" \
         -a "${ARCH}" \
         --description "${DESCRIPTION}" \
-        --long-description "${LONG_DESCRIPTION}" \
         --maintainer "${MAINTAINER}" \
         --license "MIT" \
         --url "https://github.com/audio-fetch/audio-fetch" \
