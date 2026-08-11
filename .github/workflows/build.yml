@@ -76,7 +76,7 @@ jobs:
           sudo apt-get install -y ruby-dev
           sudo gem install fpm
           # Install appimagetool dependencies
-          sudo apt-get install -y wget
+          sudo apt-get install -y wget file
       
       - name: Install Python dependencies
         run: pip install -r requirements.txt

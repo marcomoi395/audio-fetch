@@ -323,8 +323,16 @@ build_appimage() {
         rm "${OUTPUT_APPIMAGE}"
     fi
     
-    # Build AppImage (skip AppStream validation for quick testing)
-    ARCH=${ARCH} "${APPIMAGETOOL}" --no-appstream "${APPDIR}" "${OUTPUT_APPIMAGE}"
+    # Detect if FUSE is available or if we're in CI
+    APPIMAGETOOL_ARGS="--no-appstream"
+    if [ -n "${CI:-}" ] || ! [ -e /dev/fuse ]; then
+        log_info "FUSE not available or in CI environment, using --appimage-extract-and-run"
+        APPIMAGETOOL_ARGS="--appimage-extract-and-run ${APPIMAGETOOL_ARGS}"
+    fi
+    
+    # Build AppImage
+    log_info "Running: ARCH=${ARCH} ${APPIMAGETOOL} ${APPIMAGETOOL_ARGS} ${APPDIR} ${OUTPUT_APPIMAGE}"
+    ARCH=${ARCH} "${APPIMAGETOOL}" ${APPIMAGETOOL_ARGS} "${APPDIR}" "${OUTPUT_APPIMAGE}"
     
     if [ -f "${OUTPUT_APPIMAGE}" ]; then
         log_info "AppImage built successfully!"
