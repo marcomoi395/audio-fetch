@@ -54,8 +54,6 @@ hiddenimports = [
     'yt_dlp.extractor',
     'yt_dlp.postprocessor',
     'yt_dlp.downloader',
-    'yt_dlp_plugins',
-    'yt_dlp_ejs',
     
     # HTTP and async libraries
     'httpx',

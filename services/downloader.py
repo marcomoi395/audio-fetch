@@ -6,16 +6,6 @@ import os
 from pathlib import Path
 from typing import Any
 
-# Ensure Node.js is in PATH for yt-dlp to use
-node_paths = [
-    "/home/ym/.local/share/nvm/v22.22.2/bin",
-    "/usr/local/bin",
-    "/usr/bin",
-]
-for node_path in node_paths:
-    if os.path.exists(node_path) and node_path not in os.environ.get("PATH", ""):
-        os.environ["PATH"] = f"{node_path}:{os.environ.get('PATH', '')}"
-
 import yt_dlp
 
 from desktop.cookie_extractor import CookieExtractor
@@ -73,14 +63,13 @@ async def get_video_info(url: str) -> dict[str, Any]:
         "extract_flat": False,
         "nocheckcertificate": True,
         "prefer_insecure": False,
-        "js_runtimes": {"node": {}},  # Enable Node.js for JavaScript challenge solving
     }
 
     logger.info(f"Fetching info without cookies for {url}")
-    # Use basic spoofing for no-cookie requests
+    # Use android client (same as download) - works without Node.js/plugins
     ydl_opts["extractor_args"] = {
         "youtube": {
-            "player_client": ["mweb", "web"],
+            "player_client": ["android"],
         },
     }
 
@@ -136,6 +125,7 @@ async def download_audio(
     output_template = str(output_path / "%(title)s.%(ext)s")
 
     ydl_opts: dict[str, Any] = {
+        "format": "bestaudio/best",  # Prioritize audio-only streams, fallback to best available
         "outtmpl": output_template,
         "quiet": False,
         "no_warnings": False,
