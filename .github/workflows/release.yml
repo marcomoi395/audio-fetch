@@ -121,58 +121,56 @@ jobs:
             COMMITS=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
           fi
           
-          # Create changelog
-          CHANGELOG="## Changes in ${NEW_TAG}
-
-$COMMITS
-
-**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LATEST_TAG}...${NEW_TAG}
-
----
-
-## Installation
-
-### Linux
-
-**AppImage** (Universal):
-\`\`\`bash
-chmod +x audio-fetch-${NEW_TAG}-x86_64.AppImage
-./audio-fetch-${NEW_TAG}-x86_64.AppImage
-\`\`\`
-
-**Debian/Ubuntu** (.deb):
-\`\`\`bash
-sudo dpkg -i audio-fetch_${NEW_TAG#v}_amd64.deb
-\`\`\`
-
-**Fedora/RHEL/CentOS** (.rpm):
-\`\`\`bash
-sudo rpm -i audio-fetch-${NEW_TAG#v}-1.x86_64.rpm
-\`\`\`
-
-### Windows
-
-Run the installer: \`audio-fetch-${NEW_TAG}-setup.exe\`
-
----
-
-## Requirements
-
-- **FFmpeg** is required for audio conversion
-  - Linux: \`sudo apt install ffmpeg\` or \`sudo dnf install ffmpeg\`
-  - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
-
-## Notes
-
-- Automatic browser cookie extraction for YouTube authentication
-- Supports Chrome, Firefox, Edge, and Brave browsers
-- 3-tier download strategy for robust downloading
-"
+          # Create changelog by building it line by line
+          CHANGELOG_FILE="/tmp/changelog.md"
           
-          # Save changelog to file (for multi-line output)
-          echo "$CHANGELOG" > /tmp/changelog.md
-          echo "changelog_file=/tmp/changelog.md" >> $GITHUB_OUTPUT
+          echo "## Changes in ${NEW_TAG}" > "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "$COMMITS" >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LATEST_TAG}...${NEW_TAG}" >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "---" >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "## Installation" >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "### Linux" >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "**AppImage** (Universal):" >> "$CHANGELOG_FILE"
+          echo '```bash' >> "$CHANGELOG_FILE"
+          echo "chmod +x audio-fetch-${NEW_TAG}-x86_64.AppImage" >> "$CHANGELOG_FILE"
+          echo "./audio-fetch-${NEW_TAG}-x86_64.AppImage" >> "$CHANGELOG_FILE"
+          echo '```' >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "**Debian/Ubuntu** (.deb):" >> "$CHANGELOG_FILE"
+          echo '```bash' >> "$CHANGELOG_FILE"
+          echo "sudo dpkg -i audio-fetch_${NEW_TAG#v}_amd64.deb" >> "$CHANGELOG_FILE"
+          echo '```' >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "**Fedora/RHEL/CentOS** (.rpm):" >> "$CHANGELOG_FILE"
+          echo '```bash' >> "$CHANGELOG_FILE"
+          echo "sudo rpm -i audio-fetch-${NEW_TAG#v}-1.x86_64.rpm" >> "$CHANGELOG_FILE"
+          echo '```' >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "### Windows" >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "Run the installer: \`audio-fetch-${NEW_TAG}-setup.exe\`" >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "---" >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "## Requirements" >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "- **FFmpeg** is required for audio conversion" >> "$CHANGELOG_FILE"
+          echo "  - Linux: \`sudo apt install ffmpeg\` or \`sudo dnf install ffmpeg\`" >> "$CHANGELOG_FILE"
+          echo "  - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)" >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "## Notes" >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "- Automatic browser cookie extraction for YouTube authentication" >> "$CHANGELOG_FILE"
+          echo "- Supports Chrome, Firefox, Edge, and Brave browsers" >> "$CHANGELOG_FILE"
+          echo "- 3-tier download strategy for robust downloading" >> "$CHANGELOG_FILE"
           
+          echo "changelog_file=$CHANGELOG_FILE" >> $GITHUB_OUTPUT
           echo "Changelog generated"
       
       - name: Create release draft
