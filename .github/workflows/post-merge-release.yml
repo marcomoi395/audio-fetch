@@ -71,9 +71,6 @@ jobs:
     with:
       tag: ${{ needs.prepare.outputs.new_tag }}
       upload_to_release: false
-    permissions:
-      contents: write
-      actions: read
 
   publish:
     name: Publish Release
