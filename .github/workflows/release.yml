@@ -121,12 +121,13 @@ jobs:
             COMMITS=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
           fi
           
-          # Create changelog
-          CHANGELOG="## Changes in ${NEW_TAG}
+          # Create changelog using heredoc
+          CHANGELOG=$(cat <<'EOF'
+## Changes in ${NEW_TAG}
 
-$COMMITS
+${COMMITS}
 
-**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LATEST_TAG}...${NEW_TAG}
+**Full Changelog**: https://github.com/${GITHUB_REPOSITORY}/compare/${LATEST_TAG}...${NEW_TAG}
 
 ---
 
@@ -135,31 +136,31 @@ $COMMITS
 ### Linux
 
 **AppImage** (Universal):
-\`\`\`bash
+```bash
 chmod +x audio-fetch-${NEW_TAG}-x86_64.AppImage
 ./audio-fetch-${NEW_TAG}-x86_64.AppImage
-\`\`\`
+```
 
 **Debian/Ubuntu** (.deb):
-\`\`\`bash
-sudo dpkg -i audio-fetch_${NEW_TAG#v}_amd64.deb
-\`\`\`
+```bash
+sudo dpkg -i audio-fetch_${NEW_VERSION}_amd64.deb
+```
 
 **Fedora/RHEL/CentOS** (.rpm):
-\`\`\`bash
-sudo rpm -i audio-fetch-${NEW_TAG#v}-1.x86_64.rpm
-\`\`\`
+```bash
+sudo rpm -i audio-fetch-${NEW_VERSION}-1.x86_64.rpm
+```
 
 ### Windows
 
-Run the installer: \`audio-fetch-${NEW_TAG}-setup.exe\`
+Run the installer: `audio-fetch-${NEW_TAG}-setup.exe`
 
 ---
 
 ## Requirements
 
 - **FFmpeg** is required for audio conversion
-  - Linux: \`sudo apt install ffmpeg\` or \`sudo dnf install ffmpeg\`
+  - Linux: `sudo apt install ffmpeg` or `sudo dnf install ffmpeg`
   - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
 
 ## Notes
@@ -167,7 +168,15 @@ Run the installer: \`audio-fetch-${NEW_TAG}-setup.exe\`
 - Automatic browser cookie extraction for YouTube authentication
 - Supports Chrome, Firefox, Edge, and Brave browsers
 - 3-tier download strategy for robust downloading
-"
+EOF
+)
+          
+          # Substitute variables
+          CHANGELOG="${CHANGELOG//\$\{NEW_TAG\}/$NEW_TAG}"
+          CHANGELOG="${CHANGELOG//\$\{NEW_VERSION\}/${NEW_TAG#v}}"
+          CHANGELOG="${CHANGELOG//\$\{COMMITS\}/$COMMITS}"
+          CHANGELOG="${CHANGELOG//\$\{GITHUB_REPOSITORY\}/${{ github.repository }}}"
+          CHANGELOG="${CHANGELOG//\$\{LATEST_TAG\}/$LATEST_TAG}"
           
           # Save changelog to file (for multi-line output)
           echo "$CHANGELOG" > /tmp/changelog.md
