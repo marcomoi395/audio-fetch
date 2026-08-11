@@ -3,11 +3,17 @@
 This guide is for release managers who trigger and publish releases for Audio Fetch.
 
 ## Overview
+The release process is fully automated through GitHub Actions workflows in two stages:
 
-The release process is fully automated through GitHub Actions workflows:
-1. **Release Workflow** - Bumps version, creates tag, generates changelog, creates release draft
-2. **Build Workflow** - Builds multi-platform binaries and uploads to release
-3. **Manual Publish** - Manager reviews and publishes the release
+**Stage 1: Release Preparation** (Manual trigger)
+1. **Release Workflow** - Creates release branch, bumps version, creates Pull Request
+2. **CI Tests** - Automatically run on the PR
+3. **Manual Review** - Manager reviews and merges the PR
+
+**Stage 2: Release Publishing** (Automatic after PR merge)
+4. **Post-Merge Release Workflow** - Creates tag, generates changelog, creates release draft
+5. **Build Workflow** - Builds multi-platform binaries and uploads to release
+6. **Manual Publish** - Manager reviews and publishes the release
 
 ## Triggering a Release
 
@@ -15,6 +21,7 @@ The release process is fully automated through GitHub Actions workflows:
 - You must have write access to the repository
 - All changes should be merged to `main` branch
 - CI tests should be passing on `main`
+- Branch protection rules are configured on `main` branch
 
 ### Steps
 
@@ -30,23 +37,43 @@ The release process is fully automated through GitHub Actions workflows:
      - **minor** (0.1.0 → 0.2.0): New features, backward compatible
      - **major** (0.1.0 → 1.0.0): Breaking changes, API changes
    - Click "Run workflow" green button
+3. **Monitor Release PR Creation**
+   - Release workflow runs (~1 minute):
+     - Calculates new version number
+     - Creates release branch (e.g., `release/v0.1.1`)
+     - Updates version in `pyproject.toml`
+     - Commits and pushes to release branch
+     - Creates Pull Request to `main`
+   
+   - Wait for workflow to complete
+   - Check workflow summary for PR link
 
-3. **Wait for Completion**
-   - Release workflow runs (~2 minutes):
-     - Bumps version in `pyproject.toml`
-     - Commits and pushes version bump
-     - Creates and pushes new tag (e.g., `v0.1.1`)
+4. **Review the Pull Request**
+   - Click on the PR link from workflow summary
+   - Review the version bump in `pyproject.toml`
+   - Wait for CI tests to pass (status checks)
+   - Verify all checks are green ✓
+
+5. **Merge the Pull Request**
+   - Once tests pass, click "Merge pull request"
+   - Confirm the merge
+   - **Important**: Do NOT delete the release branch yet (workflow handles this)
+
+6. **Automatic Release Publishing**
+   - Post-merge workflow runs automatically (~2 minutes):
+     - Creates and pushes git tag (e.g., `v0.1.1`)
      - Generates changelog from commits
      - Creates release draft on GitHub
      - Triggers build workflow
+     - Deletes the release branch
    
    - Build workflow runs (~15-20 minutes):
      - Builds Linux packages (AppImage, .deb, .rpm)
      - Builds Windows installer
      - Uploads all artifacts to release draft
 
-4. **Monitor Progress**
-   - Check "Release" workflow run for completion
+7. **Monitor Progress**
+   - Check "Post-Merge Release" workflow run for completion
    - Check "Build" workflow run for build status
    - Build artifacts will appear in the release draft automatically
 
@@ -101,37 +128,51 @@ The release process is fully automated through GitHub Actions workflows:
 
 ## Troubleshooting
 
-### Release Workflow Failed
+### Release Workflow Failed to Create PR
 
-**Symptom**: Release workflow shows red X
+**Symptom**: Release workflow shows red X, no PR created
 
 **Common Causes**:
 - Tag already exists (trying to release same version twice)
-- Permission issues (bot cannot push to main)
+- Branch already exists (previous release attempt)
+- Permission issues (bot cannot create branches)
 - Version bump script error
 
 **Resolution**:
 1. Check workflow logs for error message
 2. If tag exists, delete it: `git tag -d vX.Y.Z && git push --delete origin vX.Y.Z`
-3. Re-run the workflow
+3. If branch exists, delete it: `git push --delete origin release/vX.Y.Z`
+4. Re-run the workflow
 
-### Build Workflow Failed
+### CI Tests Failed on Release PR
 
-**Symptom**: Build workflow shows red X, artifacts missing
-
-**Common Causes**:
-- Build script error (PyInstaller, fpm, Inno Setup)
-- Dependency installation failure
-- System dependency missing on runner
+**Symptom**: PR has red X, cannot merge
 
 **Resolution**:
-1. Check build workflow logs for errors
-2. Fix the issue (update build scripts if needed)
-3. Manually trigger build workflow:
-   - Go to Actions → Build
-   - Run workflow with the tag (e.g., `v0.1.1`)
-   - Check "upload_to_release" option
-4. Artifacts will be uploaded to existing release draft
+1. Check which test failed in PR checks
+2. Fix the issue on the release branch or main branch
+3. If fixing on main:
+   - Merge fix to main first
+   - Update release branch: `git checkout release/vX.Y.Z && git merge main && git push`
+4. If fixing on release branch:
+   - Push fix to release branch
+   - Tests will re-run automatically
+5. Wait for tests to pass, then merge PR
+
+### Post-Merge Workflow Failed
+
+**Symptom**: PR merged but no tag/release created
+
+**Common Causes**:
+- Workflow didn't trigger (wrong branch name format)
+- Tag already exists
+- Permission issues
+
+**Resolution**:
+1. Check "Post-Merge Release" workflow runs in Actions tab
+2. If workflow didn't run, manually trigger it or create tag manually
+3. If tag exists, delete and re-trigger: `git tag -d vX.Y.Z && git push --delete origin vX.Y.Z`
+4. Manually re-run the workflow from Actions tab
 
 ### Artifacts Partially Missing
 
@@ -146,10 +187,17 @@ The release process is fully automated through GitHub Actions workflows:
 
 ### Need to Undo a Release
 
-**Before Publishing**:
+### Need to Cancel a Release
+
+**Before Merging PR**:
+1. Close the release PR without merging
+2. Delete the release branch: `git push --delete origin release/vX.Y.Z`
+3. Delete the tag if created: `git tag -d vX.Y.Z && git push --delete origin vX.Y.Z`
+
+**After Merging PR (Before Publishing)**:
 1. Delete the release draft from GitHub Releases page
 2. Delete the tag: `git tag -d vX.Y.Z && git push --delete origin vX.Y.Z`
-3. Revert version bump commit on main (if needed)
+3. Revert the version bump commit on main if needed
 
 **After Publishing**:
 - Releases cannot be "unpublished" on GitHub
@@ -179,13 +227,17 @@ Follow semantic versioning (https://semver.org/):
 
 ## Release Checklist
 
-Use this checklist for every release:
-
 - [ ] All PRs merged to main
 - [ ] CI tests passing on main
 - [ ] Release notes prepared (if manual additions needed)
 - [ ] Triggered release workflow
 - [ ] Release workflow completed successfully
+- [ ] Release PR created
+- [ ] CI tests passing on release PR
+- [ ] Release PR reviewed
+- [ ] Release PR merged
+- [ ] Post-merge workflow completed successfully
+- [ ] Git tag created
 - [ ] Build workflow triggered automatically
 - [ ] Build workflow completed successfully
 - [ ] All 4 artifacts present in release draft
@@ -203,12 +255,25 @@ Triggered by: Manual dispatch from GitHub Actions UI
 Steps:
 1. Get latest tag from repository
 2. Calculate new version based on bump type
-3. Update `pyproject.toml` with new version
-4. Commit and push version bump to main
-5. Create and push new tag
-6. Generate changelog from commits
-7. Create release draft with changelog
-8. Trigger build workflow
+3. Check if tag already exists
+4. Update `pyproject.toml` with new version
+5. Create release branch (e.g., `release/v0.1.1`)
+6. Commit version bump to release branch
+7. Push release branch
+8. Create Pull Request to main branch
+
+### Post-Merge Release Workflow (`post-merge-release.yml`)
+
+Triggered by: PR merge to main (when PR branch starts with `release/`)
+
+Steps:
+1. Extract version from branch name
+2. Get previous tag for changelog
+3. Create and push new tag
+4. Generate changelog from commits
+5. Create release draft with changelog
+6. Trigger build workflow
+7. Delete release branch
 
 ### Build Workflow (`build.yml`)
 

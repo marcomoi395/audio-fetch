@@ -83,145 +83,85 @@ jobs:
             exit 1
           fi
           
-          echo "Updated pyproject.toml to version $NEW_VERSION"
-      
-      - name: Commit version bump
+      - name: Create release branch and push
         run: |
           NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
+          BRANCH_NAME="release/$NEW_TAG"
           
+          # Create and switch to release branch
+          git checkout -b "$BRANCH_NAME"
+          
+          # Commit version bump
           git add pyproject.toml
           git commit -m "chore: bump version to $NEW_TAG"
-          git push origin main
           
-          echo "Version bump committed and pushed"
+          # Push release branch
+          git push origin "$BRANCH_NAME"
+          
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "Release branch $BRANCH_NAME created and pushed"
+        id: create_branch
       
-      - name: Create and push tag
-        run: |
-          NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
-          
-          git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
-          git push origin "$NEW_TAG"
-          
-          echo "Tag $NEW_TAG created and pushed"
-      
-      - name: Generate changelog
-        id: changelog
-        run: |
-          LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
-          NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
-          
-          echo "Generating changelog from $LATEST_TAG to $NEW_TAG"
-          
-          # Get commits between tags
-          if [ "$LATEST_TAG" = "v0.0.0" ]; then
-            # First release - get all commits
-            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
-          else
-            # Get commits since last tag
-            COMMITS=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
-          fi
-          
-          # Create changelog by building it line by line
-          CHANGELOG_FILE="/tmp/changelog.md"
-          
-          echo "## Changes in ${NEW_TAG}" > "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "$COMMITS" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LATEST_TAG}...${NEW_TAG}" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "---" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "## Installation" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "### Linux" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "**AppImage** (Universal):" >> "$CHANGELOG_FILE"
-          echo '```bash' >> "$CHANGELOG_FILE"
-          echo "chmod +x audio-fetch-${NEW_TAG}-x86_64.AppImage" >> "$CHANGELOG_FILE"
-          echo "./audio-fetch-${NEW_TAG}-x86_64.AppImage" >> "$CHANGELOG_FILE"
-          echo '```' >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "**Debian/Ubuntu** (.deb):" >> "$CHANGELOG_FILE"
-          echo '```bash' >> "$CHANGELOG_FILE"
-          echo "sudo dpkg -i audio-fetch_${NEW_TAG#v}_amd64.deb" >> "$CHANGELOG_FILE"
-          echo '```' >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "**Fedora/RHEL/CentOS** (.rpm):" >> "$CHANGELOG_FILE"
-          echo '```bash' >> "$CHANGELOG_FILE"
-          echo "sudo rpm -i audio-fetch-${NEW_TAG#v}-1.x86_64.rpm" >> "$CHANGELOG_FILE"
-          echo '```' >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "### Windows" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "Run the installer: \`audio-fetch-${NEW_TAG}-setup.exe\`" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "---" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "## Requirements" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "- **FFmpeg** is required for audio conversion" >> "$CHANGELOG_FILE"
-          echo "  - Linux: \`sudo apt install ffmpeg\` or \`sudo dnf install ffmpeg\`" >> "$CHANGELOG_FILE"
-          echo "  - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "## Notes" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "- Automatic browser cookie extraction for YouTube authentication" >> "$CHANGELOG_FILE"
-          echo "- Supports Chrome, Firefox, Edge, and Brave browsers" >> "$CHANGELOG_FILE"
-          echo "- 3-tier download strategy for robust downloading" >> "$CHANGELOG_FILE"
-          
-          echo "changelog_file=$CHANGELOG_FILE" >> $GITHUB_OUTPUT
-          echo "Changelog generated"
-      
-      - name: Create release draft
-        id: create_release
+      - name: Create Pull Request
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
-          CHANGELOG_FILE="${{ steps.changelog.outputs.changelog_file }}"
+          BRANCH_NAME="${{ steps.create_branch.outputs.branch_name }}"
+          BUMP_TYPE="${{ inputs.version_bump }}"
           
-          # Create release draft
-          gh release create "$NEW_TAG" \
-            --draft \
+          # Create PR body
+          PR_BODY="## Release $NEW_TAG
+          
+          This PR bumps the version to **$NEW_TAG** ($BUMP_TYPE bump).
+          
+          ### Checklist
+          - [ ] Version updated in pyproject.toml
+          - [ ] Tests passing
+          - [ ] Ready to merge and release
+          
+          After merging, the release workflow will automatically:
+          1. Create git tag $NEW_TAG
+          2. Generate changelog
+          3. Create GitHub release draft
+          4. Trigger build workflow
+          
+          ---
+          
+          **Note**: Do not merge until all checks pass and you're ready to publish the release."
+          
+          # Create PR
+          PR_URL=$(gh pr create \
+            --base main \
+            --head "$BRANCH_NAME" \
             --title "Release $NEW_TAG" \
-            --notes-file "$CHANGELOG_FILE" \
-            --repo ${{ github.repository }}
+            --body "$PR_BODY" \
+            --repo ${{ github.repository }})
           
-          echo "Release draft created for $NEW_TAG"
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+          echo "Pull request created: $PR_URL"
+        id: create_pr
       
-      - name: Trigger build workflow
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
-          
-          # Trigger build workflow
-          gh workflow run build.yml \
-            -f tag="$NEW_TAG" \
-            -f upload_to_release=true \
-            --repo ${{ github.repository }}
-          
-          echo "Build workflow triggered for $NEW_TAG"
-          echo ""
-          echo "Monitor build progress at:"
-          echo "https://github.com/${{ github.repository }}/actions/workflows/build.yml"
       
       - name: Summary
         run: |
           NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
           BUMP_TYPE="${{ inputs.version_bump }}"
+          PR_URL="${{ steps.create_pr.outputs.pr_url }}"
           
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Release Preparation Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: $NEW_TAG" >> $GITHUB_STEP_SUMMARY
           echo "- **Bump Type**: $BUMP_TYPE" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: Release draft created ✓" >> $GITHUB_STEP_SUMMARY
-          echo "- **Build**: Triggered and running" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: Release PR created ✓" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Wait for build workflow to complete" >> $GITHUB_STEP_SUMMARY
-          echo "2. Review the [release draft](https://github.com/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY
-          echo "3. Edit changelog if needed" >> $GITHUB_STEP_SUMMARY
-          echo "4. Publish the release when ready" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review the [Pull Request]($PR_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "2. Wait for CI tests to pass" >> $GITHUB_STEP_SUMMARY
+          echo "3. Merge the PR when ready" >> $GITHUB_STEP_SUMMARY
+          echo "4. Release workflow will automatically create tag and publish release" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pull Request" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "$PR_URL" >> $GITHUB_STEP_SUMMARY
