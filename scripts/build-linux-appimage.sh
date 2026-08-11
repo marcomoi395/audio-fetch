@@ -155,12 +155,15 @@ build_with_pyinstaller() {
     cd "${PROJECT_ROOT}"
     
     # Activate virtual environment if it exists
+    # In CI environments (like GitHub Actions), dependencies may be installed globally
     if [ -d "${PROJECT_ROOT}/.venv" ]; then
-        log_info "Using existing virtual environment..."
+        log_info "Using existing virtual environment (.venv)..."
         source "${PROJECT_ROOT}/.venv/bin/activate"
     elif [ -d "${PROJECT_ROOT}/venv" ]; then
-        log_info "Using existing virtual environment..."
+        log_info "Using existing virtual environment (venv)..."
         source "${PROJECT_ROOT}/venv/bin/activate"
+    elif [ "${CI:-false}" = "true" ]; then
+        log_info "Running in CI environment, using global Python packages..."
     else
         log_error "Virtual environment not found. Please create one and install dependencies:"
         log_error "  python3 -m venv .venv"
