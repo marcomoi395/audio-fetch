@@ -90,14 +90,20 @@ jobs:
           echo "Building version: $VERSION"
       
       - name: Build AppImage
+        env:
+          CI: true
         run: |
           ./scripts/build-linux-appimage.sh ${{ steps.version.outputs.version }}
       
       - name: Build .deb package
+        env:
+          CI: true
         run: |
           ./scripts/build-linux-deb.sh ${{ steps.version.outputs.version }}
       
       - name: Build .rpm package
+        env:
+          CI: true
         run: |
           ./scripts/build-linux-rpm.sh ${{ steps.version.outputs.version }}
       
