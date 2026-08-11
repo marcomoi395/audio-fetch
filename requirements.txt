@@ -1,6 +1,6 @@
 # Audio Fetch Desktop - All Dependencies
 
-# Core Web Framework (embedded server)
+# Core Framework (embedded server for desktop UI)
 fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
 python-dotenv>=1.0.0
