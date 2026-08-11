@@ -209,6 +209,8 @@ downloads/
 *.jpg
 *.jpeg
 *.png
+# Allow project icon
+!static/favicon.png
 *.webp
 *.part
 *.ytdl
