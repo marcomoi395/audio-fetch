@@ -1,6 +1,5 @@
-"""FastAPI application for audio-fetch web app."""
+"""FastAPI application for Audio Fetch desktop app (embedded server)."""
 
-import os
 import shutil
 from pathlib import Path
 
@@ -10,7 +9,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -22,17 +20,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS configuration - configurable via environment variable
-cors_origins = os.getenv("CORS_ORIGINS", "*")
-allowed_origins = cors_origins.split(",") if cors_origins != "*" else ["*"]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Static files
 static_path = Path(__file__).parent / "static"

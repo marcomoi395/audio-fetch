@@ -262,6 +262,29 @@ Audio Fetch uses a hybrid architecture:
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
 
+## Release Process
+
+This project uses automated GitHub Actions workflows for releases.
+
+### For Release Managers
+
+See [Release Management Guide](docs/RELEASE.md) for detailed instructions on:
+- Triggering releases via GitHub Actions
+- Version bump options (patch/minor/major)
+- Reviewing and publishing release drafts
+- Troubleshooting build issues
+
+### Release Artifacts
+
+Each release includes pre-built binaries:
+- **Linux AppImage** - Universal, runs on any Linux distribution
+- **Linux .deb** - For Debian/Ubuntu systems
+- **Linux .rpm** - For Fedora/RHEL/CentOS systems  
+- **Windows Installer** - Setup executable for Windows
+
+Download from the [Releases](../../releases) page.
+
+
 ## Documentation
 
 - [Architecture Overview](docs/ARCHITECTURE.md)
