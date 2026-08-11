@@ -5,20 +5,22 @@ on:
     types: [closed]
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to release (e.g., v1.0.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
   actions: write
 
 jobs:
-  prepare:
-    name: Prepare Release
-    # Only run if PR was merged and branch name starts with 'release/'
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')
+  publish-release:
+    name: Publish Release
+    if: (github.event_name == 'workflow_dispatch') || (github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/'))
     runs-on: ubuntu-latest
-    outputs:
-      new_tag: ${{ steps.extract_version.outputs.new_tag }}
-      previous_tag: ${{ steps.get_previous_tag.outputs.previous_tag }}
 
     steps:
       - name: Checkout code
@@ -32,13 +34,18 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Extract version from branch name
+      - name: Extract version from branch name or input
         id: extract_version
         run: |
-          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
-          NEW_TAG="${BRANCH_NAME#release/}"
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            NEW_TAG="${{ inputs.version }}"
+            echo "Using manual input version: $NEW_TAG"
+          else
+            BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+            NEW_TAG="${BRANCH_NAME#release/}"
+            echo "Extracted tag: $NEW_TAG from branch: $BRANCH_NAME"
+          fi
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
-          echo "Extracted tag: $NEW_TAG from branch: $BRANCH_NAME"
 
       - name: Get previous tag
         id: get_previous_tag
@@ -50,9 +57,8 @@ jobs:
       - name: Create and push tag
         run: |
           NEW_TAG="${{ steps.extract_version.outputs.new_tag }}"
-
           if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
-            echo "Warning: Tag $NEW_TAG already exists, skipping tag creation"
+            echo "Warning: Tag $NEW_TAG already exists, skipping"
           else
             git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
             git push origin "$NEW_TAG"
@@ -60,44 +66,57 @@ jobs:
           fi
 
       - name: Delete release branch
+        if: github.event_name == 'pull_request'
         run: |
           BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
           git push origin --delete "$BRANCH_NAME" || echo "Branch already deleted"
 
-  build:
-    name: Build Artifacts
-    needs: prepare
-    uses: ./.github/workflows/build.yml
-    with:
-      tag: ${{ needs.prepare.outputs.new_tag }}
-      upload_to_release: false
+      - name: Trigger build and wait
+        id: build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NEW_TAG="${{ steps.extract_version.outputs.new_tag }}"
 
-  publish:
-    name: Publish Release
-    needs: [prepare, build]
-    runs-on: ubuntu-latest
+          echo "Triggering build workflow for $NEW_TAG..."
+          gh workflow run build.yml \
+            -f tag="$NEW_TAG" \
+            -f upload_to_release=false \
+            --repo ${{ github.repository }}
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+          # Wait for the run to be registered
+          sleep 10
+
+          # Get the run ID of the build we just triggered
+          RUN_ID=$(gh run list \
+            --workflow build.yml \
+            --repo ${{ github.repository }} \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId')
+
+          echo "Build run ID: $RUN_ID"
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+
+          # Wait for build to complete (timeout 30 min)
+          echo "Waiting for build to complete..."
+          gh run watch "$RUN_ID" --repo ${{ github.repository }} --exit-status
+
+          echo "Build completed successfully!"
 
       - name: Generate changelog
         id: changelog
         run: |
-          PREVIOUS_TAG="${{ needs.prepare.outputs.previous_tag }}"
-          NEW_TAG="${{ needs.prepare.outputs.new_tag }}"
+          PREVIOUS_TAG="${{ steps.get_previous_tag.outputs.previous_tag }}"
+          NEW_TAG="${{ steps.extract_version.outputs.new_tag }}"
 
-          echo "Generating changelog from $PREVIOUS_TAG to $NEW_TAG"
+          CHANGELOG_FILE="/tmp/changelog.md"
 
           if [ "$PREVIOUS_TAG" = "v0.0.0" ]; then
             COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
           else
             COMMITS=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
           fi
-
-          CHANGELOG_FILE="/tmp/changelog.md"
 
           echo "## Changes in ${NEW_TAG}" > "$CHANGELOG_FILE"
           echo "" >> "$CHANGELOG_FILE"
@@ -147,27 +166,27 @@ jobs:
 
           echo "changelog_file=$CHANGELOG_FILE" >> $GITHUB_OUTPUT
 
-      - name: Download all artifacts
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
+          run-id: ${{ steps.build.outputs.run_id }}
+          github-token: ${{ github.token }}
           path: artifacts
 
-      - name: Create release and upload artifacts
+      - name: Create release draft and upload artifacts
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          NEW_TAG="${{ needs.prepare.outputs.new_tag }}"
+          NEW_TAG="${{ steps.extract_version.outputs.new_tag }}"
           VERSION="${NEW_TAG#v}"
           CHANGELOG_FILE="${{ steps.changelog.outputs.changelog_file }}"
 
-          # Create release draft
           gh release create "$NEW_TAG" \
             --draft \
             --title "Release $NEW_TAG" \
             --notes-file "$CHANGELOG_FILE" \
             --repo ${{ github.repository }}
 
-          # Upload artifacts
           gh release upload "$NEW_TAG" \
             artifacts/linux-appimage/audio-fetch-v${VERSION}-x86_64.AppImage \
             --repo ${{ github.repository }}
@@ -184,21 +203,18 @@ jobs:
             artifacts/windows-installer/audio-fetch-v${VERSION}-setup.exe \
             --repo ${{ github.repository }}
 
-          echo "Release draft created with all artifacts: $NEW_TAG"
+          echo "Release draft created: $NEW_TAG"
 
       - name: Summary
         run: |
-          NEW_TAG="${{ needs.prepare.outputs.new_tag }}"
+          NEW_TAG="${{ steps.extract_version.outputs.new_tag }}"
 
-          echo "## Release Published Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: $NEW_TAG" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag**: Created and pushed ✓" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: Created ✓" >> $GITHUB_STEP_SUMMARY
           echo "- **Build**: Completed ✓" >> $GITHUB_STEP_SUMMARY
           echo "- **Release**: Draft created with artifacts ✓" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Review the [release draft](https://github.com/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY
-          echo "2. Edit changelog if needed" >> $GITHUB_STEP_SUMMARY
-          echo "3. Publish the release when ready" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review [release draft](https://github.com/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY
+          echo "2. Publish when ready" >> $GITHUB_STEP_SUMMARY
