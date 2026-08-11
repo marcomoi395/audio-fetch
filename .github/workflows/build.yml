@@ -79,7 +79,10 @@ jobs:
           sudo apt-get install -y wget file
       
       - name: Install Python dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          # Force upgrade yt-dlp to latest (YouTube changes frequently)
+          pip install --upgrade yt-dlp
       
       - name: Extract version from tag
         id: version
@@ -146,7 +149,10 @@ jobs:
           cache-dependency-path: 'requirements.txt'
       
       - name: Install Python dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          # Force upgrade yt-dlp to latest (YouTube changes frequently)
+          pip install --upgrade yt-dlp
       
       - name: Install Inno Setup
         run: |
