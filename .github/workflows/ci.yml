@@ -6,7 +6,24 @@ on:
       - main
 
 jobs:
+  # Skip CI for release PRs - they only bump version in pyproject.toml
+  check-skip:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        run: |
+          if [[ "${{ github.head_ref }}" =~ ^release/ ]]; then
+            echo "should_skip=true" >> $GITHUB_OUTPUT
+            echo "Skipping CI for release branch"
+          else
+            echo "should_skip=false" >> $GITHUB_OUTPUT
+          fi
+
   test:
+    needs: check-skip
+    if: needs.check-skip.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     
     steps:
