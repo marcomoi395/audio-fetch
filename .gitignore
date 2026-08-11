@@ -230,3 +230,8 @@ tasks/
 SPEC.md
 dist/
 build/
+
+# AppImage build artifacts
+build-appimage/
+*.AppImage
+appimagetool-*.AppImage
