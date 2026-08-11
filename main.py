@@ -17,7 +17,7 @@ from api.routes import router as api_router
 app = FastAPI(
     title="Audio Fetch",
     description="8-bit themed YouTube audio downloader",
-    version="1.0.0",
+    version="0.1.0",
 )
 
 

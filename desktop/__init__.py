@@ -8,4 +8,4 @@ This package contains PySide6-based desktop application components:
 - cookie_extractor: Browser cookie extraction
 """
 
-__version__ = "1.0.0"
+__version__ = "0.1.0"
