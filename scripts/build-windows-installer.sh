@@ -173,10 +173,40 @@ build_with_pyinstaller() {
     log_info "PyInstaller build completed successfully"
 }
 
+# Convert Unix path to Windows path
+# Handles both Git Bash paths (/d/path) and WSL paths (/mnt/d/path)
+convert_to_windows_path() {
+    local unix_path="$1"
+    
+    # If running on Windows with Git Bash or similar
+    if command -v cygpath &> /dev/null; then
+        # Use cygpath if available (Git Bash)
+        cygpath -w "$unix_path"
+    elif [[ "$unix_path" =~ ^/([a-z])/(.+)$ ]]; then
+        # Git Bash style: /d/path -> D:\path
+        local drive="${BASH_REMATCH[1]}"
+        local path="${BASH_REMATCH[2]}"
+        echo "${drive^^}:\\${path//\//\\}"
+    elif [[ "$unix_path" =~ ^/mnt/([a-z])/(.+)$ ]]; then
+        # WSL style: /mnt/d/path -> D:\path
+        local drive="${BASH_REMATCH[1]}"
+        local path="${BASH_REMATCH[2]}"
+        echo "${drive^^}:\\${path//\//\\}"
+    else
+        # Already Windows style or relative path, just convert slashes
+        echo "$unix_path" | sed 's|/|\\|g'
+    fi
+}
+
 generate_inno_script() {
     log_info "Generating Inno Setup script..."
     
     ISS_FILE="${BUILD_DIR}/audio-fetch-installer.iss"
+    
+    # Convert paths to Windows format for Inno Setup
+    WIN_PROJECT_ROOT=$(convert_to_windows_path "$PROJECT_ROOT")
+    WIN_DIST_DIR=$(convert_to_windows_path "$DIST_DIR")
+    WIN_BUILD_DIR=$(convert_to_windows_path "$BUILD_DIR")
     
     cat > "${ISS_FILE}" << EOF
 ; Inno Setup Script for Audio Fetch
@@ -199,10 +229,9 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-LicenseFile=${PROJECT_ROOT}\\LICENSE
-OutputDir=${DIST_DIR}
+LicenseFile=${WIN_PROJECT_ROOT}\\LICENSE
+OutputDir=${WIN_DIST_DIR}
 OutputBaseFilename=${APP_NAME}-v${VERSION_NUMBER}-setup
-SetupIconFile=${PROJECT_ROOT}\\static\\favicon.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -216,7 +245,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "${BUILD_DIR}\\pyinstaller-dist\\audio-fetch.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "${WIN_BUILD_DIR}\\pyinstaller-dist\\audio-fetch.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\\{#MyAppName}"; Filename: "{app}\\{#MyAppExeName}"
