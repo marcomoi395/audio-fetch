@@ -36,13 +36,8 @@ describe('download IPC flow', () => {
   })
 
   it('returns a busy error for a concurrent second request', async () => {
-    let release: (() => void) | undefined
-    const executor = vi.fn(
-      () =>
-        new Promise((resolve) => {
-          release = () => resolve({ filename: '/downloads/song.mp3' })
-        })
-    )
+    const { promise: result, resolve: release } = Promise.withResolvers<{ filename: string }>()
+    const executor = vi.fn(() => result)
     const services = createIpcServices(() => undefined, '/downloads', executor)
     const handlers = new Map<string, IpcHandler>()
     registerIpcHandlers(
@@ -56,6 +51,10 @@ describe('download IPC flow', () => {
     }
 
     const first = handlers.get(IPC_CHANNELS.downloadStart)?.({ sender: {} }, payload)
+    await expect(handlers.get(IPC_CHANNELS.queueStatus)?.({ sender: {} })).resolves.toEqual({
+      ok: true,
+      data: { active: true }
+    })
     await expect(
       handlers.get(IPC_CHANNELS.downloadStart)?.({ sender: {} }, payload)
     ).resolves.toEqual({
@@ -64,7 +63,7 @@ describe('download IPC flow', () => {
     })
     expect(executor).toHaveBeenCalledOnce()
 
-    release?.()
+    release({ filename: '/downloads/song.mp3' })
     await first
   })
 })
