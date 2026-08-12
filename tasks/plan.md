@@ -87,22 +87,22 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Acceptance criteria:**
 
-- [ ] `package.json` contains `youtube-dl-exec`, `@ffmpeg-installer/ffmpeg`, Vitest, coverage, and Playwright dependencies.
-- [ ] Scripts exist for `test`, `test:coverage`, `test:watch`, `test:e2e`, `build`, `build:unpack`, `build:win`, and `build:linux`; no required macOS script remains.
-- [ ] `vitest.config.ts` and `playwright.config.ts` load successfully.
-- [ ] `tests/unit/`, `tests/integration/`, and `tests/e2e/` exist with minimal executable smoke tests.
-- [ ] Existing TypeScript and lint configuration remain valid; formatting follows the repository's no-semicolon Prettier config unless separately approved.
+- [x] `package.json` contains `youtube-dl-exec`, `@ffmpeg-installer/ffmpeg`, Vitest, coverage, and Playwright dependencies.
+- [x] Scripts exist for `test`, `test:coverage`, `test:watch`, `test:e2e`, `build`, `build:unpack`, `build:win`, and `build:linux`; no required macOS script remains.
+- [x] `vitest.config.ts` and `playwright.config.ts` load successfully.
+- [x] `tests/unit/`, `tests/integration/`, and `tests/e2e/` exist with minimal executable smoke tests.
+- [x] Existing TypeScript and lint configuration remain valid; formatting follows the repository's no-semicolon Prettier config unless separately approved.
 
 **Verification:**
 
-- [ ] `bun install`
-- [ ] `bun test`
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
+- [x] `bun install --frozen-lockfile`
+- [x] `bun test`
+- [x] `bun run typecheck`
+- [x] `bun run build`
 
 **Dependencies:** P0.
 
-**Files likely touched:** `package.json`, `bun.lock`, `vitest.config.ts`, `playwright.config.ts`, and `tests/`.
+**Files touched:** `package.json`, `bun.lock`, `vitest.config.ts`, `playwright.config.ts`, and `tests/`.
 
 **Estimated scope:** Medium (2-6 hours).
 
