@@ -46,9 +46,16 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Verify source runtime resources
+        run: bun run verify:resources
 
       - name: Build Linux artifacts
         run: bun run build:linux
+      - name: Verify Linux artifacts
+        run: |
+          appimage=$(find dist -maxdepth 1 -type f -name '*.AppImage' -size +0c -print -quit)
+          deb=$(find dist -maxdepth 1 -type f -name '*.deb' -size +0c -print -quit)
+          test -n "$appimage" && test -n "$deb"
 
       - name: Upload AppImage artifact
         uses: actions/upload-artifact@v4
@@ -81,9 +88,16 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Verify source runtime resources
+        run: bun run verify:resources
 
       - name: Build Windows artifact
         run: bun run build:win
+      - name: Verify Windows artifact
+        shell: pwsh
+        run: |
+          $artifacts = Get-ChildItem dist/*.exe
+          if (($artifacts | Where-Object Length -gt 0).Count -lt 1) { throw 'Windows installer empty' }
 
       - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v4

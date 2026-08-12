@@ -40,8 +40,20 @@ jobs:
 
       - name: Coverage
         run: bun run test:coverage
+      - name: Scoped coverage gates
+        run: |
+          bun run test:coverage:main
+          bun run test:coverage:ipc
+          bun run test:coverage:renderer
+          bun run test:coverage:critical
+      - name: Verify source runtime resources
+        run: bun run verify:resources
 
-      - name: Build Electron application
-        run: bun run build
+      - name: Build unpacked Electron application
+        run: bun run build:unpack
+
+      - name: Verify unpacked runtime resources
+        run: bun run verify:resources:unpacked
+
       - name: Headless Electron E2E
         run: xvfb-run bun run test:e2e

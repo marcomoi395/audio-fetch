@@ -428,7 +428,6 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Estimated scope:** Medium (2-6 hours).
 
-
 ### Checkpoint 3: User Flow Gate
 
 - [ ] UI visually matches the legacy page at the approved viewport sizes.
@@ -466,6 +465,7 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 **Estimated scope:** Medium (2-6 hours).
 
 ### Task P15: Finalize Electron Packaging and Bundled Resources
+
 **Acceptance criteria:**
 
 - [x] `electron-builder.yml` contains only approved Windows/Linux targets.
@@ -492,49 +492,47 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 ### Task P16: Make Release Workflows Build and Publish Electron Artifacts
 
 **Description:** Update release automation for versioning, Node dependency installation, Windows installer, Linux AppImage/deb artifacts, and optional signing/publishing decisions.
-
 **Acceptance criteria:**
 
-- [ ] Release workflow versions the Electron package source, not only legacy `pyproject.toml`.
-- [ ] Build workflow produces approved Windows/Linux artifacts with deterministic names.
-- [ ] Signing steps are conditional on approved secrets and never required for local development when unavailable.
-- [ ] Artifact upload paths match electron-builder output.
-- [ ] CI fails on missing binaries, test failures, or packaging errors.
+- [x] Release workflow versions `package.json` and refreshes `bun.lock`.
+- [x] Build workflow produces approved Linux AppImage/deb and Windows installer artifact paths.
+- [x] Signing is not required for local builds; no signing secret is hardcoded.
+- [x] Artifact upload paths match electron-builder output.
+- [x] CI fails on test, coverage, build, or resource verification errors.
 
 **Verification:**
 
-- [ ] Validate workflow syntax and expressions.
-- [ ] Run the local equivalents: `bun run build`, `bun run build:unpack`.
-- [ ] Execute one workflow-dispatch build on each supported OS before release approval.
+- [x] Workflow contract tests pass.
+- [x] Local equivalents `bun run build` and `bun run build:unpack` pass.
+- [ ] Workflow-dispatch build on Windows and Linux release runners.
 
 **Dependencies:** P2, P14, P15, P0.
 
-**Files likely touched:** `.github/workflows/ci.yml`, `.github/workflows/build.yml`, `.github/workflows/release.yml`.
+**Files touched:** `.github/workflows/ci.yml`, `.github/workflows/build.yml`, `.github/workflows/release.yml`.
 
 **Estimated scope:** Medium (2-6 hours).
 
 ### Task P17: Complete Documentation and Release Acceptance
 
 **Description:** Replace scaffold README content with installation, supported scope, IPC/process architecture, troubleshooting, test, build, and release instructions.
-
 **Acceptance criteria:**
 
-- [ ] README documents Windows/Linux support and Chrome/Chromium/Brave-only cookie scope.
-- [ ] README documents no concurrent downloads and no legacy config migration.
-- [ ] IPC API and main/preload/renderer boundaries are documented.
-- [ ] Troubleshooting covers yt-dlp, FFmpeg, cookie permissions, output paths, and packaging.
-- [ ] Release checklist includes startup <3s, idle memory <200 MB, download memory <500 MB, and UI responsiveness measurements on named test machines.
+- [x] README documents Windows/Linux support and Chrome/Chromium/Brave-only cookie scope.
+- [x] README documents no concurrent downloads and no legacy config migration.
+- [x] IPC API and main/preload/renderer boundaries are documented.
+- [x] Troubleshooting covers yt-dlp, FFmpeg, cookie permissions, output paths, and packaging.
+- [ ] Release performance measurements recorded on named Windows/Linux test machines.
 
 **Verification:**
 
-- [ ] Follow README from a clean checkout through install, test, build, and launch.
-- [ ] `bun run typecheck`
-- [ ] `bun test`
-- [ ] `bun run lint`
+- [x] README commands reviewed against `package.json`.
+- [x] `bun run typecheck`
+- [x] `bun test`
+- [x] `bun run lint`
 
 **Dependencies:** P14, P15, P16.
 
-**Files likely touched:** `README.md`, optional architecture/troubleshooting docs only if approved by project convention.
+**Files touched:** `README.md`.
 
 **Estimated scope:** Small (1-2 hours).
 

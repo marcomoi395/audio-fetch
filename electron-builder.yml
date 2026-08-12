@@ -23,13 +23,14 @@ nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
-  createDesktopShortcut: always
 linux:
   target:
     - AppImage
     - deb
   maintainer: audio-fetch
   category: AudioVideo
+  desktopName: audio-fetch
+  syncDesktopName: true
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
