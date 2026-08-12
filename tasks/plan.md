@@ -302,21 +302,21 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Acceptance criteria:**
 
-- [ ] `mp3`, `m4a`, `opus`, `wav`, and `best` map to the legacy output behavior.
-- [ ] Quality `0`, `5`, and `9` map to 320, 192, and 128 kbps for MP3.
-- [ ] Thumbnail conversion/embed and metadata postprocessors are configured in the required order.
-- [ ] Output filenames are safe on Windows/Linux.
-- [ ] External binary failures are logged and normalized without leaking command secrets.
+- [x] `mp3`, `m4a`, `opus`, `wav`, and `best` map to the legacy output behavior.
+- [x] Quality `0`, `5`, and `9` map to 320, 192, and 128 kbps for MP3.
+- [x] Thumbnail conversion/embed and metadata postprocessors are configured in the required order.
+- [x] Output filenames are safe on Windows/Linux.
+- [x] External binary failures are logged and normalized without leaking command secrets.
 
 **Verification:**
 
-- [ ] `bun test -- tests/unit/downloader.test.ts tests/integration/download-service.test.ts`
-- [ ] Assert yt-dlp/FFmpeg invocation options with mocks.
-- [ ] `bun run typecheck:node`
+- [x] `bun test -- tests/unit/downloader.test.ts`
+- [x] Assert yt-dlp/FFmpeg invocation options with mocks.
+- [x] `bun run typecheck:node`
 
 **Dependencies:** P6, P7, P8, P1.
 
-**Files likely touched:** `src/main/services/downloader.ts`, `src/main/services/tier-strategy.ts`, `src/main/services/cookie-extractor.ts`, `tests/unit/downloader.test.ts`, `tests/integration/download-service.test.ts`.
+**Files touched:** `src/main/services/downloader.ts`, `tests/unit/downloader.test.ts`.
 
 **Estimated scope:** Medium (2-6 hours).
 

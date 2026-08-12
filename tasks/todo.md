@@ -19,7 +19,7 @@
 - [x] P6 Deliver video-info flow: validation, yt-dlp metadata, typed IPC, renderer response/error states.
 - [x] P7 Port and Lock the Three-Tier Strategy.
 - [x] P8 Implement Chrome-Family Cookie Extraction.
-- [ ] P9 Deliver audio download service: formats, quality, FFmpeg, metadata, thumbnail, filename safety.
+- [x] P9 Deliver audio download service: formats, quality, FFmpeg, metadata, thumbnail, filename safety.
 - [ ] P10 Implement single-active-download guard, download IPC, queue status, close-confirmation data.
 - [ ] Checkpoint 2: Backend flow, tier tests, cookie tests, download mocks, queue exclusivity pass.
 
