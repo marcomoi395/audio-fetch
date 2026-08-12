@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: audio-fetch
+appId: com.audiofetch.app
+productName: Audio Fetch
 directories:
   buildResources: build
 files:

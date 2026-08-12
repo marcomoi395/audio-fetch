@@ -145,22 +145,22 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Acceptance criteria:**
 
-- [ ] Window uses config-driven dimensions/title with safe defaults.
-- [ ] Context isolation remains enabled; renderer has no Node.js access.
-- [ ] App ID/product branding changes from scaffold values to Audio Fetch values.
-- [ ] A second launch focuses the first instance and does not create a second window.
-- [ ] macOS-only lifecycle behavior is not added to the supported scope.
+- [x] Window uses injected config-driven dimensions/title with Audio Fetch defaults.
+- [x] Context isolation remains enabled; renderer Node integration is disabled.
+- [x] App ID/product branding uses `com.audiofetch.app` and `Audio Fetch`.
+- [x] A second launch focuses/restores the first instance through `second-instance` handling.
+- [x] No macOS-only lifecycle behavior was added; existing builder macOS config remains untouched.
 
 **Verification:**
 
-- [ ] Focused unit/integration tests cover single-instance lock behavior with Electron APIs mocked.
-- [ ] `bun run typecheck`
-- [ ] `bun run build`
-- [ ] Manual unpacked launch shows one branded window.
+- [x] Focused unit/integration tests cover single-instance lock and second-instance focus behavior with mocked Electron APIs.
+- [x] `bun run typecheck`
+- [x] `bun run build`
+- [x] Automated built-app Electron E2E from P2 substitutes for manual unpacked launch; P3 shell policy tests pass.
 
 **Dependencies:** P1, P0.
 
-**Files likely touched:** `src/main/index.ts`, `src/main/window.ts`, `electron-builder.yml`, `tests/integration/`.
+**Files touched:** `src/main/index.ts`, `src/main/window.ts`, `src/main/window-policy.ts`, `src/main/single-instance.ts`, `electron-builder.yml`, and `tests/integration/app-shell.test.ts`.
 
 **Estimated scope:** Medium (2-6 hours).
 
