@@ -5,14 +5,14 @@
 - [x] P0 Resolve SPEC open questions: Tier 3, progress, NES.css delivery, Linux targets, Windows signing, package-manager authority.
 - [x] P1 Add Node runtime/test dependencies, scripts, Vitest/Playwright configs, root test directories.
 - [x] P2 Replace Python-only CI/release assumptions with Node/Electron checks; retain legacy guard only if approved.
-- [ ] Checkpoint 0: Tooling commands pass; unresolved blockers explicitly recorded.
+- [x] Checkpoint 0: Tooling commands pass; unresolved blockers explicitly recorded.
 
 ## Phase 1: Electron Infrastructure
 
 - [x] P3 Implement branded Electron shell, frameless window, safe links, single-instance focus.
 - [x] P4 Implement new config schema, Electron paths, async persistence, safe logging.
 - [x] P5 Define/register typed preload and IPC boundary; reject invalid payloads before services.
-- [ ] Checkpoint 1: App shell, config, preload, typecheck, focused tests, build pass.
+- [x] Checkpoint 1: App shell, config, preload, typecheck, focused tests, build pass.
 
 ## Phase 2: Backend Vertical Slices
 
@@ -21,7 +21,7 @@
 - [x] P8 Implement Chrome-Family Cookie Extraction.
 - [x] P9 Deliver audio download service: formats, quality, FFmpeg, metadata, thumbnail, filename safety.
 - [x] P10 Implement single-active-download guard, download IPC, queue status, close-confirmation data.
-- [ ] Checkpoint 2: Backend flow, tier tests, cookie tests, download mocks, queue exclusivity pass.
+- [x] Checkpoint 2: Backend flow, tier tests, cookie tests, download mocks, queue exclusivity pass.
 
 ## Phase 3: Renderer Parity
 
@@ -40,12 +40,12 @@
 
 ## Global Verification
 
-- [ ] `bun run typecheck`
-- [ ] `bun test`
-- [ ] `bun run test:coverage`
-- [ ] `bun run test:e2e`
-- [ ] `bun run lint`
-- [ ] `bun run build`
-- [ ] `bun run build:unpack`
+- [x] `bun run typecheck`
+- [x] `bun test`
+- [x] `bun run test:coverage`
+- [x] `bun run test:e2e`
+- [x] `bun run lint`
+- [x] `bun run build`
+- [x] `bun run build:unpack`
 - [ ] Windows installer smoke test
 - [ ] Linux AppImage/deb smoke test

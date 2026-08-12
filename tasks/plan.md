@@ -133,9 +133,9 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 ### Checkpoint 0: Tooling Gate
 
 - [x] P0 decisions approved.
-- [ ] P1 commands pass locally.
-- [ ] P2 workflow changes reviewed.
-- [ ] No domain implementation starts if the package-manager or Tier 3 decision remains unclear.
+- [x] P1 commands pass locally.
+- [x] P2 workflow changes reviewed by workflow contract tests.
+- [x] No domain implementation started before package-manager/Tier 3 decisions were resolved.
 
 ## Phase 1: Electron Infrastructure
 
@@ -217,10 +217,10 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 ### Checkpoint 1: Infrastructure Gate
 
-- [ ] App launches through the new main process.
-- [ ] Config writes to the Electron user-data directory.
-- [ ] Preload exposes only the approved API.
-- [ ] Typecheck, focused tests, and build pass.
+- [x] App launches through the new main process.
+- [x] Config writes to the Electron user-data directory.
+- [x] Preload exposes only the approved API.
+- [x] Typecheck, focused tests, and build pass.
 
 ## Phase 2: Backend Vertical Slices
 
@@ -346,12 +346,12 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 ### Checkpoint 2: Backend Gate
 
-- [ ] Video-info flow works with mocked yt-dlp.
-- [ ] Tier strategy matches approved legacy contract.
-- [ ] Cookie scope is enforced.
-- [ ] Download conversion/metadata options are asserted.
-- [ ] Queue rejects concurrent execution.
-- [ ] Main-process coverage targets are measurable.
+- [x] Video-info flow works with mocked yt-dlp.
+- [x] Tier strategy matches approved legacy contract.
+- [x] Cookie scope is enforced.
+- [x] Download conversion/metadata options are asserted.
+- [x] Queue rejects concurrent execution.
+- [x] Main-process coverage targets are measurable through scoped reports.
 
 ## Phase 3: Renderer Parity
 
