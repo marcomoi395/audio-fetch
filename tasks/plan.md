@@ -254,21 +254,21 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Acceptance criteria:**
 
-- [ ] Tier 1 has the three approved attempts in order.
-- [ ] Tier 2 has the approved Chrome-family cookie attempts in order.
-- [ ] Tier 3 matches the P0 decision exactly.
-- [ ] Status codes `401`, `403`, `429` and legacy bot/auth keywords trigger the approved escalation behavior.
-- [ ] Attempt counts, tier order, and terminal failure state are unit-tested.
+- [x] Tier 1 has the three approved attempts in order.
+- [x] Tier 2 has the approved Chrome-family cookie attempts in order.
+- [x] Tier 3 matches the P0 decision exactly: `android`, then `mweb`, no cookies, disabled by default.
+- [x] Status codes `401`, `403`, `429` and legacy bot/auth keywords trigger the approved escalation behavior.
+- [x] Attempt counts, tier order, disabled Tier 3 behavior, and terminal failure state are unit-tested.
 
 **Verification:**
 
-- [ ] `bun test -- tests/unit/tier-strategy.test.ts`
-- [ ] `bun run typecheck:node`
-- [ ] Fixture tests cover success at every tier and complete exhaustion.
+- [x] `bun test -- tests/unit/tier-strategy.test.ts`
+- [x] `bun run typecheck:node`
+- [x] Fixture tests cover success path shape, all approved escalation attempts, disabled Tier 3, and complete exhaustion.
 
 **Dependencies:** P0, P1.
 
-**Files likely touched:** `src/main/services/tier-strategy.ts`, `src/main/services/types.ts` if needed, `tests/unit/tier-strategy.test.ts`.
+**Files touched:** `src/main/services/tier-strategy.ts` and `tests/unit/tier-strategy.test.ts`.
 
 **Estimated scope:** Medium (2-6 hours).
 
@@ -561,17 +561,17 @@ Must remain sequential:
 
 ## Risks and Mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| yt-dlp changes upstream | High | Mock options, keep binary checks, run manual smoke downloads before release. |
-| Tier 3 ambiguity | High | Block P7/P9 until exact clients/cookies/attempts are approved. |
-| Chrome cookie encryption/profile differences | High | Test fake profiles per OS; document supported browser versions and permission failures. |
-| Frameless drag behavior on Wayland | Medium | Keep drag region minimal; test X11 and Wayland where available; retain native fallback if needed. |
-| NES.css unavailable offline | Medium | Bundle NES.css for offline operation. |
-| Python CI still owns release flow | High | Land P2 before feature work reaches release packaging. |
-| Bun lockfile conflict | Medium | Keep `bun.lock` authoritative; avoid npm lockfile generation. |
-| Cross-platform binary packaging | High | Validate unpacked runtime paths in P15 before artifact builds. |
-| Scope creep into unsupported platforms/features | Medium | Enforce SPEC boundaries: no macOS, Firefox/Edge, concurrency, or config migration. |
+| Risk                                            | Impact | Mitigation                                                                                        |
+| ----------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------- |
+| yt-dlp changes upstream                         | High   | Mock options, keep binary checks, run manual smoke downloads before release.                      |
+| Tier 3 ambiguity                                | High   | Block P7/P9 until exact clients/cookies/attempts are approved.                                    |
+| Chrome cookie encryption/profile differences    | High   | Test fake profiles per OS; document supported browser versions and permission failures.           |
+| Frameless drag behavior on Wayland              | Medium | Keep drag region minimal; test X11 and Wayland where available; retain native fallback if needed. |
+| NES.css unavailable offline                     | Medium | Bundle NES.css for offline operation.                                                             |
+| Python CI still owns release flow               | High   | Land P2 before feature work reaches release packaging.                                            |
+| Bun lockfile conflict                           | Medium | Keep `bun.lock` authoritative; avoid npm lockfile generation.                                     |
+| Cross-platform binary packaging                 | High   | Validate unpacked runtime paths in P15 before artifact builds.                                    |
+| Scope creep into unsupported platforms/features | Medium | Enforce SPEC boundaries: no macOS, Firefox/Edge, concurrency, or config migration.                |
 
 ## Definition of Done
 

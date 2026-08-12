@@ -17,7 +17,7 @@
 ## Phase 2: Backend Vertical Slices
 
 - [x] P6 Deliver video-info flow: validation, yt-dlp metadata, typed IPC, renderer response/error states.
-- [ ] P7 Port and Lock the Three-Tier Strategy.
+- [x] P7 Port and Lock the Three-Tier Strategy.
 - [ ] P8 Implement Chrome-Family Cookie Extraction.
 - [ ] P9 Deliver audio download service: formats, quality, FFmpeg, metadata, thumbnail, filename safety.
 - [ ] P10 Implement single-active-download guard, download IPC, queue status, close-confirmation data.
