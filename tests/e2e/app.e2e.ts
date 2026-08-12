@@ -9,6 +9,14 @@ test('launches the built Electron application', async () => {
     const window = await app.firstWindow()
     await expect(window).toHaveURL(/file:.*out[\\/]renderer[\\/]index\.html/)
     await expect(window).toHaveTitle(/Audio Fetch|Electron/i)
+    await expect(window.locator('body')).toBeVisible()
+    expect(
+      await window.evaluate(() => ({
+        hasAudioFetch: typeof window.audioFetch?.queue?.getStatus === 'function',
+        hasElectron: 'electron' in window,
+        hasLegacyApi: 'api' in window
+      }))
+    ).toEqual({ hasAudioFetch: true, hasElectron: false, hasLegacyApi: false })
   } finally {
     await app.close()
   }

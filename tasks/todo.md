@@ -11,7 +11,7 @@
 
 - [x] P3 Implement branded Electron shell, frameless window, safe links, single-instance focus.
 - [x] P4 Implement new config schema, Electron paths, async persistence, safe logging.
-- [ ] P5 Define/register typed preload and IPC boundary; reject invalid payloads.
+- [x] P5 Define/register typed preload and IPC boundary; reject invalid payloads before services.
 - [ ] Checkpoint 1: App shell, config, preload, typecheck, focused tests, build pass.
 
 ## Phase 2: Backend Vertical Slices

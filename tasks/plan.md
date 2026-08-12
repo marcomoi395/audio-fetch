@@ -194,21 +194,24 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Acceptance criteria:**
 
-- [ ] Preload exposes only typed namespace methods from `SPEC.md`.
-- [ ] Raw `ipcRenderer`, Node.js modules, arbitrary channel names, and remote eval remain unavailable to the renderer.
-- [ ] Main registration has one explicit source of truth for channel names and handler ownership.
-- [ ] Invalid payloads are rejected before service calls.
-- [ ] IPC error responses are serializable and user-safe.
+- [x] Preload exposes only typed `audioFetch` namespace methods from `SPEC.md`.
+- [x] Raw `ipcRenderer`, Node.js modules, arbitrary channel names, and remote eval remain unavailable to the renderer.
+- [x] Main registration uses one shared channel map for `videoInfo`, `download`, `queueStatus`, `windowMinimize`, and `windowClose`, with sender-owned window handler boundary.
+- [x] Invalid payloads are rejected before service calls.
+- [x] IPC error responses are serializable and user-safe.
+- [x] P5 service seam returns safe unavailable errors; P6 replaces stubs with video-info/download services.
 
 **Verification:**
 
-- [ ] `bun test -- tests/integration/ipc-handlers.test.ts`
-- [ ] `bun run typecheck`
-- [ ] Renderer type declarations compile without `unknown` escape hatches for required methods.
+- [x] `bun test -- tests/integration/ipc-handlers.test.ts tests/integration/preload.test.ts tests/integration/preload-install.test.ts`
+- [x] `bun run test`
+- [x] `bun test`
+- [x] `bun run typecheck`
+- [x] `bun run test:e2e` verifies built Electron URL, body, `audioFetch` bridge, and absence of `electron`/`api` globals.
 
 **Dependencies:** P3, P4.
 
-**Files likely touched:** `src/preload/index.ts`, `src/preload/index.d.ts`, `src/main/ipc/index.ts` or equivalent, `src/main/index.ts`, `tests/integration/ipc-handlers.test.ts`.
+**Files touched:** `src/shared/ipc.ts`, `src/preload/index.ts`, `src/preload/index.d.ts`, `src/preload/api.ts`, `src/preload/install.ts`, `src/main/ipc/index.ts`, `src/main/ipc/services.ts`, `src/main/index.ts`, `src/renderer/src/renderer.ts`, `tests/integration/ipc-handlers.test.ts`, `tests/integration/preload.test.ts`, `tests/integration/preload-install.test.ts`, and `tests/e2e/app.e2e.ts`.
 
 **Estimated scope:** Medium (2-6 hours).
 
