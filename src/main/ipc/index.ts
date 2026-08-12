@@ -108,11 +108,22 @@ export function registerIpcHandlers(
     return { ok: true, data: null }
   })
 
-  ipcMain.handle(IPC_CHANNELS.windowClose, (event) => {
+  ipcMain.handle(IPC_CHANNELS.windowClose, async (event, payload) => {
     const window = resolveSenderWindow(event.sender)
     if (!window) return internal<null>('Unable to access application window')
-    window.close()
-    return { ok: true, data: null }
+    if (!isRecord(payload) || typeof payload.confirmed !== 'boolean') {
+      return invalid<null>('Invalid close request')
+    }
+
+    try {
+      const status = await services.getQueueStatus()
+      if (status.active && !payload.confirmed)
+        return busy<null>('A download is already in progress')
+      window.close()
+      return { ok: true, data: null }
+    } catch {
+      return internal<null>('Unable to close application window')
+    }
   })
 }
 

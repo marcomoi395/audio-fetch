@@ -16,7 +16,7 @@ describe('preload IPC bridge', () => {
     await api.download.start('https://youtube.com/watch?v=1', { format: 'mp3', quality: '0' })
     await api.queue.getStatus()
     await api.window.minimize()
-    await api.window.close()
+    await api.window.close(true)
 
     expect(invoke).toHaveBeenNthCalledWith(1, IPC_CHANNELS.videoInfoFetch, {
       url: 'https://youtube.com/watch?v=1'
@@ -27,6 +27,6 @@ describe('preload IPC bridge', () => {
     })
     expect(invoke).toHaveBeenNthCalledWith(3, IPC_CHANNELS.queueStatus)
     expect(invoke).toHaveBeenNthCalledWith(4, IPC_CHANNELS.windowMinimize)
-    expect(invoke).toHaveBeenNthCalledWith(5, IPC_CHANNELS.windowClose)
+    expect(invoke).toHaveBeenNthCalledWith(5, IPC_CHANNELS.windowClose, { confirmed: true })
   })
 })

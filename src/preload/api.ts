@@ -22,7 +22,7 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): AudioFetchApi {
     },
     window: {
       minimize: () => invoke(ipcRenderer, IPC_CHANNELS.windowMinimize),
-      close: () => invoke(ipcRenderer, IPC_CHANNELS.windowClose)
+      close: (confirmed: boolean) => invoke(ipcRenderer, IPC_CHANNELS.windowClose, { confirmed })
     }
   }
 }

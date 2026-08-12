@@ -37,5 +37,8 @@ export type AudioFetchApi = {
   videoInfo: { fetch(url: string): Promise<IpcResult<VideoInfo>> }
   download: { start(url: string, options: DownloadOptions): Promise<IpcResult<DownloadResult>> }
   queue: { getStatus(): Promise<IpcResult<QueueStatus>> }
-  window: { minimize(): Promise<IpcResult<null>>; close(): Promise<IpcResult<null>> }
+  window: {
+    minimize(): Promise<IpcResult<null>>
+    close(confirmed: boolean): Promise<IpcResult<null>>
+  }
 }

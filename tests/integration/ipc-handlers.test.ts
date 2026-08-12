@@ -11,7 +11,7 @@ import type { DownloadOptions, QueueStatus, VideoInfo } from '../../src/shared/i
 const services: IpcServices = {
   fetchVideoInfo: vi.fn<() => Promise<VideoInfo>>(),
   startDownload: vi.fn<(url: string, options: DownloadOptions) => Promise<{ path: string }>>(),
-  getQueueStatus: vi.fn<() => Promise<QueueStatus>>()
+  getQueueStatus: vi.fn<() => Promise<QueueStatus>>().mockResolvedValue({ active: false })
 }
 
 function registerForTest(handlers: Map<string, IpcHandler>): IpcMainLike {
@@ -115,7 +115,7 @@ describe('typed IPC boundary', () => {
       error: { code: 'INTERNAL_ERROR', message: 'Unable to access application window' }
     })
   })
-  it('owns window controls through the sender window', () => {
+  it('owns window controls through the sender window', async () => {
     const handlers = new Map<string, IpcHandler>()
     const senderWindow = { minimize: vi.fn(), close: vi.fn() }
     const resolveSenderWindow = vi.fn(() => senderWindow)
@@ -123,10 +123,52 @@ describe('typed IPC boundary', () => {
     registerIpcHandlers(registerForTest(handlers), services, resolveSenderWindow)
 
     handlers.get(IPC_CHANNELS.windowMinimize)?.({ sender: {} })
-    handlers.get(IPC_CHANNELS.windowClose)?.({ sender: {} })
+    await handlers.get(IPC_CHANNELS.windowClose)?.({ sender: {} }, { confirmed: false })
 
     expect(resolveSenderWindow).toHaveBeenCalledTimes(2)
     expect(senderWindow.minimize).toHaveBeenCalledOnce()
     expect(senderWindow.close).toHaveBeenCalledOnce()
+  })
+  it('blocks active close without confirmation', async () => {
+    const handlers = new Map<string, IpcHandler>()
+    const senderWindow = { minimize: vi.fn(), close: vi.fn() }
+    const testServices = {
+      ...services,
+      getQueueStatus: vi.fn().mockResolvedValue({ active: true })
+    }
+    registerIpcHandlers(registerForTest(handlers), testServices, () => senderWindow)
+
+    await expect(
+      handlers.get(IPC_CHANNELS.windowClose)?.({ sender: {} }, { confirmed: false })
+    ).resolves.toEqual({
+      ok: false,
+      error: { code: 'BUSY', message: 'A download is already in progress' }
+    })
+    expect(senderWindow.close).not.toHaveBeenCalled()
+  })
+
+  it('closes when inactive or explicitly confirmed', async () => {
+    const handlers = new Map<string, IpcHandler>()
+    const senderWindow = { minimize: vi.fn(), close: vi.fn() }
+    const getQueueStatus = vi
+      .fn()
+      .mockResolvedValueOnce({ active: false })
+      .mockResolvedValueOnce({ active: true })
+    const testServices = { ...services, getQueueStatus }
+    registerIpcHandlers(registerForTest(handlers), testServices, () => senderWindow)
+
+    await expect(
+      handlers.get(IPC_CHANNELS.windowClose)?.({ sender: {} }, { confirmed: false })
+    ).resolves.toEqual({
+      ok: true,
+      data: null
+    })
+    await expect(
+      handlers.get(IPC_CHANNELS.windowClose)?.({ sender: {} }, { confirmed: true })
+    ).resolves.toEqual({
+      ok: true,
+      data: null
+    })
+    expect(senderWindow.close).toHaveBeenCalledTimes(2)
   })
 })

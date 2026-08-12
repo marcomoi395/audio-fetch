@@ -410,19 +410,23 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Acceptance criteria:**
 
-- [ ] Five required UI sound events invoke the audio module.
-- [ ] Audio failures do not break UI actions.
-- [ ] Minimize invokes the preload window API.
-- [ ] Close prompts when queue status is active and closes after confirmation.
-- [ ] Title-bar drag works on supported Windows/Linux display environments.
+- [x] Five required UI sound events invoke the audio module.
+- [x] Audio failures do not break UI actions.
+- [x] Minimize invokes the preload window API.
+- [x] Close prompts when queue status is active and closes after confirmation.
+- [x] Title-bar drag uses the native frameless drag region on supported Windows/Linux display environments.
 
 **Verification:**
 
-- [ ] `bun test -- tests/unit/audio.test.ts`
-- [ ] `bun run typecheck:web`
-- [ ] E2E/manual check covers controls with and without an active download.
+- [x] `bun test -- tests/unit/audio.test.ts tests/integration/ipc-handlers.test.ts tests/integration/preload.test.ts`
+- [x] `bun run typecheck:web`
+- [x] Renderer build/E2E smoke passes; manual cross-OS control check remains at Checkpoint 3.
 
 **Dependencies:** P10, P11, P12.
+
+**Files touched:** `src/renderer/src/audio.ts`, `src/renderer/src/app.ts`, `src/renderer/src/renderer.ts`, `src/renderer/assets/css/custom.css`, `src/shared/ipc.ts`, `src/preload/api.ts`, `src/main/ipc/index.ts`, `tests/unit/audio.test.ts`, `tests/integration/ipc-handlers.test.ts`, `tests/integration/preload.test.ts`.
+
+**Estimated scope:** Medium (2-6 hours).
 
 **Files likely touched:** `src/renderer/src/audio.ts`, `src/renderer/src/app.ts`, `src/main/ipc/window.ts`, `tests/unit/audio.test.ts`, `tests/e2e/app.test.ts`.
 

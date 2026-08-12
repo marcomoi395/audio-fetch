@@ -10,7 +10,7 @@ export type RendererState =
     })
   | { status: 'error'; message: string }
 
-type RendererApi = Pick<AudioFetchApi, 'videoInfo'> & Partial<Pick<AudioFetchApi, 'download'>>
+type RendererApi = Partial<AudioFetchApi> & Pick<AudioFetchApi, 'videoInfo'>
 type RendererListeners = (state: RendererState) => void
 
 function isValidUrl(url: string): boolean {
@@ -20,6 +20,19 @@ function isValidUrl(url: string): boolean {
   } catch {
     return false
   }
+}
+
+export async function confirmAndClose(
+  api: Pick<AudioFetchApi, 'queue' | 'window'>,
+  confirmClose: (message: string) => boolean
+): Promise<void> {
+  const result = await api.queue.getStatus()
+  if (!result.ok) return
+  const confirmed = result.data.active
+    ? confirmClose('A download is still in progress. Close Audio Fetch?')
+    : false
+  if (result.data.active && !confirmed) return
+  await api.window.close(confirmed)
 }
 
 export function createRendererController(api: RendererApi) {

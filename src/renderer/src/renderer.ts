@@ -1,5 +1,6 @@
 import type { DownloadFormat, DownloadQuality } from '../../shared/ipc'
-import { createRendererController, type RendererState } from './app'
+import { createAudioEffects } from './audio'
+import { confirmAndClose, createRendererController, type RendererState } from './app'
 
 function isSafeThumbnailUrl(value: string): boolean {
   try {
@@ -8,10 +9,12 @@ function isSafeThumbnailUrl(value: string): boolean {
     return false
   }
 }
+
 const DOWNLOAD_FORMATS: DownloadFormat[] = ['mp3', 'm4a', 'opus', 'wav', 'best']
 const DOWNLOAD_QUALITIES: DownloadQuality[] = ['0', '5', '9']
-
+const audio = createAudioEffects()
 const controller = createRendererController(window.audioFetch)
+let lastRenderedState = ''
 
 function render(state: RendererState): void {
   const status = document.getElementById('videoInfoStatus')
@@ -40,6 +43,13 @@ function render(state: RendererState): void {
     return
   }
 
+  const stateKey = JSON.stringify(state)
+  if (stateKey !== lastRenderedState) {
+    if (state.status === 'error') audio.play('error')
+    if (state.status === 'success' && state.downloadStatus === 'success') audio.play('success')
+    lastRenderedState = stateKey
+  }
+
   input.hidden = state.status !== 'idle'
   loading.hidden = state.status !== 'loading'
   error.hidden = state.status !== 'error'
@@ -49,12 +59,10 @@ function render(state: RendererState): void {
     status.textContent = 'Ready'
     return
   }
-
   if (state.status === 'loading') {
     status.textContent = 'Loading...'
     return
   }
-
   if (state.status === 'error') {
     status.textContent = state.message
     errorMessage.textContent = state.message
@@ -67,7 +75,6 @@ function render(state: RendererState): void {
   const hasThumbnail = isSafeThumbnailUrl(state.thumbnailUrl)
   thumbnail.hidden = !hasThumbnail
   thumbnail.src = hasThumbnail ? state.thumbnailUrl : ''
-
   if (state.downloadStatus === 'loading') {
     status.textContent = 'Downloading...'
   } else if (state.downloadStatus === 'success') {
@@ -81,8 +88,13 @@ window.addEventListener('DOMContentLoaded', () => {
   controller.subscribe(render)
   render(controller.getState())
 
+  document.querySelectorAll('button').forEach((button) => {
+    button.addEventListener('click', () => audio.play('click'))
+  })
+
   document.getElementById('videoInfoForm')?.addEventListener('submit', (event) => {
     event.preventDefault()
+    audio.play('fetch')
     const input = document.getElementById('youtube-url') as HTMLInputElement | null
     if (input) void controller.submit(input.value)
   })
@@ -98,6 +110,7 @@ window.addEventListener('DOMContentLoaded', () => {
   })
 
   document.getElementById('download-btn')?.addEventListener('click', () => {
+    audio.play('download')
     const format = document.getElementById('format-select') as HTMLSelectElement | null
     const quality = document.getElementById('quality-select') as HTMLSelectElement | null
     if (!format || !quality) return
@@ -108,5 +121,13 @@ window.addEventListener('DOMContentLoaded', () => {
       return
     }
     void controller.download(format.value as DownloadFormat, quality.value as DownloadQuality)
+  })
+
+  document.getElementById('minimize-btn')?.addEventListener('click', () => {
+    void window.audioFetch.window.minimize()
+  })
+
+  document.getElementById('close-btn')?.addEventListener('click', () => {
+    void confirmAndClose(window.audioFetch, (message) => window.confirm(message))
   })
 })
