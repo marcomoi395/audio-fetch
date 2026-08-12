@@ -2,6 +2,10 @@
   "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
   "include": ["src/renderer/**/*.ts", "src/preload/*.d.ts"],
   "compilerOptions": {
-    "composite": true
+    "composite": true,
+    
+    // Strict overrides - align with ESLint
+    "noImplicitAny": true,                // Enforce explicit types (aligns with @typescript-eslint/no-explicit-any)
+    "noFallthroughCasesInSwitch": true    // Prevent switch fallthrough bugs
   }
 }

@@ -3,6 +3,10 @@
   "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*"],
   "compilerOptions": {
     "composite": true,
-    "types": ["electron-vite/node"]
+    "types": ["electron-vite/node"],
+    
+    // Strict overrides - align with ESLint
+    "noImplicitAny": true,                // Enforce explicit types (aligns with @typescript-eslint/no-explicit-any)
+    "noFallthroughCasesInSwitch": true    // Prevent switch fallthrough bugs
   }
 }
