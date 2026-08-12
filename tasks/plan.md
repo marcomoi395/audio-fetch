@@ -278,21 +278,21 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Acceptance criteria:**
 
-- [ ] Supported browser names normalize consistently.
-- [ ] Chrome, Chromium, Brave profile discovery covers default and additional profiles required by the approved library.
-- [ ] Firefox and Edge return a clear unsupported error.
-- [ ] Cookie values are never returned to renderer or logs.
-- [ ] Tests use fake filesystem/profile fixtures; no real browser database is required.
+- [x] Supported browser names normalize consistently.
+- [x] Chrome, Chromium, Brave profile discovery covers default and additional profiles required by the approved library.
+- [x] Firefox and Edge return a clear unsupported error.
+- [x] Cookie values are never returned to renderer or logs.
+- [x] Tests use fake filesystem/profile fixtures; no real browser database is required.
 
 **Verification:**
 
-- [ ] `bun test -- tests/unit/cookie-extractor.test.ts`
-- [ ] `bun run typecheck:node`
-- [ ] Linux and Windows path fixtures pass in the same test suite.
+- [x] `bun test -- tests/unit/cookie-extractor.test.ts`
+- [x] `bun run typecheck:node`
+- [x] Linux and Windows path fixtures pass in the same test suite.
 
 **Dependencies:** P1, P7.
 
-**Files likely touched:** `src/main/services/cookie-extractor.ts`, `src/main/services/tier-strategy.ts` if integration changes are needed, `tests/unit/cookie-extractor.test.ts`.
+**Files touched:** `src/main/services/cookie-extractor.ts`, `tests/unit/cookie-extractor.test.ts`.
 
 **Estimated scope:** Medium (2-6 hours).
 
