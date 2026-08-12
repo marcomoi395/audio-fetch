@@ -32,7 +32,7 @@
 
 ## Phase 4: Verification, Packaging, Release
 
-- [x] P14 Complete unit/integration/Electron E2E regression coverage; meet SPEC thresholds.
+- [ ] P14 Complete unit/integration/Electron E2E regression coverage; meet SPEC thresholds.
 - [ ] P15 Finalize Windows/Linux packaging, branding, binary resources, AppImage/deb targets.
 - [ ] P16 Update release workflows for Electron artifacts, versioning, signing, uploads.
 - [ ] P17 Complete README, IPC/architecture/troubleshooting docs, release acceptance measurements.
