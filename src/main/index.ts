@@ -1,8 +1,8 @@
 import { app, BrowserWindow, ipcMain, type WebContents } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
-import { createUnavailableIpcServices } from './ipc/services'
-import { loadConfig } from './services/config'
+import { createIpcServices } from './ipc/services'
+import { loadConfig, saveConfig } from './services/config'
 import { createLogger } from './utils/logger'
 import { getElectronConfigPath } from './utils/paths'
 import { createWindow, DEFAULT_WINDOW_CONFIG, focusExistingWindow } from './window'
@@ -20,7 +20,9 @@ if (hasSingleInstance) {
     const logger = createLogger()
 
     try {
-      const config = await loadConfig(getElectronConfigPath(app), (message) => logger.warn(message))
+      const configPath = getElectronConfigPath(app)
+      const config = await loadConfig(configPath, (message) => logger.warn(message))
+      await saveConfig(configPath, config)
       createWindow({
         width: config.ui.windowWidth,
         height: config.ui.windowHeight,
@@ -31,14 +33,18 @@ if (hasSingleInstance) {
       createWindow(DEFAULT_WINDOW_CONFIG)
     }
 
-    registerIpcHandlers(ipcMain, createUnavailableIpcServices(), (sender) => {
-      if (!sender || typeof sender !== 'object') return null
-      try {
-        return BrowserWindow.fromWebContents(sender as WebContents)
-      } catch {
-        return null
+    registerIpcHandlers(
+      ipcMain,
+      createIpcServices((message) => logger.warn(message)),
+      (sender) => {
+        if (!sender || typeof sender !== 'object') return null
+        try {
+          return BrowserWindow.fromWebContents(sender as WebContents)
+        } catch {
+          return null
+        }
       }
-    })
+    )
   })
 
   app.on('window-all-closed', () => app.quit())

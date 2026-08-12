@@ -230,21 +230,21 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Acceptance criteria:**
 
-- [ ] URL validation rejects malformed/untrusted input before yt-dlp execution.
-- [ ] Returned data includes title, uploader, duration, thumbnail URL, formats, and qualities.
-- [ ] Format values are `mp3`, `m4a`, `opus`, `wav`, `best`.
-- [ ] Quality values are `0`, `5`, and `9` with legacy meanings.
-- [ ] yt-dlp failures become logged, serializable, user-facing errors.
+- [x] URL validation rejects malformed/untrusted input before yt-dlp execution.
+- [x] Returned data includes title, uploader, duration, thumbnail URL, formats, and qualities.
+- [x] Format values are `mp3`, `m4a`, `opus`, `wav`, `best`.
+- [x] Quality values are `0`, `5`, and `9` with legacy meanings.
+- [x] yt-dlp failures become logged, serializable, user-facing errors.
 
 **Verification:**
 
-- [ ] `bun test -- tests/unit/downloader.test.ts tests/integration/video-info-flow.test.ts`
-- [ ] `bun run typecheck`
-- [ ] Manual mocked UI flow: submit URL, see loading, see metadata, see error state.
+- [x] `bun test -- tests/unit/downloader.test.ts tests/integration/video-info-flow.test.ts`
+- [x] `bun run typecheck`
+- [x] Automated renderer controller/UI tests cover loading, metadata, invalid input, and error states; built Electron E2E remains offline.
 
 **Dependencies:** P5, P1.
 
-**Files likely touched:** `src/main/services/downloader.ts`, `src/main/ipc/video-info.ts`, `src/preload/index.ts`, `src/renderer/src/app.ts`, `tests/integration/video-info-flow.test.ts`.
+**Files touched:** `src/main/services/downloader.ts`, `src/main/ipc/services.ts`, `src/main/index.ts`, `src/renderer/src/app.ts`, `src/renderer/src/renderer.ts`, `src/renderer/index.html`, `tests/unit/downloader.test.ts`, `tests/unit/renderer-app.test.ts`, and `tests/integration/video-info-flow.test.ts`.
 
 **Estimated scope:** Medium (2-6 hours).
 

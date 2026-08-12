@@ -2,41 +2,29 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Electron</title>
-    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <title>Audio Fetch</title>
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
     />
-
     <link href="./assets/main.css" type="text/css" rel="stylesheet" />
   </head>
-
   <body>
-    <div id="app">
-      <img alt="logo" class="logo" src="./assets/electron.svg" />
-      <div class="creator">Powered by electron-vite</div>
-      <div class="text">
-        Build an Electron app with
-        <span class="ts">TypeScript</span>
-      </div>
-      <p class="tip">Please try pressing <code>F12</code> to open the devTool</p>
-      <div class="actions">
-        <div class="action">
-          <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">Documentation</a>
-        </div>
-        <div class="action">
-          <a id="ipcHandler" target="_blank" rel="noreferrer">Send IPC</a>
-        </div>
-      </div>
-
-      <ul class="versions">
-        <li class="electron-version"></li>
-        <li class="chrome-version"></li>
-        <li class="node-version"></li>
-      </ul>
-    </div>
-
+    <main id="app">
+      <h1>Audio Fetch</h1>
+      <form id="videoInfoForm">
+        <label for="videoUrl">YouTube URL</label>
+        <input id="videoUrl" name="videoUrl" type="url" required />
+        <button id="fetchVideoInfo" type="submit">Fetch info</button>
+      </form>
+      <p id="videoInfoStatus" role="status">Ready</p>
+      <section id="videoInfo" hidden>
+        <h2 id="videoTitle"></h2>
+        <p id="videoUploader"></p>
+        <p id="videoDuration"></p>
+        <img id="videoThumbnail" alt="" hidden />
+      </section>
+    </main>
     <script type="module" src="./src/renderer.ts"></script>
   </body>
 </html>

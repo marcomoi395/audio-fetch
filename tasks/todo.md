@@ -16,11 +16,11 @@
 
 ## Phase 2: Backend Vertical Slices
 
-- [ ] P6 Deliver video-info flow: validation, yt-dlp metadata, typed IPC, renderer response/error states.
-- [ ] P7 Port approved three-tier strategy and escalation contract.
-- [ ] P8 Implement Chrome/Chromium/Brave cookie extraction; reject Firefox/Edge.
+- [x] P6 Deliver video-info flow: validation, yt-dlp metadata, typed IPC, renderer response/error states.
+- [ ] P7 Port and Lock the Three-Tier Strategy.
+- [ ] P8 Implement Chrome-Family Cookie Extraction.
 - [ ] P9 Deliver audio download service: formats, quality, FFmpeg, metadata, thumbnail, filename safety.
-- [ ] P10 Deliver single-active-download guard, download IPC, queue status, close-confirmation data.
+- [ ] P10 Implement single-active-download guard, download IPC, queue status, close-confirmation data.
 - [ ] Checkpoint 2: Backend flow, tier tests, cookie tests, download mocks, queue exclusivity pass.
 
 ## Phase 3: Renderer Parity
