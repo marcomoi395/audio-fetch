@@ -428,9 +428,6 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Estimated scope:** Medium (2-6 hours).
 
-**Files likely touched:** `src/renderer/src/audio.ts`, `src/renderer/src/app.ts`, `src/main/ipc/window.ts`, `tests/unit/audio.test.ts`, `tests/e2e/app.test.ts`.
-
-**Estimated scope:** Medium (2-6 hours).
 
 ### Checkpoint 3: User Flow Gate
 
