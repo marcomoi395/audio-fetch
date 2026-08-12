@@ -1,3 +1,5 @@
+import { BusyDownloadError } from '../services/queue'
+
 import {
   IPC_CHANNELS,
   type AudioFetchApi,
@@ -29,6 +31,9 @@ function invalid<T>(message: string): IpcResult<T> {
 
 function internal<T>(message: string): IpcResult<T> {
   return { ok: false, error: { code: 'INTERNAL_ERROR', message } }
+}
+function busy<T>(message: string): IpcResult<T> {
+  return { ok: false, error: { code: 'BUSY', message } }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -82,7 +87,8 @@ export function registerIpcHandlers(
 
     try {
       return { ok: true, data: await services.startDownload(url, options) }
-    } catch {
+    } catch (error) {
+      if (error instanceof BusyDownloadError) return busy(error.message)
       return internal('Unable to start download')
     }
   })

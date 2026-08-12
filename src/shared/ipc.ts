@@ -27,7 +27,7 @@ export type DownloadResult = { path: string }
 export type QueueStatus = { active: boolean }
 
 export type IpcError = {
-  code: 'INVALID_INPUT' | 'INTERNAL_ERROR'
+  code: 'INVALID_INPUT' | 'BUSY' | 'INTERNAL_ERROR'
   message: string
 }
 

@@ -326,21 +326,21 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Acceptance criteria:**
 
-- [ ] First download starts normally.
-- [ ] Second request while active returns a busy error and does not invoke yt-dlp.
-- [ ] Queue status exposes only safe state needed by renderer.
-- [ ] Completion and failure release the guard.
-- [ ] Close flow can determine whether an active download exists.
+- [x] First download starts normally.
+- [x] Second request while active returns a busy error and does not invoke yt-dlp.
+- [x] Queue status exposes only safe state needed by renderer.
+- [x] Completion and failure release the guard.
+- [x] Close flow can determine whether an active download exists.
 
 **Verification:**
 
-- [ ] `bun test -- tests/unit/queue.test.ts tests/integration/download-flow.test.ts tests/integration/ipc-handlers.test.ts`
-- [ ] Test success, failure, and second-request race cases.
-- [ ] `bun run typecheck`
+- [x] `bun test -- tests/unit/queue.test.ts tests/integration/download-flow.test.ts tests/integration/ipc-handlers.test.ts`
+- [x] Test success, failure, and second-request race cases.
+- [x] `bun run typecheck`
 
 **Dependencies:** P5, P9.
 
-**Files likely touched:** `src/main/services/queue.ts`, `src/main/ipc/download.ts`, `src/main/ipc/queue.ts` or handler registry, `tests/unit/queue.test.ts`, `tests/integration/download-flow.test.ts`.
+**Files touched:** `src/main/services/queue.ts`, `src/main/ipc/services.ts`, `src/main/ipc/index.ts`, `src/shared/ipc.ts`, `tests/unit/queue.test.ts`, `tests/integration/download-flow.test.ts`.
 
 **Estimated scope:** Medium (2-6 hours).
 
