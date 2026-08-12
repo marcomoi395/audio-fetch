@@ -361,16 +361,17 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Acceptance criteria:**
 
-- [ ] Four legacy UI states exist: input, loading, error, and info.
-- [ ] Custom title bar DOM includes drag area, minimize, and close controls.
-- [ ] Legacy dimensions, text, responsive breakpoints, and custom CSS are preserved.
-- [ ] CSP permits only approved local/CDN resources.
-- [ ] No nonexistent MP3/WAV asset requirement is introduced; sound behavior remains Web Audio based.
+- [x] Four legacy UI states exist: input, loading, error, and info.
+- [x] Custom title bar DOM includes drag area, minimize, and close controls.
+- [x] Legacy dimensions, text, responsive breakpoints, and custom CSS are preserved.
+- [x] CSP permits only approved local/CDN resources.
+- [x] No nonexistent MP3/WAV asset requirement is introduced; sound behavior remains Web Audio based.
 
 **Verification:**
 
-- [ ] `bun run typecheck:web`
-- [ ] `bun run build`
+- [x] `bun run typecheck:web`
+- [x] `bun run build`
+- [x] `bun run test:e2e`
 - [ ] Manual screenshot comparison against `legacy/templates/index.html` and `legacy/static/css/custom.css`.
 
 **Dependencies:** P0 (NES.css decision), P3, P5.

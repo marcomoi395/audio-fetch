@@ -1,0 +1,376 @@
+/* Custom styles on top of NES.css */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Press Start 2P', cursive;
+  background-color: #ffffff;
+  color: #212529;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Custom Title Bar */
+.custom-title-bar {
+  height: 45px;
+  background-color: #209cee;
+  border-bottom: 4px solid #212529;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 9999;
+  box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.title-bar-drag-area {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding-left: 14px;
+  cursor: move;
+  user-select: none;
+}
+
+.title-bar-title {
+  font-size: 13px;
+  color: #ffffff;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.title-bar-controls {
+  display: flex;
+  gap: 8px;
+  padding-right: 12px;
+}
+
+.title-bar-button {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #212529;
+  background-color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 16px;
+  transition: all 0.1s;
+  box-shadow: 2px 2px 0 0 rgba(0, 0, 0, 0.2);
+  padding: 0;
+}
+
+.title-bar-button:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 0 rgba(0, 0, 0, 0.3);
+}
+
+.title-bar-button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 rgba(0, 0, 0, 0.2);
+}
+
+.minimize-btn {
+  color: #f7d51d;
+}
+
+.minimize-btn:hover {
+  background-color: #fffacd;
+  border-color: #f7d51d;
+}
+
+.close-btn {
+  color: #e76e55;
+}
+
+.close-btn:hover {
+  background-color: #ffebe8;
+  border-color: #e76e55;
+}
+
+/* Better borders for inputs and buttons */
+.nes-input {
+  border: 4px solid #212529 !important;
+  box-shadow: inset -4px -4px 0 0 rgba(0, 0, 0, 0.3) !important;
+}
+
+.nes-input:focus {
+  border-color: #209cee !important;
+  box-shadow: inset -4px -4px 0 0 rgba(32, 156, 238, 0.3) !important;
+}
+
+.nes-btn {
+  border: 4px solid #212529 !important;
+  box-shadow: 4px 4px 0 0 rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.1s !important;
+}
+
+.nes-btn:hover:not(:disabled) {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 6px 6px 0 0 rgba(0, 0, 0, 0.2) !important;
+}
+
+.nes-btn:active:not(:disabled) {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 2px 2px 0 0 rgba(0, 0, 0, 0.2) !important;
+}
+
+.nes-btn.is-primary {
+  background-color: #209cee !important;
+  border-color: #0077cc !important;
+}
+
+.nes-btn.is-success {
+  background-color: #92cc41 !important;
+  border-color: #76a82e !important;
+}
+
+.nes-select select {
+  border: 4px solid #212529 !important;
+  box-shadow: inset -4px -4px 0 0 rgba(0, 0, 0, 0.3) !important;
+  cursor: pointer !important;
+}
+
+.nes-select select:focus {
+  border-color: #209cee !important;
+  box-shadow: inset -4px -4px 0 0 rgba(32, 156, 238, 0.3) !important;
+}
+
+.container {
+  max-width: 750px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 1.5rem;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 1.4rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.subtitle {
+  font-size: 0.6rem;
+  color: #666;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  margin-bottom: 1rem;
+}
+
+.main-content section {
+  margin-bottom: 1.5rem;
+}
+
+/* Input Section */
+.input-group {
+  margin-bottom: 1rem;
+}
+
+#fetch-btn {
+  width: 100%;
+}
+
+/* Loading Section */
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  margin: 0.75rem auto;
+  border: 3px solid #ccc;
+  border-top: 3px solid #212529;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error Section */
+.error-title {
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.error-detail {
+  margin-bottom: 0.75rem;
+  font-size: 0.6rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+#retry-btn {
+  width: 100%;
+}
+
+/* Video Info Section */
+.video-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.thumbnail-container {
+  width: 100%;
+}
+
+.video-thumbnail {
+  width: 100%;
+  height: auto;
+  border: 4px solid #212529;
+  display: block;
+}
+
+.video-metadata {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.metadata-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.metadata-label {
+  font-size: 0.65rem;
+  color: #666;
+}
+
+.metadata-value {
+  font-size: 0.7rem;
+  word-break: break-word;
+}
+
+/* Download Options */
+.download-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.option-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.option-group label {
+  font-size: 0.65rem;
+}
+
+.nes-select {
+  width: 100%;
+}
+
+.nes-select select {
+  width: 100%;
+  font-size: 0.65rem;
+  padding: 0.3rem;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+}
+
+#download-btn {
+  width: 100%;
+}
+
+#new-url-btn {
+  width: 100%;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 1.25rem 0;
+  font-size: 0.65rem;
+  color: #666;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 1.5rem 0.75rem 0.75rem;
+  }
+
+  .title {
+    font-size: 1.1rem;
+  }
+
+  .subtitle {
+    font-size: 0.55rem;
+  }
+
+  .video-info-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .download-options {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .action-buttons {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 0.95rem;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .subtitle {
+    font-size: 0.5rem;
+  }
+}
+
+/* Button hover effects */
+button:hover:not(:disabled) {
+  opacity: 0.8;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

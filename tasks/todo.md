@@ -25,7 +25,7 @@
 
 ## Phase 3: Renderer Parity
 
-- [ ] P11 Port legacy HTML/CSS/favicon and approved NES.css delivery.
+- [x] P11 Port legacy HTML/CSS/favicon and approved NES.css delivery.
 - [ ] P12 Wire renderer video-info/download state machine through typed preload IPC.
 - [ ] P13 Port Web Audio effects and window controls/drag/close confirmation.
 - [ ] Checkpoint 3: UI parity, renderer IPC-only access, controls, focused E2E pass.

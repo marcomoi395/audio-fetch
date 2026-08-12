@@ -12,29 +12,49 @@ const controller = createRendererController(window.audioFetch)
 
 function render(state: RendererState): void {
   const status = document.getElementById('videoInfoStatus')
-  const info = document.getElementById('videoInfo')
-  const title = document.getElementById('videoTitle')
-  const uploader = document.getElementById('videoUploader')
-  const duration = document.getElementById('videoDuration')
-  const thumbnail = document.getElementById('videoThumbnail') as HTMLImageElement | null
+  const input = document.getElementById('input-section')
+  const loading = document.getElementById('loading-section')
+  const error = document.getElementById('error-section')
+  const errorMessage = document.getElementById('error-message')
+  const info = document.getElementById('info-section')
+  const title = document.getElementById('video-title')
+  const uploader = document.getElementById('video-uploader')
+  const duration = document.getElementById('video-duration')
+  const thumbnail = document.getElementById('video-thumbnail') as HTMLImageElement | null
 
-  if (!status || !info || !title || !uploader || !duration || !thumbnail) return
+  if (
+    !status ||
+    !input ||
+    !loading ||
+    !error ||
+    !errorMessage ||
+    !info ||
+    !title ||
+    !uploader ||
+    !duration ||
+    !thumbnail
+  ) {
+    return
+  }
+
+  input.hidden = state.status !== 'idle'
+  loading.hidden = state.status !== 'loading'
+  error.hidden = state.status !== 'error'
+  info.hidden = state.status !== 'success'
 
   if (state.status === 'idle') {
     status.textContent = 'Ready'
-    info.hidden = true
     return
   }
 
   if (state.status === 'loading') {
-    status.textContent = 'Loading…'
-    info.hidden = true
+    status.textContent = 'Loading...'
     return
   }
 
   if (state.status === 'error') {
     status.textContent = state.message
-    info.hidden = true
+    errorMessage.textContent = state.message
     return
   }
 
@@ -45,7 +65,6 @@ function render(state: RendererState): void {
   const hasThumbnail = isSafeThumbnailUrl(state.thumbnailUrl)
   thumbnail.hidden = !hasThumbnail
   thumbnail.src = hasThumbnail ? state.thumbnailUrl : ''
-  info.hidden = false
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -54,7 +73,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('videoInfoForm')?.addEventListener('submit', (event) => {
     event.preventDefault()
-    const input = document.getElementById('videoUrl') as HTMLInputElement | null
+    const input = document.getElementById('youtube-url') as HTMLInputElement | null
     if (input) void controller.submit(input.value)
   })
 })

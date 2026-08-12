@@ -1,30 +1,134 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Audio Fetch</title>
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:"
     />
-    <link href="./assets/main.css" type="text/css" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="./assets/images/favicon.png" />
+    <link href="./assets/nes.css" rel="stylesheet" />
+    <link href="./assets/main.css" rel="stylesheet" />
   </head>
   <body>
-    <main id="app">
-      <h1>Audio Fetch</h1>
-      <form id="videoInfoForm">
-        <label for="videoUrl">YouTube URL</label>
-        <input id="videoUrl" name="videoUrl" type="url" required />
-        <button id="fetchVideoInfo" type="submit">Fetch info</button>
-      </form>
-      <p id="videoInfoStatus" role="status">Ready</p>
-      <section id="videoInfo" hidden>
-        <h2 id="videoTitle"></h2>
-        <p id="videoUploader"></p>
-        <p id="videoDuration"></p>
-        <img id="videoThumbnail" alt="" hidden />
-      </section>
-    </main>
+    <div class="custom-title-bar" id="title-bar">
+      <div class="title-bar-drag-area" id="drag-area">
+        <span class="title-bar-title">♪ Audio Fetch</span>
+      </div>
+      <div class="title-bar-controls">
+        <button
+          class="title-bar-button minimize-btn"
+          id="minimize-btn"
+          title="Minimize"
+          type="button"
+        >
+          <span aria-hidden="true">−</span>
+        </button>
+        <button class="title-bar-button close-btn" id="close-btn" title="Close" type="button">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="container" id="app">
+      <header class="header">
+        <h1 class="title">Audio Fetch</h1>
+      </header>
+
+      <main class="main-content">
+        <section id="input-section" class="nes-container with-title is-centered">
+          <p class="title">Enter YouTube URL</p>
+          <form id="videoInfoForm" class="input-group">
+            <label class="sr-only" for="youtube-url">YouTube URL</label>
+            <input
+              id="youtube-url"
+              name="videoUrl"
+              class="nes-input"
+              type="url"
+              placeholder="https://youtube.com/watch?v=..."
+              required
+            />
+            <button id="fetch-btn" class="nes-btn is-primary" type="submit">Fetch Info</button>
+          </form>
+        </section>
+
+        <section id="loading-section" class="nes-container is-centered" hidden>
+          <p>Loading info...</p>
+          <div class="loading-spinner" aria-hidden="true"></div>
+        </section>
+
+        <section id="error-section" class="nes-container is-error" hidden>
+          <p class="error-title">Error</p>
+          <p id="error-message" class="error-detail" role="alert"></p>
+          <button id="retry-btn" class="nes-btn" type="button">Retry</button>
+        </section>
+
+        <section id="info-section" class="nes-container with-title" hidden>
+          <p class="title">Video Info</p>
+          <div class="video-info-grid">
+            <div class="thumbnail-container">
+              <img
+                id="video-thumbnail"
+                src=""
+                alt="Video thumbnail"
+                class="video-thumbnail"
+                hidden
+              />
+            </div>
+            <div class="video-metadata">
+              <div class="metadata-item">
+                <span class="metadata-label">Title:</span>
+                <span id="video-title" class="metadata-value"></span>
+              </div>
+              <div class="metadata-item">
+                <span class="metadata-label">Channel:</span>
+                <span id="video-uploader" class="metadata-value"></span>
+              </div>
+              <div class="metadata-item">
+                <span class="metadata-label">Duration:</span>
+                <span id="video-duration" class="metadata-value"></span>
+              </div>
+            </div>
+          </div>
+          <div class="download-options">
+            <div class="option-group">
+              <label for="format-select">Format:</label>
+              <div class="nes-select">
+                <select id="format-select">
+                  <option value="mp3" selected>MP3</option>
+                  <option value="m4a">M4A</option>
+                  <option value="opus">OPUS</option>
+                  <option value="wav">WAV</option>
+                  <option value="best">BEST</option>
+                </select>
+              </div>
+            </div>
+            <div class="option-group">
+              <label for="quality-select">Quality:</label>
+              <div class="nes-select">
+                <select id="quality-select">
+                  <option value="0" selected>Best</option>
+                  <option value="5">Medium</option>
+                  <option value="9">Low</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="action-buttons">
+            <button id="download-btn" class="nes-btn is-success" type="button">Download</button>
+            <button id="new-url-btn" class="nes-btn" type="button">New URL</button>
+          </div>
+        </section>
+
+        <p id="videoInfoStatus" role="status" aria-live="polite">Ready</p>
+      </main>
+
+      <footer class="footer">
+        <p>Audio Fetch</p>
+      </footer>
+    </div>
     <script type="module" src="./src/renderer.ts"></script>
   </body>
 </html>
