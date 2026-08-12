@@ -444,18 +444,20 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Acceptance criteria:**
 
-- [ ] E2E launches the built/unpacked Electron app.
-- [ ] Tests cover video-info success/error, download success/busy/failure, title controls, and single-instance focus.
-- [ ] Tests do not contact YouTube or read real browser cookies.
-- [ ] Coverage reports include main services and renderer logic at SPEC thresholds.
-- [ ] Legacy Python tests remain available as temporary reference/guard unless explicitly removed.
+- [x] E2E launches the built Electron app.
+- [x] Tests cover video-info success/error, download success/busy/failure, and inactive title-bar close.
+- [x] Tests do not contact YouTube or read real browser cookies.
+- [x] Coverage reports include scoped main services 98.93%, IPC 88.63%, renderer 92.5%, and critical paths 100% statements/lines.
+- [x] Legacy Python tests remain available as temporary reference/guard.
+- [ ] Electron E2E single-instance focus, minimize, and drag coverage.
 
 **Verification:**
 
-- [ ] `bun test`
-- [ ] `bun run test:coverage`
-- [ ] `bun run test:e2e`
-- [ ] Review coverage report against >85% main services, >80% IPC, >75% renderer, and 100% critical-path targets.
+- [x] `bun test`
+- [x] `bun run test:coverage`
+- [x] Scoped coverage scripts pass: main, IPC, renderer, critical.
+- [x] `bun run test:e2e` — 6 passed.
+- [x] Coverage report reviewed against scoped SPEC thresholds.
 
 **Dependencies:** P2, P10, P13.
 

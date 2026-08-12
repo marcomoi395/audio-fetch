@@ -7,16 +7,15 @@ type YtDlpModule = (url: string, options: Record<string, unknown>) => Promise<un
 type AudioServiceExecutor = (url: string, options: Record<string, unknown>) => Promise<unknown>
 
 async function executeYtDlp(url: string, options: Record<string, unknown>): Promise<unknown> {
-  // Test-only deterministic executor; normal launches always use youtube-dl-exec.
-  if (process.env['AUDIO_FETCH_E2E_FIXTURE'] === '1') {
-    await new Promise((resolve) => setTimeout(resolve, 100))
+  const mode = process.env['AUDIO_FETCH_E2E_FIXTURE']
+  if (mode) {
+    // Test-only deterministic executor; normal launches always use youtube-dl-exec.
+    await new Promise((resolve) => setTimeout(resolve, mode === 'slow' ? 1000 : 100))
+    if (mode === 'error' || (mode === 'failure' && !options.dumpSingleJson)) {
+      throw new Error('fixture failure')
+    }
     return options.dumpSingleJson
-      ? {
-          title: 'Fixture Video',
-          uploader: 'Fixture Channel',
-          duration: 42,
-          thumbnail: ''
-        }
+      ? { title: 'Fixture Video', uploader: 'Fixture Channel', duration: 42, thumbnail: '' }
       : { filename: '/downloads/fixture.mp3' }
   }
 
