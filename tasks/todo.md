@@ -10,7 +10,7 @@
 ## Phase 1: Electron Infrastructure
 
 - [x] P3 Implement branded Electron shell, frameless window, safe links, single-instance focus.
-- [ ] P4 Implement new config schema, Electron paths, async persistence, safe logging.
+- [x] P4 Implement new config schema, Electron paths, async persistence, safe logging.
 - [ ] P5 Define/register typed preload and IPC boundary; reject invalid payloads.
 - [ ] Checkpoint 1: App shell, config, preload, typecheck, focused tests, build pass.
 

@@ -4,7 +4,8 @@ export const DEFAULT_WINDOW_CONFIG = {
   title: 'Audio Fetch'
 } as const
 
-export type WindowConfig = Partial<typeof DEFAULT_WINDOW_CONFIG>
+export type WindowConfig = Partial<{ width: number; height: number; title: string }>
+export type ResolvedWindowConfig = { width: number; height: number; title: string }
 
 type FocusableWindow = {
   isMinimized(): boolean
@@ -12,7 +13,7 @@ type FocusableWindow = {
   focus(): void
 }
 
-export function resolveWindowConfig(config: WindowConfig = {}): typeof DEFAULT_WINDOW_CONFIG {
+export function resolveWindowConfig(config: WindowConfig = {}): ResolvedWindowConfig {
   return { ...DEFAULT_WINDOW_CONFIG, ...config }
 }
 

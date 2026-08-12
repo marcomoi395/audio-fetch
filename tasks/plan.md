@@ -167,25 +167,24 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 ### Task P4: Implement Config, Paths, and Logging Services
 
 **Description:** Add the new versioned config schema, Electron path resolution, async persistence, safe fallback behavior, and structured logging without legacy-schema migration.
-
 **Acceptance criteria:**
 
-- [ ] Config path uses `app.getPath('userData')`; no hardcoded home-directory logic appears in production code.
-- [ ] Missing config loads defaults matching `SPEC.md`.
-- [ ] Invalid JSON/schema logs a safe reason and falls back to defaults.
-- [ ] Save creates parent directories asynchronously.
-- [ ] Logs never include browser cookies, tokens, or raw secrets.
-- [ ] Config tests prove legacy keys/files are not migrated.
+- [x] Config path uses `app.getPath('userData')` through `getElectronConfigPath`; no hardcoded home-directory logic appears in production code.
+- [x] Missing config loads exact SPEC defaults.
+- [x] Invalid JSON/schema logs a safe generic reason and falls back to defaults.
+- [x] Save creates parent directories asynchronously.
+- [x] Logger redacts case-insensitive cookie/token/password/secret/authorization fields, including nested metadata.
+- [x] Config tests prove legacy keys/files are not migrated.
 
 **Verification:**
 
-- [ ] `bun test -- tests/unit/config.test.ts tests/unit/paths.test.ts`
-- [ ] `bun run typecheck:node`
-- [ ] Temporary-directory test covers load, invalid file, save, and reload.
+- [x] `bun test -- tests/unit/config.test.ts tests/unit/paths.test.ts tests/unit/logger.test.ts`
+- [x] `bun run typecheck:node`
+- [x] Temporary-directory tests cover load, invalid file/schema, save, custom reload, and legacy-file ignore.
 
 **Dependencies:** P1, P3.
 
-**Files likely touched:** `src/main/services/config.ts`, `src/main/utils/paths.ts`, `src/main/utils/logger.ts`, `tests/unit/config.test.ts`, `tests/unit/paths.test.ts`.
+**Files touched:** `src/main/services/config.ts`, `src/main/utils/paths.ts`, `src/main/utils/logger.ts`, `src/main/index.ts`, `src/main/window-policy.ts`, `tests/unit/config.test.ts`, `tests/unit/paths.test.ts`, and `tests/unit/logger.test.ts`.
 
 **Estimated scope:** Medium (2-6 hours).
 
