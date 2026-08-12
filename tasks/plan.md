@@ -1,0 +1,581 @@
+# Implementation Plan: Audio Fetch Electron-Vite Migration
+
+## Scope
+
+Full implementation of `SPEC.md` v2.0. Planning only. No application code changes in this phase.
+
+Current baseline: Electron-Vite scaffold in `src/`; legacy Python application in `legacy/` is the behavioral reference. Existing CI still targets Python. `package.json` lacks runtime download/test dependencies. `tasks/` did not exist before this plan.
+
+## Planning Decisions
+
+- Canonical package commands: Bun, matching `SPEC.md`; `bun.lock` is authoritative and no npm lockfile is generated.
+- Queue behavior: one active download; second request returns busy error.
+- Cookie scope: Chrome, Chromium, Brave only; Firefox and Edge remain unsupported.
+- Config: new versioned schema; no legacy config migration.
+- Tests use mocked yt-dlp/FFmpeg and deterministic fixtures; CI never requires live YouTube or real browser cookies.
+- No implementation begins until this plan is explicitly approved.
+
+## Dependency Graph
+
+```text
+P0 decisions and approval
+    ↓
+P1 Bun/tooling/test harness ─────→ P2 Node/Electron CI baseline
+    ↓                                  ↓
+P3 app shell + single instance       checkpoint
+    ↓
+P4 config + paths + logging
+    ↓
+P5 typed preload/IPC contract
+    ├──────────────┐
+    ↓              ↓
+P6 video-info   P7 tier strategy
+    ↓              ↓
+P8 cookie extraction
+    └──────┬───────┘
+           ↓
+P9 download service + FFmpeg
+           ↓
+P10 queue + download IPC + close status
+           ↓
+P11 HTML/CSS parity
+           ↓
+P12 renderer video-info/download flow
+           ↓
+P13 Web Audio effects
+           ↓
+P14 E2E and cross-process verification
+           ↓
+P15 packaging and assets
+           ↓
+P16 release CI and smoke builds
+           ↓
+P17 documentation and final acceptance
+```
+
+P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 contract from P7. P11 can begin after the preload contract exists, but P12 waits for P6/P9/P10. P15 can begin after branding/window decisions are stable; P16 waits for P14 and P15.
+
+## Phase 0: Contract and Tooling
+
+### Task P0: Resolve Spec Open Questions
+
+**Description:** Record the five approved implementation choices from `SPEC.md`: Tier 3 runtime clients, deferred progress, bundled NES.css, AppImage/deb-only Linux packaging, unsigned Windows builds. Confirm Bun lockfile authority before dependency edits.
+
+**Acceptance criteria:**
+
+- [x] Written decisions exist for all five `SPEC.md` open questions.
+- [x] Tier 3 behavior is concrete enough to test: `android` and `mweb` clients, no cookies, one attempt per client, approved escalation signals.
+- [x] Progress scope is explicit: deferred until after functional parity.
+- [x] NES.css delivery strategy is explicit: bundled asset.
+- [x] Linux targets and Windows signing expectation are explicit: AppImage/deb only, unsigned Windows builds.
+- [x] Package-manager authority is explicit: Bun with `bun.lock`; no npm lockfile.
+
+**Verification:**
+
+- [x] Human review confirms the decisions.
+- [x] `SPEC.md` open questions are resolved in the approved decisions section.
+
+**Dependencies:** None.
+
+**Files likely touched:** `SPEC.md` only if decisions are recorded there.
+
+**Estimated scope:** Small (human decision gate; no code).
+
+### Task P1: Establish Node Test and Build Tooling
+
+**Description:** Add the missing runtime/test dependencies, scripts, Vitest configuration, Playwright configuration, and root test directories without implementing domain behavior.
+
+**Acceptance criteria:**
+
+- [ ] `package.json` contains `youtube-dl-exec`, `@ffmpeg-installer/ffmpeg`, Vitest, coverage, and Playwright dependencies.
+- [ ] Scripts exist for `test`, `test:coverage`, `test:watch`, `test:e2e`, `build`, `build:unpack`, `build:win`, and `build:linux`; no required macOS script remains.
+- [ ] `vitest.config.ts` and `playwright.config.ts` load successfully.
+- [ ] `tests/unit/`, `tests/integration/`, and `tests/e2e/` exist with minimal executable smoke tests.
+- [ ] Existing TypeScript and lint configuration remain valid; formatting follows the repository's no-semicolon Prettier config unless separately approved.
+
+**Verification:**
+
+- [ ] `bun install`
+- [ ] `bun test`
+- [ ] `bun run typecheck`
+- [ ] `bun run build`
+
+**Dependencies:** P0.
+
+**Files likely touched:** `package.json`, `bun.lock`, `vitest.config.ts`, `playwright.config.ts`, and `tests/`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Task P2: Replace Python-Only CI with Node/Electron Checks
+
+**Description:** Update CI to install Node dependencies, run typecheck/lint/unit/integration tests, and preserve legacy Python checks only as a temporary migration guard where useful.
+
+**Acceptance criteria:**
+
+- [ ] Pull-request CI runs `bun install --frozen-lockfile` or the approved package-manager equivalent.
+- [ ] CI runs `bun run typecheck`, `bun test`, `bun run test:coverage`, and `bun run lint`.
+- [ ] E2E jobs run with a headless Electron-compatible environment and mocked external services.
+- [ ] Release/build workflows no longer assume PyInstaller, FastAPI, Qt, or Python packaging for the Electron artifact.
+- [ ] Legacy checks are either retained in a clearly named temporary job or removed with documented rationale.
+
+**Verification:**
+
+- [ ] Validate workflow YAML syntax.
+- [ ] Run the same commands locally: `bun run typecheck`, `bun test`, `bun run lint`.
+- [ ] Inspect the workflow diff for secrets, unsupported OS assumptions, and live-network test dependencies.
+
+**Dependencies:** P1.
+
+**Files likely touched:** `.github/workflows/ci.yml`, `.github/workflows/build.yml`, `.github/workflows/release.yml`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Checkpoint 0: Tooling Gate
+
+- [x] P0 decisions approved.
+- [ ] P1 commands pass locally.
+- [ ] P2 workflow changes reviewed.
+- [ ] No domain implementation starts if the package-manager or Tier 3 decision remains unclear.
+
+## Phase 1: Electron Infrastructure
+
+### Task P3: Implement Branded App Shell and Single Instance
+
+**Description:** Replace the scaffold lifecycle with branded Electron startup, a frameless BrowserWindow shell, safe external-link handling, and `app.requestSingleInstanceLock()` focus behavior.
+
+**Acceptance criteria:**
+
+- [ ] Window uses config-driven dimensions/title with safe defaults.
+- [ ] Context isolation remains enabled; renderer has no Node.js access.
+- [ ] App ID/product branding changes from scaffold values to Audio Fetch values.
+- [ ] A second launch focuses the first instance and does not create a second window.
+- [ ] macOS-only lifecycle behavior is not added to the supported scope.
+
+**Verification:**
+
+- [ ] Focused unit/integration tests cover single-instance lock behavior with Electron APIs mocked.
+- [ ] `bun run typecheck`
+- [ ] `bun run build`
+- [ ] Manual unpacked launch shows one branded window.
+
+**Dependencies:** P1, P0.
+
+**Files likely touched:** `src/main/index.ts`, `src/main/window.ts`, `electron-builder.yml`, `tests/integration/`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Task P4: Implement Config, Paths, and Logging Services
+
+**Description:** Add the new versioned config schema, Electron path resolution, async persistence, safe fallback behavior, and structured logging without legacy-schema migration.
+
+**Acceptance criteria:**
+
+- [ ] Config path uses `app.getPath('userData')`; no hardcoded home-directory logic appears in production code.
+- [ ] Missing config loads defaults matching `SPEC.md`.
+- [ ] Invalid JSON/schema logs a safe reason and falls back to defaults.
+- [ ] Save creates parent directories asynchronously.
+- [ ] Logs never include browser cookies, tokens, or raw secrets.
+- [ ] Config tests prove legacy keys/files are not migrated.
+
+**Verification:**
+
+- [ ] `bun test -- tests/unit/config.test.ts tests/unit/paths.test.ts`
+- [ ] `bun run typecheck:node`
+- [ ] Temporary-directory test covers load, invalid file, save, and reload.
+
+**Dependencies:** P1, P3.
+
+**Files likely touched:** `src/main/services/config.ts`, `src/main/utils/paths.ts`, `src/main/utils/logger.ts`, `tests/unit/config.test.ts`, `tests/unit/paths.test.ts`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Task P5: Define and Register the Typed IPC Boundary
+
+**Description:** Replace the scaffold preload bridge with a narrow typed API and register explicit IPC channels for video info, download, queue status, and window controls.
+
+**Acceptance criteria:**
+
+- [ ] Preload exposes only typed namespace methods from `SPEC.md`.
+- [ ] Raw `ipcRenderer`, Node.js modules, arbitrary channel names, and remote eval remain unavailable to the renderer.
+- [ ] Main registration has one explicit source of truth for channel names and handler ownership.
+- [ ] Invalid payloads are rejected before service calls.
+- [ ] IPC error responses are serializable and user-safe.
+
+**Verification:**
+
+- [ ] `bun test -- tests/integration/ipc-handlers.test.ts`
+- [ ] `bun run typecheck`
+- [ ] Renderer type declarations compile without `unknown` escape hatches for required methods.
+
+**Dependencies:** P3, P4.
+
+**Files likely touched:** `src/preload/index.ts`, `src/preload/index.d.ts`, `src/main/ipc/index.ts` or equivalent, `src/main/index.ts`, `tests/integration/ipc-handlers.test.ts`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Checkpoint 1: Infrastructure Gate
+
+- [ ] App launches through the new main process.
+- [ ] Config writes to the Electron user-data directory.
+- [ ] Preload exposes only the approved API.
+- [ ] Typecheck, focused tests, and build pass.
+
+## Phase 2: Backend Vertical Slices
+
+### Task P6: Deliver the Video-Info Flow
+
+**Description:** Implement YouTube metadata extraction plus the complete main → preload → renderer video-info path, using mocked yt-dlp in tests.
+
+**Acceptance criteria:**
+
+- [ ] URL validation rejects malformed/untrusted input before yt-dlp execution.
+- [ ] Returned data includes title, uploader, duration, thumbnail URL, formats, and qualities.
+- [ ] Format values are `mp3`, `m4a`, `opus`, `wav`, `best`.
+- [ ] Quality values are `0`, `5`, and `9` with legacy meanings.
+- [ ] yt-dlp failures become logged, serializable, user-facing errors.
+
+**Verification:**
+
+- [ ] `bun test -- tests/unit/downloader.test.ts tests/integration/video-info-flow.test.ts`
+- [ ] `bun run typecheck`
+- [ ] Manual mocked UI flow: submit URL, see loading, see metadata, see error state.
+
+**Dependencies:** P5, P1.
+
+**Files likely touched:** `src/main/services/downloader.ts`, `src/main/ipc/video-info.ts`, `src/preload/index.ts`, `src/renderer/src/app.ts`, `tests/integration/video-info-flow.test.ts`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Task P7: Port and Lock the Three-Tier Strategy
+
+**Description:** Port the legacy tier order, attempt counts, escalation signals, and approved Tier 3 implementation into a deterministic TypeScript service.
+
+**Acceptance criteria:**
+
+- [ ] Tier 1 has the three approved attempts in order.
+- [ ] Tier 2 has the approved Chrome-family cookie attempts in order.
+- [ ] Tier 3 matches the P0 decision exactly.
+- [ ] Status codes `401`, `403`, `429` and legacy bot/auth keywords trigger the approved escalation behavior.
+- [ ] Attempt counts, tier order, and terminal failure state are unit-tested.
+
+**Verification:**
+
+- [ ] `bun test -- tests/unit/tier-strategy.test.ts`
+- [ ] `bun run typecheck:node`
+- [ ] Fixture tests cover success at every tier and complete exhaustion.
+
+**Dependencies:** P0, P1.
+
+**Files likely touched:** `src/main/services/tier-strategy.ts`, `src/main/services/types.ts` if needed, `tests/unit/tier-strategy.test.ts`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Task P8: Implement Chrome-Family Cookie Extraction
+
+**Description:** Implement browser selection/profile discovery for Chrome, Chromium, and Brave on Windows/Linux, with explicit rejection of Firefox and Edge.
+
+**Acceptance criteria:**
+
+- [ ] Supported browser names normalize consistently.
+- [ ] Chrome, Chromium, Brave profile discovery covers default and additional profiles required by the approved library.
+- [ ] Firefox and Edge return a clear unsupported error.
+- [ ] Cookie values are never returned to renderer or logs.
+- [ ] Tests use fake filesystem/profile fixtures; no real browser database is required.
+
+**Verification:**
+
+- [ ] `bun test -- tests/unit/cookie-extractor.test.ts`
+- [ ] `bun run typecheck:node`
+- [ ] Linux and Windows path fixtures pass in the same test suite.
+
+**Dependencies:** P1, P7.
+
+**Files likely touched:** `src/main/services/cookie-extractor.ts`, `src/main/services/tier-strategy.ts` if integration changes are needed, `tests/unit/cookie-extractor.test.ts`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Task P9: Deliver the Audio Download Service
+
+**Description:** Implement yt-dlp/FFmpeg audio conversion, filename sanitization, thumbnail embedding, metadata embedding, and tier execution using mocked external processes.
+
+**Acceptance criteria:**
+
+- [ ] `mp3`, `m4a`, `opus`, `wav`, and `best` map to the legacy output behavior.
+- [ ] Quality `0`, `5`, and `9` map to 320, 192, and 128 kbps for MP3.
+- [ ] Thumbnail conversion/embed and metadata postprocessors are configured in the required order.
+- [ ] Output filenames are safe on Windows/Linux.
+- [ ] External binary failures are logged and normalized without leaking command secrets.
+
+**Verification:**
+
+- [ ] `bun test -- tests/unit/downloader.test.ts tests/integration/download-service.test.ts`
+- [ ] Assert yt-dlp/FFmpeg invocation options with mocks.
+- [ ] `bun run typecheck:node`
+
+**Dependencies:** P6, P7, P8, P1.
+
+**Files likely touched:** `src/main/services/downloader.ts`, `src/main/services/tier-strategy.ts`, `src/main/services/cookie-extractor.ts`, `tests/unit/downloader.test.ts`, `tests/integration/download-service.test.ts`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Task P10: Deliver Single-Active Download and Queue Status
+
+**Description:** Add the one-active-download guard, download IPC handler, queue status IPC, and close-confirmation data path.
+
+**Acceptance criteria:**
+
+- [ ] First download starts normally.
+- [ ] Second request while active returns a busy error and does not invoke yt-dlp.
+- [ ] Queue status exposes only safe state needed by renderer.
+- [ ] Completion and failure release the guard.
+- [ ] Close flow can determine whether an active download exists.
+
+**Verification:**
+
+- [ ] `bun test -- tests/unit/queue.test.ts tests/integration/download-flow.test.ts tests/integration/ipc-handlers.test.ts`
+- [ ] Test success, failure, and second-request race cases.
+- [ ] `bun run typecheck`
+
+**Dependencies:** P5, P9.
+
+**Files likely touched:** `src/main/services/queue.ts`, `src/main/ipc/download.ts`, `src/main/ipc/queue.ts` or handler registry, `tests/unit/queue.test.ts`, `tests/integration/download-flow.test.ts`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Checkpoint 2: Backend Gate
+
+- [ ] Video-info flow works with mocked yt-dlp.
+- [ ] Tier strategy matches approved legacy contract.
+- [ ] Cookie scope is enforced.
+- [ ] Download conversion/metadata options are asserted.
+- [ ] Queue rejects concurrent execution.
+- [ ] Main-process coverage targets are measurable.
+
+## Phase 3: Renderer Parity
+
+### Task P11: Port Legacy HTML, CSS, and Static Assets
+
+**Description:** Replace the electron-vite demo page with the legacy Audio Fetch layout, CSP, favicon, and approved NES.css delivery strategy.
+
+**Acceptance criteria:**
+
+- [ ] Four legacy UI states exist: input, loading, error, and info.
+- [ ] Custom title bar DOM includes drag area, minimize, and close controls.
+- [ ] Legacy dimensions, text, responsive breakpoints, and custom CSS are preserved.
+- [ ] CSP permits only approved local/CDN resources.
+- [ ] No nonexistent MP3/WAV asset requirement is introduced; sound behavior remains Web Audio based.
+
+**Verification:**
+
+- [ ] `bun run typecheck:web`
+- [ ] `bun run build`
+- [ ] Manual screenshot comparison against `legacy/templates/index.html` and `legacy/static/css/custom.css`.
+
+**Dependencies:** P0 (NES.css decision), P3, P5.
+
+**Files likely touched:** `src/renderer/index.html`, `src/renderer/assets/css/custom.css`, `src/renderer/assets/images/favicon.png`, `resources/icon.png` only if branding requires it.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Task P12: Wire Renderer Video-Info and Download State Flow
+
+**Description:** Port the legacy state machine and event handlers to typed preload calls for fetch, retry, new URL, download, and user-facing error handling.
+
+**Acceptance criteria:**
+
+- [ ] Fetch button validates URL, shows loading, invokes `videoInfo.fetch`, and renders returned info.
+- [ ] Retry and new-URL actions restore the correct legacy state.
+- [ ] Download button invokes `download.start` with selected format/quality.
+- [ ] Busy, validation, tier exhaustion, and external errors render safe messages.
+- [ ] Renderer never calls HTTP endpoints, raw IPC, Node.js, or filesystem APIs.
+
+**Verification:**
+
+- [ ] `bun test -- tests/unit/renderer-app.test.ts`
+- [ ] `bun run typecheck:web`
+- [ ] E2E fixture verifies input → loading → info → download-success/error transitions.
+
+**Dependencies:** P6, P10, P11.
+
+**Files likely touched:** `src/renderer/src/app.ts`, `src/renderer/src/renderer.ts`, `src/renderer/src/types.ts`, `tests/unit/renderer-app.test.ts`, `tests/e2e/app.test.ts`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Task P13: Port Web Audio 8-Bit Effects and Window Controls
+
+**Description:** Port generated 8-bit sound behavior and connect click/fetch/download/success/error sounds plus minimize, close, and drag controls.
+
+**Acceptance criteria:**
+
+- [ ] Five required UI sound events invoke the audio module.
+- [ ] Audio failures do not break UI actions.
+- [ ] Minimize invokes the preload window API.
+- [ ] Close prompts when queue status is active and closes after confirmation.
+- [ ] Title-bar drag works on supported Windows/Linux display environments.
+
+**Verification:**
+
+- [ ] `bun test -- tests/unit/audio.test.ts`
+- [ ] `bun run typecheck:web`
+- [ ] E2E/manual check covers controls with and without an active download.
+
+**Dependencies:** P10, P11, P12.
+
+**Files likely touched:** `src/renderer/src/audio.ts`, `src/renderer/src/app.ts`, `src/main/ipc/window.ts`, `tests/unit/audio.test.ts`, `tests/e2e/app.test.ts`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Checkpoint 3: User Flow Gate
+
+- [ ] UI visually matches the legacy page at the approved viewport sizes.
+- [ ] Video-info and download actions use only preload IPC.
+- [ ] Window controls and close confirmation work.
+- [ ] All renderer tests and focused E2E tests pass.
+
+## Phase 4: Verification, Packaging, and Release
+
+### Task P14: Complete Cross-Process E2E and Regression Coverage
+
+**Description:** Add deterministic Electron E2E coverage for startup, single instance, UI states, mocked video-info/download, queue busy behavior, and close confirmation.
+
+**Acceptance criteria:**
+
+- [ ] E2E launches the built/unpacked Electron app.
+- [ ] Tests cover video-info success/error, download success/busy/failure, title controls, and single-instance focus.
+- [ ] Tests do not contact YouTube or read real browser cookies.
+- [ ] Coverage reports include main services and renderer logic at SPEC thresholds.
+- [ ] Legacy Python tests remain available as temporary reference/guard unless explicitly removed.
+
+**Verification:**
+
+- [ ] `bun test`
+- [ ] `bun run test:coverage`
+- [ ] `bun run test:e2e`
+- [ ] Review coverage report against >85% main services, >80% IPC, >75% renderer, and 100% critical-path targets.
+
+**Dependencies:** P2, P10, P13.
+
+**Files likely touched:** `tests/unit/`, `tests/integration/`, `tests/e2e/app.test.ts`, `playwright.config.ts`, `vitest.config.ts`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Task P15: Finalize Electron Packaging and Bundled Resources
+
+**Description:** Remove unsupported macOS packaging, set Audio Fetch branding, configure Windows installer and Linux AppImage/deb targets, and verify yt-dlp/FFmpeg resources are packaged correctly.
+
+**Acceptance criteria:**
+
+- [ ] `electron-builder.yml` contains only approved Windows/Linux targets.
+- [ ] App ID, product name, executable name, icon, and artifact names are Audio Fetch branded.
+- [ ] yt-dlp and FFmpeg binaries are available in unpacked/package runtime paths.
+- [ ] AppImage and deb targets are configured; snap/rpm are included only if P0 approves them.
+- [ ] No secrets, personal paths, or fake publish endpoints are required for local builds.
+
+**Verification:**
+
+- [ ] `bun run build:unpack`
+- [ ] `bun run build:linux` on Linux.
+- [ ] `bun run build:win` on Windows or the approved Windows CI runner.
+- [ ] Launch each available artifact and run the startup smoke flow.
+
+**Dependencies:** P3, P9, P11, P0.
+
+**Files likely touched:** `electron-builder.yml`, `package.json`, `resources/`, `electron.vite.config.ts`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Task P16: Make Release Workflows Build and Publish Electron Artifacts
+
+**Description:** Update release automation for versioning, Node dependency installation, Windows installer, Linux AppImage/deb artifacts, and optional signing/publishing decisions.
+
+**Acceptance criteria:**
+
+- [ ] Release workflow versions the Electron package source, not only legacy `pyproject.toml`.
+- [ ] Build workflow produces approved Windows/Linux artifacts with deterministic names.
+- [ ] Signing steps are conditional on approved secrets and never required for local development when unavailable.
+- [ ] Artifact upload paths match electron-builder output.
+- [ ] CI fails on missing binaries, test failures, or packaging errors.
+
+**Verification:**
+
+- [ ] Validate workflow syntax and expressions.
+- [ ] Run the local equivalents: `bun run build`, `bun run build:unpack`.
+- [ ] Execute one workflow-dispatch build on each supported OS before release approval.
+
+**Dependencies:** P2, P14, P15, P0.
+
+**Files likely touched:** `.github/workflows/ci.yml`, `.github/workflows/build.yml`, `.github/workflows/release.yml`.
+
+**Estimated scope:** Medium (2-6 hours).
+
+### Task P17: Complete Documentation and Release Acceptance
+
+**Description:** Replace scaffold README content with installation, supported scope, IPC/process architecture, troubleshooting, test, build, and release instructions.
+
+**Acceptance criteria:**
+
+- [ ] README documents Windows/Linux support and Chrome/Chromium/Brave-only cookie scope.
+- [ ] README documents no concurrent downloads and no legacy config migration.
+- [ ] IPC API and main/preload/renderer boundaries are documented.
+- [ ] Troubleshooting covers yt-dlp, FFmpeg, cookie permissions, output paths, and packaging.
+- [ ] Release checklist includes startup <3s, idle memory <200 MB, download memory <500 MB, and UI responsiveness measurements on named test machines.
+
+**Verification:**
+
+- [ ] Follow README from a clean checkout through install, test, build, and launch.
+- [ ] `bun run typecheck`
+- [ ] `bun test`
+- [ ] `bun run lint`
+
+**Dependencies:** P14, P15, P16.
+
+**Files likely touched:** `README.md`, optional architecture/troubleshooting docs only if approved by project convention.
+
+**Estimated scope:** Small (1-2 hours).
+
+### Checkpoint 4: Release Gate
+
+- [ ] All functional criteria in `SPEC.md` are checked.
+- [ ] All automated checks pass.
+- [ ] Windows installer and Linux AppImage/deb are smoke-tested.
+- [ ] Manual real yt-dlp/FFmpeg smoke tests pass on Windows and Linux.
+- [ ] Performance targets are measured and recorded.
+- [ ] Human approves release scope, signing, and artifact publication.
+
+## Parallelization
+
+Safe parallel work after each contract is approved:
+
+- P6 and P7 can run in parallel after P5; P8 follows P7's approved cookie contract.
+- P11 can run in parallel with P6/P7 after P5, provided the NES.css decision is resolved.
+- Unit tests for P4/P7/P8 can be written alongside their implementation, but integration/E2E tasks wait for stable IPC contracts.
+
+Must remain sequential:
+
+- P0 → P1 → P5 → user-facing vertical slices.
+- P7 decision → P8/P9.
+- P9 → P10 → P12/P13.
+- P14/P15 → P16.
+
+## Risks and Mitigations
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| yt-dlp changes upstream | High | Mock options, keep binary checks, run manual smoke downloads before release. |
+| Tier 3 ambiguity | High | Block P7/P9 until exact clients/cookies/attempts are approved. |
+| Chrome cookie encryption/profile differences | High | Test fake profiles per OS; document supported browser versions and permission failures. |
+| Frameless drag behavior on Wayland | Medium | Keep drag region minimal; test X11 and Wayland where available; retain native fallback if needed. |
+| NES.css unavailable offline | Medium | Bundle NES.css for offline operation. |
+| Python CI still owns release flow | High | Land P2 before feature work reaches release packaging. |
+| Bun lockfile conflict | Medium | Keep `bun.lock` authoritative; avoid npm lockfile generation. |
+| Cross-platform binary packaging | High | Validate unpacked runtime paths in P15 before artifact builds. |
+| Scope creep into unsupported platforms/features | Medium | Enforce SPEC boundaries: no macOS, Firefox/Edge, concurrency, or config migration. |
+
+## Definition of Done
+
+- Every task's focused verification passes.
+- Full `bun run typecheck`, `bun test`, `bun run test:coverage`, `bun run test:e2e`, and `bun run lint` pass.
+- `bun run build` passes; Windows/Linux artifacts are smoke-tested.
+- No raw IPC/Node access reaches the renderer.
+- No live-network dependency exists in automated tests.
+- Human approves checkpoints and final release gate.
