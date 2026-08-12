@@ -1,14 +1,17 @@
-import type { AudioFetchApi, VideoInfo } from '../../shared/ipc'
+import type { AudioFetchApi, DownloadFormat, DownloadQuality, VideoInfo } from '../../shared/ipc'
 
 export type RendererState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | (VideoInfo & { status: 'success' })
+  | (VideoInfo & {
+      status: 'success'
+      downloadStatus?: 'loading' | 'success'
+      downloadPath?: string
+    })
   | { status: 'error'; message: string }
 
+type RendererApi = Pick<AudioFetchApi, 'videoInfo'> & Partial<Pick<AudioFetchApi, 'download'>>
 type RendererListeners = (state: RendererState) => void
-
-type VideoInfoApi = Pick<AudioFetchApi, 'videoInfo'>
 
 function isValidUrl(url: string): boolean {
   try {
@@ -19,13 +22,40 @@ function isValidUrl(url: string): boolean {
   }
 }
 
-export function createRendererController(api: VideoInfoApi) {
+export function createRendererController(api: RendererApi) {
   let state: RendererState = { status: 'idle' }
+  let currentUrl = ''
+  let requestVersion = 0
   const listeners = new Set<RendererListeners>()
 
   const update = (nextState: RendererState): void => {
     state = nextState
     listeners.forEach((listener) => listener(state))
+  }
+
+  const submit = async (url: string): Promise<void> => {
+    requestVersion += 1
+    const version = requestVersion
+    currentUrl = url
+    if (!isValidUrl(url)) {
+      update({ status: 'error', message: 'Invalid video URL' })
+      return
+    }
+
+    update({ status: 'loading' })
+    try {
+      const result = await api.videoInfo.fetch(url)
+      if (version !== requestVersion) return
+      if (result.ok) {
+        update({ status: 'success', ...result.data })
+      } else {
+        update({ status: 'error', message: result.error.message })
+      }
+    } catch {
+      if (version === requestVersion) {
+        update({ status: 'error', message: 'Unable to fetch video information' })
+      }
+    }
   }
 
   return {
@@ -36,22 +66,32 @@ export function createRendererController(api: VideoInfoApi) {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
-    async submit(url: string): Promise<void> {
-      if (!isValidUrl(url)) {
-        update({ status: 'error', message: 'Invalid video URL' })
-        return
-      }
-
-      update({ status: 'loading' })
+    submit,
+    retry(): Promise<void> {
+      return currentUrl ? submit(currentUrl) : Promise.resolve()
+    },
+    newUrl(): void {
+      requestVersion += 1
+      currentUrl = ''
+      update({ status: 'idle' })
+    },
+    async download(format: DownloadFormat, quality: DownloadQuality): Promise<void> {
+      if (state.status !== 'success' || !currentUrl || !api.download) return
+      const current = state
+      const version = requestVersion
+      update({ ...current, downloadStatus: 'loading' })
       try {
-        const result = await api.videoInfo.fetch(url)
+        const result = await api.download.start(currentUrl, { format, quality })
+        if (version !== requestVersion) return
         if (result.ok) {
-          update({ status: 'success', ...result.data })
+          update({ ...current, downloadStatus: 'success', downloadPath: result.data.path })
         } else {
           update({ status: 'error', message: result.error.message })
         }
       } catch {
-        update({ status: 'error', message: 'Unable to fetch video information' })
+        if (version === requestVersion) {
+          update({ status: 'error', message: 'Unable to download audio' })
+        }
       }
     }
   }

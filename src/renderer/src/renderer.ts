@@ -1,3 +1,4 @@
+import type { DownloadFormat, DownloadQuality } from '../../shared/ipc'
 import { createRendererController, type RendererState } from './app'
 
 function isSafeThumbnailUrl(value: string): boolean {
@@ -7,6 +8,8 @@ function isSafeThumbnailUrl(value: string): boolean {
     return false
   }
 }
+const DOWNLOAD_FORMATS: DownloadFormat[] = ['mp3', 'm4a', 'opus', 'wav', 'best']
+const DOWNLOAD_QUALITIES: DownloadQuality[] = ['0', '5', '9']
 
 const controller = createRendererController(window.audioFetch)
 
@@ -58,13 +61,20 @@ function render(state: RendererState): void {
     return
   }
 
-  status.textContent = 'Video info loaded'
   title.textContent = state.title
   uploader.textContent = state.uploader
   duration.textContent = `${state.duration}s`
   const hasThumbnail = isSafeThumbnailUrl(state.thumbnailUrl)
   thumbnail.hidden = !hasThumbnail
   thumbnail.src = hasThumbnail ? state.thumbnailUrl : ''
+
+  if (state.downloadStatus === 'loading') {
+    status.textContent = 'Downloading...'
+  } else if (state.downloadStatus === 'success') {
+    status.textContent = `Downloaded: ${state.downloadPath ?? 'complete'}`
+  } else {
+    status.textContent = 'Video info loaded'
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -75,5 +85,28 @@ window.addEventListener('DOMContentLoaded', () => {
     event.preventDefault()
     const input = document.getElementById('youtube-url') as HTMLInputElement | null
     if (input) void controller.submit(input.value)
+  })
+
+  document.getElementById('retry-btn')?.addEventListener('click', () => {
+    void controller.retry()
+  })
+
+  document.getElementById('new-url-btn')?.addEventListener('click', () => {
+    controller.newUrl()
+    const input = document.getElementById('youtube-url') as HTMLInputElement | null
+    if (input) input.value = ''
+  })
+
+  document.getElementById('download-btn')?.addEventListener('click', () => {
+    const format = document.getElementById('format-select') as HTMLSelectElement | null
+    const quality = document.getElementById('quality-select') as HTMLSelectElement | null
+    if (!format || !quality) return
+    if (
+      !DOWNLOAD_FORMATS.includes(format.value as DownloadFormat) ||
+      !DOWNLOAD_QUALITIES.includes(quality.value as DownloadQuality)
+    ) {
+      return
+    }
+    void controller.download(format.value as DownloadFormat, quality.value as DownloadQuality)
   })
 })

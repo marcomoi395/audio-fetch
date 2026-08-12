@@ -386,17 +386,17 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Acceptance criteria:**
 
-- [ ] Fetch button validates URL, shows loading, invokes `videoInfo.fetch`, and renders returned info.
-- [ ] Retry and new-URL actions restore the correct legacy state.
-- [ ] Download button invokes `download.start` with selected format/quality.
-- [ ] Busy, validation, tier exhaustion, and external errors render safe messages.
-- [ ] Renderer never calls HTTP endpoints, raw IPC, Node.js, or filesystem APIs.
+- [x] Fetch button validates URL, shows loading, invokes `videoInfo.fetch`, and renders returned info.
+- [x] Retry and new-URL actions restore the correct legacy state.
+- [x] Download button invokes `download.start` with selected format/quality.
+- [x] Busy, validation, tier exhaustion, and external errors render safe messages.
+- [x] Renderer never calls HTTP endpoints, raw IPC, Node.js, or filesystem APIs.
 
 **Verification:**
 
-- [ ] `bun test -- tests/unit/renderer-app.test.ts`
-- [ ] `bun run typecheck:web`
-- [ ] E2E fixture verifies input → loading → info → download-success/error transitions.
+- [x] `bun test -- tests/unit/renderer-app.test.ts`
+- [x] `bun run typecheck:web`
+- [x] E2E fixture verifies input → loading → info → download-success transitions.
 
 **Dependencies:** P6, P10, P11.
 

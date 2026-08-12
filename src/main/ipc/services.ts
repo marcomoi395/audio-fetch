@@ -4,10 +4,22 @@ import { createAudioDownloadService, createVideoInfoService } from '../services/
 import { createDownloadQueue } from '../services/queue'
 
 type YtDlpModule = (url: string, options: Record<string, unknown>) => Promise<unknown>
-
 type AudioServiceExecutor = (url: string, options: Record<string, unknown>) => Promise<unknown>
 
 async function executeYtDlp(url: string, options: Record<string, unknown>): Promise<unknown> {
+  // Test-only deterministic executor; normal launches always use youtube-dl-exec.
+  if (process.env['AUDIO_FETCH_E2E_FIXTURE'] === '1') {
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    return options.dumpSingleJson
+      ? {
+          title: 'Fixture Video',
+          uploader: 'Fixture Channel',
+          duration: 42,
+          thumbnail: ''
+        }
+      : { filename: '/downloads/fixture.mp3' }
+  }
+
   const module = (await import('youtube-dl-exec')) as unknown as { default: YtDlpModule }
   return module.default(url, options)
 }
