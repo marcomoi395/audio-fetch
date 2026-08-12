@@ -24,6 +24,8 @@
     "build": "bun run typecheck && bunx electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "bun run build && bunx electron-builder --dir",
+    "verify:resources": "node scripts/verify-resources.mjs",
+    "verify:resources:unpacked": "node scripts/verify-resources.mjs --artifact-root dist/linux-unpacked",
     "build:win": "bun run build && bunx electron-builder --win",
     "build:linux": "bun run build && bunx electron-builder --linux"
   },

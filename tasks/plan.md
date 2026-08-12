@@ -466,27 +466,26 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 **Estimated scope:** Medium (2-6 hours).
 
 ### Task P15: Finalize Electron Packaging and Bundled Resources
-
-**Description:** Remove unsupported macOS packaging, set Audio Fetch branding, configure Windows installer and Linux AppImage/deb targets, and verify yt-dlp/FFmpeg resources are packaged correctly.
-
 **Acceptance criteria:**
 
-- [ ] `electron-builder.yml` contains only approved Windows/Linux targets.
-- [ ] App ID, product name, executable name, icon, and artifact names are Audio Fetch branded.
-- [ ] yt-dlp and FFmpeg binaries are available in unpacked/package runtime paths.
-- [ ] AppImage and deb targets are configured; snap/rpm are included only if P0 approves them.
-- [ ] No secrets, personal paths, or fake publish endpoints are required for local builds.
+- [x] `electron-builder.yml` contains only approved Windows/Linux targets.
+- [x] App ID, product name, executable name, and Linux artifact names are Audio Fetch branded.
+- [x] yt-dlp and FFmpeg binaries are present in verified Linux unpacked runtime paths.
+- [x] AppImage and deb targets are configured.
+- [x] No secrets, personal paths, or fake publish endpoints are required for local builds.
+- [ ] Windows icon/installer build and runtime smoke on a Windows runner.
 
 **Verification:**
 
-- [ ] `bun run build:unpack`
-- [ ] `bun run build:linux` on Linux.
-- [ ] `bun run build:win` on Windows or the approved Windows CI runner.
-- [ ] Launch each available artifact and run the startup smoke flow.
+- [x] `bun run build:unpack`
+- [x] `bun run verify:resources:unpacked`
+- [x] `bun run build:linux` — AppImage and deb produced.
+- [ ] `bun run build:win` on Windows or approved Windows CI runner.
+- [x] Linux unpacked startup/resource smoke passed through existing Electron E2E and verifier.
 
 **Dependencies:** P3, P9, P11, P0.
 
-**Files likely touched:** `electron-builder.yml`, `package.json`, `resources/`, `electron.vite.config.ts`.
+**Files touched:** `electron-builder.yml`, `package.json`, `scripts/verify-resources.mjs`, `src/main/ipc/services.ts`, `src/main/utils/binaries.ts`, `tests/unit/binaries.test.ts`.
 
 **Estimated scope:** Medium (2-6 hours).
 

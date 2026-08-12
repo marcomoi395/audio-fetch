@@ -2,6 +2,7 @@ import type { DownloadOptions, DownloadResult, QueueStatus } from '../../shared/
 import type { IpcServices } from './index'
 import { createAudioDownloadService, createVideoInfoService } from '../services/downloader'
 import { createDownloadQueue } from '../services/queue'
+import { configurePackagedYtDlpEnvironment } from '../utils/binaries'
 
 type YtDlpModule = (url: string, options: Record<string, unknown>) => Promise<unknown>
 type AudioServiceExecutor = (url: string, options: Record<string, unknown>) => Promise<unknown>
@@ -19,6 +20,9 @@ async function executeYtDlp(url: string, options: Record<string, unknown>): Prom
       : { filename: '/downloads/fixture.mp3' }
   }
 
+  if (process.resourcesPath && process.resourcesPath !== process.cwd()) {
+    configurePackagedYtDlpEnvironment(process.resourcesPath, process.env)
+  }
   const module = (await import('youtube-dl-exec')) as unknown as { default: YtDlpModule }
   return module.default(url, options)
 }
