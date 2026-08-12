@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   publish-release:
-    name: Publish Release
+    name: Publish Electron release
     if: (github.event_name == 'workflow_dispatch') || (github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/'))
     runs-on: ubuntu-latest
 
@@ -29,142 +29,83 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Extract version from branch name or input
+      - name: Extract release tag
         id: extract_version
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             NEW_TAG="${{ inputs.version }}"
-            echo "Using manual input version: $NEW_TAG"
           else
-            BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
-            NEW_TAG="${BRANCH_NAME#release/}"
-            echo "Extracted tag: $NEW_TAG from branch: $BRANCH_NAME"
+            NEW_TAG="${{ github.event.pull_request.head.ref }}"
+            NEW_TAG="${NEW_TAG#release/}"
           fi
-          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Get previous tag
         id: get_previous_tag
         run: |
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
-          echo "Previous tag: $PREVIOUS_TAG"
+          echo "previous_tag=$PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Create and push tag
+        env:
+          NEW_TAG: ${{ steps.extract_version.outputs.new_tag }}
         run: |
-          NEW_TAG="${{ steps.extract_version.outputs.new_tag }}"
           if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
-            echo "Warning: Tag $NEW_TAG already exists, skipping"
+            echo "Tag $NEW_TAG already exists"
           else
             git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
             git push origin "$NEW_TAG"
-            echo "Tag $NEW_TAG created and pushed"
           fi
-
-      - name: Delete release branch
-        if: github.event_name == 'pull_request'
-        run: |
-          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
-          git push origin --delete "$BRANCH_NAME" || echo "Branch already deleted"
 
       - name: Trigger build and wait
         id: build
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN || github.token }}
+          NEW_TAG: ${{ steps.extract_version.outputs.new_tag }}
         run: |
-          NEW_TAG="${{ steps.extract_version.outputs.new_tag }}"
-
-          echo "Triggering build workflow for $NEW_TAG..."
           gh workflow run build.yml \
             -f tag="$NEW_TAG" \
             -f upload_to_release=false \
-            --repo ${{ github.repository }}
-
-          # Wait for the run to be registered
+            --repo "${{ github.repository }}"
           sleep 10
-
-          # Get the run ID of the build we just triggered
           RUN_ID=$(gh run list \
             --workflow build.yml \
-            --repo ${{ github.repository }} \
+            --repo "${{ github.repository }}" \
             --limit 1 \
             --json databaseId \
             --jq '.[0].databaseId')
-
-          echo "Build run ID: $RUN_ID"
-          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
-
-          # Wait for build to complete (timeout 30 min)
-          echo "Waiting for build to complete..."
-          gh run watch "$RUN_ID" --repo ${{ github.repository }} --exit-status
-
-          echo "Build completed successfully!"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          gh run watch "$RUN_ID" --repo "${{ github.repository }}" --exit-status
 
       - name: Generate changelog
         id: changelog
+        env:
+          PREVIOUS_TAG: ${{ steps.get_previous_tag.outputs.previous_tag }}
+          NEW_TAG: ${{ steps.extract_version.outputs.new_tag }}
         run: |
-          PREVIOUS_TAG="${{ steps.get_previous_tag.outputs.previous_tag }}"
-          NEW_TAG="${{ steps.extract_version.outputs.new_tag }}"
-
-          CHANGELOG_FILE="/tmp/changelog.md"
-
+          CHANGELOG_FILE="$RUNNER_TEMP/changelog.md"
           if [ "$PREVIOUS_TAG" = "v0.0.0" ]; then
             COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
           else
-            COMMITS=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+            COMMITS=$(git log "$PREVIOUS_TAG"..HEAD --pretty=format:"- %s (%h)" --no-merges)
           fi
-
-          echo "## Changes in ${NEW_TAG}" > "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "$COMMITS" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${NEW_TAG}" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "---" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "## Installation" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "### Linux" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "**AppImage** (Universal):" >> "$CHANGELOG_FILE"
-          echo '```bash' >> "$CHANGELOG_FILE"
-          echo "chmod +x audio-fetch-${NEW_TAG}-x86_64.AppImage" >> "$CHANGELOG_FILE"
-          echo "./audio-fetch-${NEW_TAG}-x86_64.AppImage" >> "$CHANGELOG_FILE"
-          echo '```' >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "**Debian/Ubuntu** (.deb):" >> "$CHANGELOG_FILE"
-          echo '```bash' >> "$CHANGELOG_FILE"
-          echo "sudo dpkg -i audio-fetch_${NEW_TAG#v}_amd64.deb" >> "$CHANGELOG_FILE"
-          echo '```' >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "**Fedora/RHEL/CentOS** (.rpm):" >> "$CHANGELOG_FILE"
-          echo '```bash' >> "$CHANGELOG_FILE"
-          echo "sudo rpm -i audio-fetch-${NEW_TAG#v}-1.x86_64.rpm" >> "$CHANGELOG_FILE"
-          echo '```' >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "### Windows" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "Run the installer: \`audio-fetch-${NEW_TAG}-setup.exe\`" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "---" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "## Requirements" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "- **FFmpeg** is required for audio conversion" >> "$CHANGELOG_FILE"
-          echo "  - Linux: \`sudo apt install ffmpeg\` or \`sudo dnf install ffmpeg\`" >> "$CHANGELOG_FILE"
-          echo "  - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "## Notes" >> "$CHANGELOG_FILE"
-          echo "" >> "$CHANGELOG_FILE"
-          echo "- Automatic browser cookie extraction for YouTube authentication" >> "$CHANGELOG_FILE"
-          echo "- Supports Chrome, Firefox, Edge, and Brave browsers" >> "$CHANGELOG_FILE"
-          echo "- 3-tier download strategy for robust downloading" >> "$CHANGELOG_FILE"
-
-          echo "changelog_file=$CHANGELOG_FILE" >> $GITHUB_OUTPUT
+          {
+            echo "## Changes in $NEW_TAG"
+            echo
+            echo "$COMMITS"
+            echo
+            echo "## Installation"
+            echo
+            echo "### Linux"
+            echo
+            echo "- AppImage"
+            echo "- Debian package (.deb)"
+            echo
+            echo "### Windows"
+            echo
+            echo "- Windows installer (.exe)"
+          } > "$CHANGELOG_FILE"
+          echo "changelog_file=$CHANGELOG_FILE" >> "$GITHUB_OUTPUT"
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -176,45 +117,16 @@ jobs:
       - name: Create release draft and upload artifacts
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN || github.token }}
+          NEW_TAG: ${{ steps.extract_version.outputs.new_tag }}
+          CHANGELOG_FILE: ${{ steps.changelog.outputs.changelog_file }}
         run: |
-          NEW_TAG="${{ steps.extract_version.outputs.new_tag }}"
-          VERSION="${NEW_TAG#v}"
-          CHANGELOG_FILE="${{ steps.changelog.outputs.changelog_file }}"
-
           gh release create "$NEW_TAG" \
             --draft \
             --title "Release $NEW_TAG" \
             --notes-file "$CHANGELOG_FILE" \
-            --repo ${{ github.repository }}
-
+            --repo "${{ github.repository }}"
           gh release upload "$NEW_TAG" \
-            artifacts/linux-appimage/audio-fetch-v${VERSION}-x86_64.AppImage \
-            --repo ${{ github.repository }}
-
-          gh release upload "$NEW_TAG" \
-            artifacts/linux-deb/audio-fetch_${VERSION}_amd64.deb \
-            --repo ${{ github.repository }}
-
-          gh release upload "$NEW_TAG" \
-            artifacts/linux-rpm/audio-fetch-${VERSION}-1.x86_64.rpm \
-            --repo ${{ github.repository }}
-
-          gh release upload "$NEW_TAG" \
-            artifacts/windows-installer/audio-fetch-v${VERSION}-setup.exe \
-            --repo ${{ github.repository }}
-
-          echo "Release draft created: $NEW_TAG"
-
-      - name: Summary
-        run: |
-          NEW_TAG="${{ steps.extract_version.outputs.new_tag }}"
-
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: $NEW_TAG" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag**: Created ✓" >> $GITHUB_STEP_SUMMARY
-          echo "- **Build**: Completed ✓" >> $GITHUB_STEP_SUMMARY
-          echo "- **Release**: Draft created with artifacts ✓" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Review [release draft](https://github.com/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY
-          echo "2. Publish when ready" >> $GITHUB_STEP_SUMMARY
+            artifacts/linux-appimage/*.AppImage \
+            artifacts/linux-deb/*.deb \
+            artifacts/windows-installer/*.exe \
+            --repo "${{ github.repository }}"

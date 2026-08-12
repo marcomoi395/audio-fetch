@@ -112,21 +112,21 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 
 **Acceptance criteria:**
 
-- [ ] Pull-request CI runs `bun install --frozen-lockfile` or the approved package-manager equivalent.
-- [ ] CI runs `bun run typecheck`, `bun test`, `bun run test:coverage`, and `bun run lint`.
-- [ ] E2E jobs run with a headless Electron-compatible environment and mocked external services.
-- [ ] Release/build workflows no longer assume PyInstaller, FastAPI, Qt, or Python packaging for the Electron artifact.
-- [ ] Legacy checks are either retained in a clearly named temporary job or removed with documented rationale.
+- [x] Pull-request CI runs `bun install --frozen-lockfile`.
+- [x] CI runs `bun run typecheck`, `bun test`, `bun run test:coverage`, and `bun run lint`.
+- [x] E2E jobs run headless Electron through `xvfb-run bun run test:e2e`; local direct Playwright run discovered 1 Electron test and passed without `DISPLAY`.
+- [x] Release/build workflows use Bun and Electron tooling only; AppImage/deb/Windows artifacts replace Python/RPM assumptions.
+- [x] Legacy Python checks are removed from canonical CI; rationale is documented in `ci.yml`.
 
 **Verification:**
 
-- [ ] Validate workflow YAML syntax.
-- [ ] Run the same commands locally: `bun run typecheck`, `bun test`, `bun run lint`.
-- [ ] Inspect the workflow diff for secrets, unsupported OS assumptions, and live-network test dependencies.
+- [x] Validate workflow YAML syntax.
+- [x] Run local gates: `bun run typecheck`, `bun test`, `bun run test:coverage`, `bun run lint`, `bun run build`.
+- [x] Inspect workflow diff for secrets, permissions, unsupported OS assumptions, artifact paths, and live-network test dependencies. Local `xvfb-run` is unavailable; CI remains the Xvfb verification path.
 
 **Dependencies:** P1.
 
-**Files likely touched:** `.github/workflows/ci.yml`, `.github/workflows/build.yml`, `.github/workflows/release.yml`.
+**Files touched:** `.github/workflows/ci.yml`, `.github/workflows/build.yml`, `.github/workflows/release.yml`, `.github/workflows/post-merge-release.yml`, `electron-builder.yml`, `package.json`, `bun.lock`, and workflow/E2E tests.
 
 **Estimated scope:** Medium (2-6 hours).
 

@@ -20,174 +20,88 @@ permissions:
 
 jobs:
   release:
-    name: Create Release
+    name: Create Electron release PR
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for tags
-          # Use PAT if available, otherwise fallback to GITHUB_TOKEN
-          # PAT is required for creating PRs if "Allow GitHub Actions to create PRs" is disabled
+          fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
-      
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-      
+
       - name: Get latest tag
         id: get_latest_tag
         run: |
-          # Get the latest tag, default to v0.0.0 if no tags exist
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          echo "Latest tag: $LATEST_TAG"
-      
+          echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+
       - name: Calculate new version
         id: calc_version
-        run: |
-          LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
-          BUMP_TYPE="${{ inputs.version_bump }}"
-          
-          # Strip 'v' prefix for calculation
-          CURRENT_VERSION="${LATEST_TAG#v}"
-          
-          # Run bump-version script to calculate new version
-          chmod +x scripts/bump-version.sh
-          NEW_VERSION=$(./scripts/bump-version.sh "$CURRENT_VERSION" "$BUMP_TYPE")
-          
-          # Add 'v' prefix for tag
-          NEW_TAG="v${NEW_VERSION}"
-          
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
-          echo "Bumping from $LATEST_TAG to $NEW_TAG ($BUMP_TYPE)"
-      
-      - name: Check if tag already exists
-        run: |
-          NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
-          if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
-            echo "Error: Tag $NEW_TAG already exists"
-            exit 1
-          fi
-      
-      - name: Update version in pyproject.toml
-        run: |
-          NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
-          
-          # Update version using sed
-          sed -i "s/^version = \".*\"$/version = \"$NEW_VERSION\"/" pyproject.toml
-          
-          # Verify update
-          if ! grep -q "version = \"$NEW_VERSION\"" pyproject.toml; then
-            echo "Error: Failed to update version in pyproject.toml"
-            exit 1
-          fi
-          
-      - name: Create release branch and push
-        run: |
-          NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
-          BRANCH_NAME="release/$NEW_TAG"
-          
-          # Fetch all remote branches
-          git fetch origin
-          
-          # Check if release branch already exists remotely
-          if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
-            echo "Release branch $BRANCH_NAME already exists remotely, deleting it..."
-            git push origin --delete "$BRANCH_NAME" || echo "Failed to delete remote branch, continuing..."
-          fi
-          
-          # Check if release branch exists locally
-          if git show-ref --verify --quiet refs/heads/"$BRANCH_NAME"; then
-            echo "Release branch $BRANCH_NAME exists locally, deleting it..."
-            git branch -D "$BRANCH_NAME"
-          fi
-          
-          # Create and switch to release branch
-          git checkout -b "$BRANCH_NAME"
-          
-          # Commit version bump
-          git add pyproject.toml
-          git commit -m "chore: bump version to $NEW_TAG"
-          
-          # Push release branch
-          git push origin "$BRANCH_NAME"
-          
-          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-          echo "Release branch $BRANCH_NAME created and pushed"
-        id: create_branch
-      - name: Create Pull Request
         env:
-          # Use PAT if available, otherwise fallback to GITHUB_TOKEN
-          GH_TOKEN: ${{ secrets.PAT_TOKEN || github.token }}
+          CURRENT_VERSION: ${{ steps.get_latest_tag.outputs.latest_tag }}
+          BUMP_TYPE: ${{ inputs.version_bump }}
         run: |
-          NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
-          BRANCH_NAME="${{ steps.create_branch.outputs.branch_name }}"
-          BUMP_TYPE="${{ inputs.version_bump }}"
-          
-          # Check if PR already exists for this branch
-          EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number' --repo ${{ github.repository }} || echo "")
-          
-          if [ -n "$EXISTING_PR" ]; then
-            echo "PR already exists for branch $BRANCH_NAME (PR #$EXISTING_PR), closing it..."
-            gh pr close "$EXISTING_PR" --repo ${{ github.repository }} || echo "Failed to close existing PR"
-          fi
-          
-          # Create PR body
-          PR_BODY="## Release $NEW_TAG
-          
-          This PR bumps the version to **$NEW_TAG** ($BUMP_TYPE bump).
-          
-          ### Checklist
-          - [ ] Version updated in pyproject.toml
-          - [ ] Tests passing
-          - [ ] Ready to merge and release
-          
-          After merging, the release workflow will automatically:
-          1. Create git tag $NEW_TAG
-          2. Generate changelog
-          3. Create GitHub release draft
-          4. Trigger build workflow
-          
-          ---
-          
-          **Note**: Do not merge until all checks pass and you're ready to publish the release."
-          
-          # Create PR
-          PR_URL=$(gh pr create \
+          NEW_VERSION=$(bun -e '
+            const current = process.env.CURRENT_VERSION.replace(/^v/, "").split(".").map(Number)
+            if (current.length !== 3 || current.some(Number.isNaN)) process.exit(1)
+            if (process.env.BUMP_TYPE === "major") current[0] += 1, current[1] = 0, current[2] = 0
+            if (process.env.BUMP_TYPE === "minor") current[1] += 1, current[2] = 0
+            if (process.env.BUMP_TYPE === "patch") current[2] += 1
+            console.log(current.join("."))
+          ')
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_tag=v$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update package.json and bun.lock versions
+        env:
+          NEW_VERSION: ${{ steps.calc_version.outputs.new_version }}
+        run: |
+          NEW_VERSION="$NEW_VERSION" bun -e '
+            const fs = require("node:fs")
+            const path = "package.json"
+            const packageJson = JSON.parse(fs.readFileSync(path, "utf8"))
+            packageJson.version = process.env.NEW_VERSION
+            fs.writeFileSync(path, `${JSON.stringify(packageJson, null, 2)}\n`)
+          '
+          NEW_VERSION="$NEW_VERSION" bun -e '
+            const packageJson = JSON.parse(require("node:fs").readFileSync("package.json", "utf8"))
+            if (packageJson.version !== process.env.NEW_VERSION) process.exit(1)
+          '
+          bun install --lockfile-only --ignore-scripts
+
+      - name: Create release branch and push
+        id: create_branch
+        env:
+          NEW_TAG: ${{ steps.calc_version.outputs.new_tag }}
+        run: |
+          BRANCH_NAME="release/$NEW_TAG"
+          git fetch origin
+          git checkout -b "$BRANCH_NAME"
+          git add package.json bun.lock
+          git commit -m "chore: bump version to $NEW_TAG"
+          git push origin "$BRANCH_NAME"
+          echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || github.token }}
+          NEW_TAG: ${{ steps.calc_version.outputs.new_tag }}
+          BRANCH_NAME: ${{ steps.create_branch.outputs.branch_name }}
+        run: |
+          gh pr create \
             --base main \
             --head "$BRANCH_NAME" \
             --title "Release $NEW_TAG" \
-            --body "$PR_BODY" \
-            --repo ${{ github.repository }})
-          
-          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
-          echo "Pull request created: $PR_URL"
-        id: create_pr
-      
-      
-      - name: Summary
-        run: |
-          NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
-          BUMP_TYPE="${{ inputs.version_bump }}"
-          PR_URL="${{ steps.create_pr.outputs.pr_url }}"
-          
-          echo "## Release Preparation Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: $NEW_TAG" >> $GITHUB_STEP_SUMMARY
-          echo "- **Bump Type**: $BUMP_TYPE" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: Release PR created ✓" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Review the [Pull Request]($PR_URL)" >> $GITHUB_STEP_SUMMARY
-          echo "2. Wait for CI tests to pass" >> $GITHUB_STEP_SUMMARY
-          echo "3. Merge the PR when ready" >> $GITHUB_STEP_SUMMARY
-          echo "4. Release workflow will automatically create tag and publish release" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Pull Request" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "$PR_URL" >> $GITHUB_STEP_SUMMARY
+            --body "Release $NEW_TAG. Electron artifacts: Windows installer, Linux AppImage, Linux deb." \
+            --repo "${{ github.repository }}"

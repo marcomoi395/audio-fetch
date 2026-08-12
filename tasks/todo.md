@@ -4,7 +4,7 @@
 
 - [x] P0 Resolve SPEC open questions: Tier 3, progress, NES.css delivery, Linux targets, Windows signing, package-manager authority.
 - [x] P1 Add Node runtime/test dependencies, scripts, Vitest/Playwright configs, root test directories.
-- [ ] P2 Replace Python-only CI/release assumptions with Node/Electron checks; retain legacy guard only if approved.
+- [x] P2 Replace Python-only CI/release assumptions with Node/Electron checks; retain legacy guard only if approved.
 - [ ] Checkpoint 0: Tooling commands pass; unresolved blockers explicitly recorded.
 
 ## Phase 1: Electron Infrastructure
