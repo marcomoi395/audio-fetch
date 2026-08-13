@@ -36,7 +36,7 @@
 - [ ] P15 Finalize Windows/Linux packaging, branding, binary resources, AppImage/deb targets.
 - [ ] P16 Update release workflows for Electron artifacts, versioning, signing, uploads.
 - [ ] P17 Complete README, IPC/architecture/troubleshooting docs, release acceptance measurements.
-- [ ] Checkpoint 4: Full tests, lint, builds, cross-platform smoke tests, performance checks, human release approval.
+- [ ] Checkpoint 4: Full tests, lint, builds, cross-platform smoke tests, performance checks, human release approval. Open blockers: Windows runner, real yt-dlp/FFmpeg smoke, named-machine performance measurements, human approval.
 
 ## Global Verification
 

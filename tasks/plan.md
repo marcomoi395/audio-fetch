@@ -539,11 +539,14 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 ### Checkpoint 4: Release Gate
 
 - [ ] All functional criteria in `SPEC.md` are checked.
-- [ ] All automated checks pass.
-- [ ] Windows installer and Linux AppImage/deb are smoke-tested.
+- [x] All automated checks pass.
+- [x] Linux AppImage/deb build smoke-tested locally.
+- [ ] Windows installer and runtime smoke-tested on a Windows runner.
 - [ ] Manual real yt-dlp/FFmpeg smoke tests pass on Windows and Linux.
-- [ ] Performance targets are measured and recorded.
+- [ ] Named-machine startup, idle-memory, and download-memory targets are measured.
 - [ ] Human approves release scope, signing, and artifact publication.
+
+**Open blockers:** Windows runner access, cross-OS real-service smoke tests, named-machine performance measurements, human release approval.
 
 ## Parallelization
 
