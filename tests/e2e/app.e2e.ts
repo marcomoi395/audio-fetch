@@ -1,8 +1,12 @@
+import { spawn, type ChildProcess } from 'node:child_process'
 import { _electron as electron } from 'playwright'
 import { expect, test } from '@playwright/test'
 import { resolve } from 'node:path'
 
 const appEntry = resolve(process.cwd(), 'out/main/index.js')
+function launchSecondInstance(): ChildProcess {
+  return spawn(process.execPath, [appEntry], { env: process.env, stdio: 'ignore' })
+}
 
 test('launches the built Electron application', async () => {
   const app = await electron.launch({ args: [appEntry] })
@@ -122,5 +126,50 @@ test('closes through the title-bar close control when inactive', async () => {
     await expect.poll(() => app.windows().length).toBe(0)
   } finally {
     await app.close()
+  }
+})
+
+test('minimizes the window and exposes a draggable title-bar region', async () => {
+  const app = await electron.launch({ args: [appEntry] })
+
+  try {
+    const window = await app.firstWindow()
+    await expect(
+      window.locator('#drag-area').evaluate((element) => getComputedStyle(element).webkitAppRegion)
+    ).resolves.toBe('drag')
+    await window.locator('#minimize-btn').click()
+    await expect
+      .poll(() =>
+        app.evaluate(
+          ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isMinimized() ?? false
+        )
+      )
+      .toBe(true)
+  } finally {
+    await app.close()
+  }
+})
+
+test('restores and focuses the first window on a second launch', async () => {
+  const first = await electron.launch({ args: [appEntry] })
+  await first.firstWindow()
+  await first.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.minimize())
+
+  const second = launchSecondInstance()
+  try {
+    await expect
+      .poll(() =>
+        first.evaluate(({ BrowserWindow }) => {
+          const window = BrowserWindow.getAllWindows()[0]
+          return {
+            focused: window?.isFocused() ?? false,
+            minimized: window?.isMinimized() ?? false
+          }
+        })
+      )
+      .toEqual({ focused: true, minimized: false })
+  } finally {
+    second.kill()
+    await first.close()
   }
 })

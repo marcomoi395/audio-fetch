@@ -448,7 +448,7 @@ P6 and P7 can proceed in parallel after P5. P8 depends on the approved Tier 2 co
 - [x] Tests do not contact YouTube or read real browser cookies.
 - [x] Coverage reports include scoped main services 98.93%, IPC 88.63%, renderer 92.5%, and critical paths 100% statements/lines.
 - [x] Legacy Python tests remain available as temporary reference/guard.
-- [ ] Electron E2E single-instance focus, minimize, and drag coverage.
+- [x] Electron E2E single-instance focus, minimize, and drag coverage.
 
 **Verification:**
 
