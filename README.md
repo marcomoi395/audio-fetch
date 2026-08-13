@@ -128,4 +128,4 @@ Release approval requires:
 - Startup under 3 seconds, idle memory under 200 MB, download memory under 500 MB.
 - UI responsiveness and manual renderer control/screenshot review.
 
-Current automated gaps remain explicitly tracked in `tasks/plan.md`: Windows artifact smoke, Electron single-instance/minimize/drag E2E, and manual visual/cross-OS control checks.
+Release blockers: Windows runner installer/runtime smoke, Linux cross-machine smoke, real yt-dlp/FFmpeg smoke on Windows/Linux, and named-machine performance measurements.

@@ -12,4 +12,12 @@ describe('integration test harness', () => {
     expect(playwrightConfig).toContain("testDir: './tests/e2e'")
     expect(playwrightConfig).toContain("name: 'electron'")
   })
+
+  it('documents current release blockers without stale automated-gap claims', () => {
+    const readme = readFileSync(resolve(process.cwd(), 'README.md'), 'utf8')
+
+    expect(readme).toContain('Windows runner')
+    expect(readme).toContain('performance measurements')
+    expect(readme).not.toContain('Electron single-instance/minimize/drag E2E')
+  })
 })
