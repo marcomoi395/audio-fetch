@@ -40,6 +40,7 @@ describe('GitHub Actions workflow contract', () => {
     expect(release).toContain('bun install --lockfile-only --ignore-scripts')
     expect(release).toContain('git add package.json bun.lock')
     expect(release).not.toContain('pyproject.toml')
+    expect(release).toContain('bun install --frozen-lockfile')
   })
 
   it('publishes only Electron artifacts from the post-merge release flow', () => {
