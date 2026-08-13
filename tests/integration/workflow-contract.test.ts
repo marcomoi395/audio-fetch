@@ -43,11 +43,15 @@ describe('GitHub Actions workflow contract', () => {
   })
 
   it('publishes only Electron artifacts from the post-merge release flow', () => {
+    const packageJson = readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')
     const builder = readFileSync(resolve(process.cwd(), 'electron-builder.yml'), 'utf8')
     const postMerge = workflow('post-merge-release.yml')
 
+    expect(packageJson).toContain('"desktopName": "audio-fetch"')
     expect(builder).toContain('- AppImage')
     expect(builder).toContain('- deb')
+    expect(builder).toContain('artifactName: ${name}-${version}.${ext}')
+    expect(builder).toContain('deb:')
     expect(builder).not.toContain('- snap')
     expect(builder).not.toContain('- rpm')
     expect(postMerge).toContain('artifacts/linux-appimage/*.AppImage')

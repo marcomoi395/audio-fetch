@@ -29,8 +29,9 @@ linux:
     - deb
   maintainer: audio-fetch
   category: AudioVideo
-  desktopName: audio-fetch
   syncDesktopName: true
 appImage:
+  artifactName: ${name}-${version}.${ext}
+deb:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
