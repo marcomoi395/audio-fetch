@@ -2,6 +2,8 @@ export const IPC_CHANNELS = {
   videoInfoFetch: 'video-info:fetch',
   downloadStart: 'download:start',
   queueStatus: 'queue:status',
+  settingsGet: 'settings:get',
+  settingsUpdate: 'settings:update',
   windowMinimize: 'window:minimize',
   windowClose: 'window:close'
 } as const
@@ -13,6 +15,7 @@ export type DownloadOptions = {
   format: DownloadFormat
   quality: DownloadQuality
 }
+export type SupportedBrowser = 'chrome' | 'chromium' | 'brave'
 
 export type VideoInfo = {
   title: string
@@ -25,6 +28,16 @@ export type VideoInfo = {
 
 export type DownloadResult = { path: string }
 export type QueueStatus = { active: boolean }
+export type SettingsSnapshot = {
+  cookiesEnabled: boolean
+  browser: SupportedBrowser
+  availableBrowsers: SupportedBrowser[]
+}
+
+export type SettingsUpdate = {
+  cookiesEnabled?: boolean
+  browser?: SupportedBrowser
+}
 
 export type IpcError = {
   code: 'INVALID_INPUT' | 'BUSY' | 'INTERNAL_ERROR'
@@ -37,6 +50,10 @@ export type AudioFetchApi = {
   videoInfo: { fetch(url: string): Promise<IpcResult<VideoInfo>> }
   download: { start(url: string, options: DownloadOptions): Promise<IpcResult<DownloadResult>> }
   queue: { getStatus(): Promise<IpcResult<QueueStatus>> }
+  settings: {
+    get(): Promise<IpcResult<SettingsSnapshot>>
+    update(update: SettingsUpdate): Promise<IpcResult<SettingsSnapshot>>
+  }
   window: {
     minimize(): Promise<IpcResult<null>>
     close(confirmed: boolean): Promise<IpcResult<null>>

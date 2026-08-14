@@ -1,5 +1,4 @@
 import { BusyDownloadError } from '../services/queue'
-
 import {
   IPC_CHANNELS,
   type AudioFetchApi,
@@ -7,6 +6,9 @@ import {
   type DownloadResult,
   type IpcResult,
   type QueueStatus,
+  type SettingsSnapshot,
+  type SettingsUpdate,
+  type SupportedBrowser,
   type VideoInfo
 } from '../../shared/ipc'
 
@@ -23,6 +25,8 @@ export type IpcServices = {
   fetchVideoInfo(url: string): Promise<VideoInfo>
   startDownload(url: string, options: DownloadOptions): Promise<DownloadResult>
   getQueueStatus(): Promise<QueueStatus>
+  getSettings(): Promise<SettingsSnapshot>
+  updateSettings(update: SettingsUpdate): Promise<SettingsSnapshot>
 }
 
 function invalid<T>(message: string): IpcResult<T> {
@@ -62,6 +66,20 @@ function isValidOptions(value: unknown): value is DownloadOptions {
     typeof value.quality === 'string' &&
     ['0', '5', '9'].includes(value.quality)
   )
+}
+function isSupportedBrowser(value: unknown): value is SupportedBrowser {
+  return value === 'chrome' || value === 'chromium' || value === 'brave'
+}
+
+function isValidSettingsUpdate(value: unknown): value is SettingsUpdate {
+  if (!isRecord(value)) return false
+  const keys = Object.keys(value)
+  if (keys.length === 0 || keys.some((key) => key !== 'cookiesEnabled' && key !== 'browser')) {
+    return false
+  }
+  if ('cookiesEnabled' in value && typeof value.cookiesEnabled !== 'boolean') return false
+  if ('browser' in value && !isSupportedBrowser(value.browser)) return false
+  return true
 }
 function describeError(value: unknown): string {
   const message = value instanceof Error ? value.message : String(value)
@@ -113,6 +131,22 @@ export function registerIpcHandlers(
       return { ok: true, data: await services.getQueueStatus() }
     } catch {
       return internal('Unable to read queue status')
+    }
+  })
+  ipcMain.handle(IPC_CHANNELS.settingsGet, async () => {
+    try {
+      return { ok: true, data: await services.getSettings() }
+    } catch {
+      return internal<SettingsSnapshot>('Unable to read settings')
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.settingsUpdate, async (_event, payload) => {
+    if (!isValidSettingsUpdate(payload)) return invalid<SettingsSnapshot>('Invalid settings update')
+    try {
+      return { ok: true, data: await services.updateSettings(payload) }
+    } catch {
+      return internal<SettingsSnapshot>('Unable to save settings')
     }
   })
 

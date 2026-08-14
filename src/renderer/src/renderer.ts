@@ -1,4 +1,9 @@
-import type { DownloadFormat, DownloadQuality } from '../../shared/ipc'
+import type {
+  DownloadFormat,
+  DownloadQuality,
+  SettingsSnapshot,
+  SupportedBrowser
+} from '../../shared/ipc'
 import { bindAudioInteractions, createAudioEffects } from './audio'
 import { confirmAndClose, createRendererController, type RendererState } from './app'
 
@@ -13,6 +18,48 @@ function isSafeThumbnailUrl(value: string): boolean {
 const DOWNLOAD_FORMATS: DownloadFormat[] = ['mp3', 'm4a', 'opus', 'wav', 'best']
 const DOWNLOAD_QUALITIES: DownloadQuality[] = ['0', '5', '9']
 const audio = createAudioEffects()
+const BROWSER_LABELS: Record<SupportedBrowser, string> = {
+  chrome: 'Chrome',
+  chromium: 'Chromium',
+  brave: 'Brave'
+}
+let availableBrowsers: SupportedBrowser[] = []
+
+function updateSettingsControls(): void {
+  const saveButton = document.getElementById('settings-save-btn') as HTMLButtonElement | null
+  if (saveButton) saveButton.disabled = false
+}
+function renderSettings(settings: SettingsSnapshot): void {
+  const enabled = document.getElementById('cookies-enabled') as HTMLInputElement | null
+  const browserRow = document.getElementById('browser-row')
+  const browserSelect = document.getElementById('browser-select') as HTMLSelectElement | null
+  const availability = document.getElementById('browser-availability')
+  if (!enabled || !browserRow || !browserSelect || !availability) return
+
+  availableBrowsers = settings.availableBrowsers
+  const selectedBrowser = availableBrowsers.includes(settings.browser)
+    ? settings.browser
+    : (availableBrowsers[0] ?? settings.browser)
+  enabled.checked = settings.cookiesEnabled
+  browserSelect.value = selectedBrowser
+  browserRow.hidden = !settings.cookiesEnabled
+  browserSelect.disabled = false
+  availability.textContent = availableBrowsers.length
+    ? `Available: ${availableBrowsers.map((browser) => BROWSER_LABELS[browser]).join(', ')}`
+    : 'No supported browser profile detected. Tier 2 will be skipped.'
+  updateSettingsControls()
+}
+
+async function loadSettings(): Promise<void> {
+  const status = document.getElementById('settings-status')
+  try {
+    const result = await window.audioFetch.settings.get()
+    if (result.ok) renderSettings(result.data)
+    else if (status) status.textContent = result.error.message
+  } catch {
+    if (status) status.textContent = 'Unable to load settings'
+  }
+}
 const controller = createRendererController(window.audioFetch)
 let lastRenderedState = ''
 
@@ -88,6 +135,19 @@ window.addEventListener('DOMContentLoaded', () => {
   controller.subscribe(render)
   render(controller.getState())
 
+  function bindSettingsToggle(): void {
+    const toggle = document.getElementById('settings-toggle-btn') as HTMLButtonElement | null
+    const content = document.getElementById('settings-content')
+    const icon = toggle?.querySelector('.settings-toggle-icon')
+    if (!toggle || !content || !icon) return
+    toggle.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') === 'true'
+      toggle.setAttribute('aria-expanded', String(!expanded))
+      content.hidden = expanded
+      icon.textContent = expanded ? '▸' : '▾'
+    })
+  }
+  bindSettingsToggle()
   bindAudioInteractions(document.querySelectorAll('button, input, select'), audio.play, false)
 
   document.getElementById('videoInfoForm')?.addEventListener('submit', (event) => {
@@ -121,6 +181,38 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     void controller.download(format.value as DownloadFormat, quality.value as DownloadQuality)
   })
+
+  document.getElementById('settings-save-btn')?.addEventListener('click', () => {
+    audio.play('click')
+    const enabled = document.getElementById('cookies-enabled') as HTMLInputElement | null
+    const browser = document.getElementById('browser-select') as HTMLSelectElement | null
+    const status = document.getElementById('settings-status')
+    if (!enabled || !browser || !status) return
+    status.textContent = 'Saving...'
+    void window.audioFetch.settings
+      .update({ cookiesEnabled: enabled.checked, browser: browser.value as SupportedBrowser })
+      .then((result) => {
+        if (result.ok) {
+          renderSettings(result.data)
+          status.textContent = 'Settings saved'
+        } else {
+          status.textContent = result.error.message
+        }
+      })
+      .catch(() => {
+        status.textContent = 'Unable to save settings'
+      })
+  })
+
+  document.getElementById('cookies-enabled')?.addEventListener('change', () => {
+    const browserRow = document.getElementById('browser-row')
+    const enabled = document.getElementById('cookies-enabled') as HTMLInputElement | null
+    if (browserRow && enabled) browserRow.hidden = !enabled.checked
+    updateSettingsControls()
+  })
+  document.getElementById('browser-select')?.addEventListener('change', updateSettingsControls)
+
+  void loadSettings()
 
   document.getElementById('minimize-btn')?.addEventListener('click', () => {
     audio.play('click')

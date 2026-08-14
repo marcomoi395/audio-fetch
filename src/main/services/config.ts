@@ -6,6 +6,7 @@ export type AppConfig = {
   downloads: { defaultPath: string; format: string; quality: string }
   tierStrategy: {
     browser: 'chrome' | 'chromium' | 'brave'
+    cookiesEnabled: boolean
     fallbackEnabled: boolean
     tier1Attempts: number
     tier3Enabled: boolean
@@ -19,6 +20,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   downloads: { defaultPath: '', format: 'mp3', quality: '0' },
   tierStrategy: {
     browser: 'chrome',
+    cookiesEnabled: false,
     fallbackEnabled: true,
     tier1Attempts: 3,
     tier3Enabled: false
@@ -48,6 +50,7 @@ function isConfig(value: unknown): value is AppConfig {
     tierStrategy &&
     typeof tierStrategy.browser === 'string' &&
     ['chrome', 'chromium', 'brave'].includes(tierStrategy.browser) &&
+    typeof tierStrategy.cookiesEnabled === 'boolean' &&
     typeof tierStrategy.fallbackEnabled === 'boolean' &&
     typeof tierStrategy.tier1Attempts === 'number' &&
     Number.isInteger(tierStrategy.tier1Attempts) &&

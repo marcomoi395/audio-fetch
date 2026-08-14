@@ -13,6 +13,7 @@ describe('Audio Fetch config', () => {
       downloads: { defaultPath: '', format: 'mp3', quality: '0' },
       tierStrategy: {
         browser: 'chrome',
+        cookiesEnabled: false,
         fallbackEnabled: true,
         tier1Attempts: 3,
         tier3Enabled: false
@@ -32,6 +33,27 @@ describe('Audio Fetch config', () => {
     expect(log).toHaveBeenCalledOnce()
     expect(log.mock.calls[0][0]).toContain('Invalid config')
     expect(log.mock.calls[0][0]).not.toContain('secret-token')
+  })
+  it('rejects schema-1 config missing cookie opt-in instead of migrating it', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'audio-fetch-config-'))
+    const path = join(directory, 'config.json')
+    const log = vi.fn()
+    await writeFile(
+      path,
+      JSON.stringify({
+        ...DEFAULT_CONFIG,
+        tierStrategy: {
+          browser: 'chrome',
+          fallbackEnabled: true,
+          tier1Attempts: 3,
+          tier3Enabled: false
+        }
+      }),
+      'utf8'
+    )
+
+    await expect(loadConfig(path, log)).resolves.toEqual(DEFAULT_CONFIG)
+    expect(log).toHaveBeenCalledWith('Invalid config; using defaults')
   })
 
   it('falls back safely for an invalid schema and logs a safe reason', async () => {

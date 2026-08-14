@@ -19,9 +19,10 @@ if (hasSingleInstance) {
     app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
     const logger = createLogger()
     let config = DEFAULT_CONFIG
+    let configPath = ''
 
     try {
-      const configPath = getElectronConfigPath(app)
+      configPath = getElectronConfigPath(app)
       config = await loadConfig(configPath, (message) => logger.warn(message))
       await saveConfig(configPath, config)
       createWindow({
@@ -36,7 +37,13 @@ if (hasSingleInstance) {
 
     registerIpcHandlers(
       ipcMain,
-      createIpcServices((message) => logger.warn(message), process.cwd(), undefined, config),
+      createIpcServices(
+        (message) => logger.warn(message),
+        process.cwd(),
+        undefined,
+        config,
+        configPath
+      ),
       (sender) => {
         if (!sender || typeof sender !== 'object') return null
         try {

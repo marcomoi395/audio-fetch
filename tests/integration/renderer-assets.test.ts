@@ -7,7 +7,7 @@ const indexHtml = readFileSync(resolve(rendererRoot, 'index.html'), 'utf8')
 const mainCss = readFileSync(resolve(rendererRoot, 'assets/main.css'), 'utf8')
 
 describe('legacy renderer assets', () => {
-  it('keeps the four state sections and title-bar controls', () => {
+  it('keeps the four state sections, title-bar controls, and cookie settings', () => {
     for (const id of [
       'title-bar',
       'drag-area',
@@ -18,10 +18,20 @@ describe('legacy renderer assets', () => {
       'error-section',
       'info-section',
       'videoInfoForm',
-      'videoInfoStatus'
+      'videoInfoStatus',
+      'settings-section',
+      'settings-toggle-btn',
+      'settings-content',
+      'cookies-enabled',
+      'browser-row',
+      'browser-select',
+      'settings-save-btn'
     ]) {
       expect(indexHtml).toContain(`id="${id}"`)
     }
+    expect(indexHtml).toContain('aria-expanded="false"')
+    expect(indexHtml).toContain('Sign in to YouTube in Chrome, Chromium, or Brave first.')
+    expect(indexHtml).not.toContain('Cookie values never leave this device')
   })
 
   it('uses bundled local styles and pixel font without remote dependencies', () => {
@@ -35,6 +45,13 @@ describe('legacy renderer assets', () => {
     expect(mainCss).toContain('./css/custom.css')
     expect(customCss).toContain("url('../fonts/press-start-2p.woff2')")
     expect(customCss).toContain("font-family: 'Press Start 2P', monospace")
+    expect(customCss).toContain('.settings-panel')
+    expect(customCss).toContain('min-height: 0;')
+    expect(customCss).toContain('overflow-y: auto;')
+    expect(customCss).toContain('justify-content: flex-start;')
+    expect(customCss).toContain('height: 100vh;')
+    expect(customCss).toContain('.settings-toggle-btn')
+    expect(customCss).toContain('min-height: 0;')
     expect(existsSync(resolve(rendererRoot, 'assets/nes.css'))).toBe(true)
     expect(existsSync(resolve(rendererRoot, 'assets/css/custom.css'))).toBe(true)
     expect(existsSync(fontPath)).toBe(true)

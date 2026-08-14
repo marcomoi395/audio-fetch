@@ -53,6 +53,52 @@
             <button id="fetch-btn" class="nes-btn is-primary" type="submit">Fetch Info</button>
           </form>
         </section>
+        <section id="settings-section" class="nes-container settings-panel">
+          <button
+            id="settings-toggle-btn"
+            class="settings-toggle-btn"
+            type="button"
+            aria-expanded="false"
+            aria-controls="settings-content"
+          >
+            <span class="settings-toggle-icon" aria-hidden="true">▸</span>
+            <span>Download Settings</span>
+          </button>
+          <div id="settings-content" class="settings-content" hidden>
+            <div class="settings-row">
+              <div>
+                <p class="settings-label">Browser cookies</p>
+                <p class="settings-help">Sign in to YouTube in Chrome, Chromium, or Brave first.</p>
+              </div>
+              <label class="nes-checkbox settings-toggle" for="cookies-enabled">
+                <input id="cookies-enabled" type="checkbox" />
+                <span>Use cookies</span>
+              </label>
+            </div>
+            <div class="settings-row settings-browser-row" id="browser-row" hidden>
+              <div>
+                <label class="settings-label" for="browser-select">Browser profile</label>
+                <p id="browser-availability" class="settings-help">Checking browser profiles...</p>
+              </div>
+              <div class="nes-select settings-browser-select">
+                <select id="browser-select" aria-label="Browser profile">
+                  <option value="chrome">Chrome</option>
+                  <option value="chromium">Chromium</option>
+                  <option value="brave">Brave</option>
+                </select>
+              </div>
+            </div>
+            <p class="settings-privacy" role="note">
+              Privacy: availability checks may inspect browser profile folders. When enabled, cookie
+              values are used locally by yt-dlp and sent only to the selected service during
+              download; never exposed to Audio Fetch UI or logs.
+            </p>
+            <button id="settings-save-btn" class="nes-btn settings-save" type="button">
+              Save settings
+            </button>
+            <p id="settings-status" class="settings-status" role="status" aria-live="polite"></p>
+          </div>
+        </section>
 
         <section id="loading-section" class="nes-container is-centered" hidden>
           <p>Loading info...</p>

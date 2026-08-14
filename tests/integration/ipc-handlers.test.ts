@@ -6,12 +6,25 @@ import {
   type IpcMainLike,
   type IpcServices
 } from '../../src/main/ipc'
-import type { DownloadOptions, QueueStatus, VideoInfo } from '../../src/shared/ipc'
+import type {
+  DownloadOptions,
+  QueueStatus,
+  SettingsSnapshot,
+  VideoInfo
+} from '../../src/shared/ipc'
+
+const settings: SettingsSnapshot = {
+  cookiesEnabled: false,
+  browser: 'chrome',
+  availableBrowsers: []
+}
 
 const services: IpcServices = {
   fetchVideoInfo: vi.fn<() => Promise<VideoInfo>>(),
   startDownload: vi.fn<(url: string, options: DownloadOptions) => Promise<{ path: string }>>(),
-  getQueueStatus: vi.fn<() => Promise<QueueStatus>>().mockResolvedValue({ active: false })
+  getQueueStatus: vi.fn<() => Promise<QueueStatus>>().mockResolvedValue({ active: false }),
+  getSettings: vi.fn<() => Promise<SettingsSnapshot>>().mockResolvedValue(settings),
+  updateSettings: vi.fn().mockResolvedValue(settings)
 }
 
 function registerForTest(handlers: Map<string, IpcHandler>): IpcMainLike {
@@ -102,12 +115,41 @@ describe('typed IPC boundary', () => {
     expect(log.mock.calls[0][0]).not.toContain('secret-value')
   })
 
+  it('validates settings updates and never exposes cookie paths', async () => {
+    const handlers = new Map<string, IpcHandler>()
+    registerIpcHandlers(
+      registerForTest(handlers),
+      services,
+      vi.fn(() => null)
+    )
+
+    await expect(
+      handlers.get(IPC_CHANNELS.settingsUpdate)?.({ sender: {} }, { browser: 'firefox' })
+    ).resolves.toEqual({
+      ok: false,
+      error: { code: 'INVALID_INPUT', message: 'Invalid settings update' }
+    })
+    await expect(
+      handlers.get(IPC_CHANNELS.settingsUpdate)?.(
+        { sender: {} },
+        { cookiesEnabled: true, cookiePath: '/home/test/Cookies' }
+      )
+    ).resolves.toEqual({
+      ok: false,
+      error: { code: 'INVALID_INPUT', message: 'Invalid settings update' }
+    })
+    await expect(handlers.get(IPC_CHANNELS.settingsGet)?.({ sender: {} })).resolves.toEqual({
+      ok: true,
+      data: settings
+    })
+    expect(JSON.stringify(settings)).not.toContain('Cookies')
+  })
+
   it('sanitizes unavailable service errors', async () => {
     const handlers = new Map<string, IpcHandler>()
     const testServices: IpcServices = {
-      fetchVideoInfo: vi.fn().mockRejectedValue(new Error('secret token leaked')),
-      startDownload: vi.fn(),
-      getQueueStatus: vi.fn()
+      ...services,
+      fetchVideoInfo: vi.fn().mockRejectedValue(new Error('secret token leaked'))
     }
 
     registerIpcHandlers(

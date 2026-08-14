@@ -77,6 +77,120 @@ describe('download IPC flow', () => {
     })
     expect(executor.mock.calls[1][1]).not.toHaveProperty('cookiesFromBrowser')
   })
+  it('uses Tier 2 cookies only after explicit opt-in and browser detection', async () => {
+    const executor = vi
+      .fn()
+      .mockRejectedValueOnce({ stderr: 'HTTP Error 403: Forbidden', exitCode: 1 })
+      .mockResolvedValueOnce('/downloads/cookie.mp3\n')
+    const services = createIpcServices(
+      () => undefined,
+      '/downloads',
+      executor,
+      {
+        ...DEFAULT_CONFIG,
+        tierStrategy: {
+          ...DEFAULT_CONFIG.tierStrategy,
+          cookiesEnabled: true,
+          tier1Attempts: 1,
+          tier3Enabled: true
+        }
+      },
+      '',
+      { findInstalledBrowsers: () => ['chrome'] }
+    )
+    const handlers = new Map<string, IpcHandler>()
+    registerIpcHandlers(
+      registerForTest(handlers),
+      services,
+      vi.fn(() => null)
+    )
+
+    await expect(
+      handlers.get(IPC_CHANNELS.downloadStart)?.(
+        { sender: {} },
+        { url: 'https://youtube.com/watch?v=test', options: { format: 'mp3', quality: '0' } }
+      )
+    ).resolves.toEqual({ ok: true, data: { path: '/downloads/cookie.mp3' } })
+    expect(executor.mock.calls[1][1]).toMatchObject({ cookiesFromBrowser: 'chrome' })
+  })
+
+  it('skips unavailable Tier 2 cookies and continues to Tier 3', async () => {
+    const executor = vi
+      .fn()
+      .mockRejectedValueOnce({ stderr: 'HTTP Error 403: Forbidden', exitCode: 1 })
+      .mockResolvedValueOnce('/downloads/no-cookie.mp3\n')
+    const services = createIpcServices(
+      () => undefined,
+      '/downloads',
+      executor,
+      {
+        ...DEFAULT_CONFIG,
+        tierStrategy: {
+          ...DEFAULT_CONFIG.tierStrategy,
+          cookiesEnabled: true,
+          tier1Attempts: 1,
+          tier3Enabled: true
+        }
+      },
+      '',
+      { findInstalledBrowsers: () => [] }
+    )
+
+    await expect(
+      services.startDownload('https://youtube.com/watch?v=test', { format: 'mp3', quality: '0' })
+    ).resolves.toEqual({ path: '/downloads/no-cookie.mp3' })
+    expect(executor.mock.calls[1][1]).toMatchObject({
+      extractorArgs: 'youtube:player_client=android'
+    })
+    expect(executor.mock.calls[1][1]).not.toHaveProperty('cookiesFromBrowser')
+  })
+
+  it('rejects invalid direct settings updates and rolls back failed saves', async () => {
+    const configSaver = vi.fn().mockRejectedValue(new Error('disk full'))
+    const services = createIpcServices(
+      () => undefined,
+      '/downloads',
+      vi.fn(),
+      DEFAULT_CONFIG,
+      '/config.json',
+      { findInstalledBrowsers: () => [] },
+      configSaver
+    )
+
+    await expect(services.updateSettings({ browser: 'firefox' as never })).rejects.toThrow(
+      'Invalid settings update'
+    )
+    await expect(services.updateSettings({ cookiesEnabled: true })).rejects.toThrow('disk full')
+    await expect(services.getSettings()).resolves.toMatchObject({
+      cookiesEnabled: false,
+      browser: 'chrome'
+    })
+  })
+  it('persists selected browser and cookie opt-in before updating runtime state', async () => {
+    const configSaver = vi.fn().mockResolvedValue(undefined)
+    const services = createIpcServices(
+      () => undefined,
+      '/downloads',
+      vi.fn(),
+      DEFAULT_CONFIG,
+      '/config.json',
+      { findInstalledBrowsers: () => ['brave'] },
+      configSaver
+    )
+
+    await expect(
+      services.updateSettings({ cookiesEnabled: true, browser: 'brave' })
+    ).resolves.toMatchObject({
+      cookiesEnabled: true,
+      browser: 'brave'
+    })
+    expect(configSaver).toHaveBeenCalledWith(
+      '/config.json',
+      expect.objectContaining({
+        tierStrategy: expect.objectContaining({ cookiesEnabled: true, browser: 'brave' })
+      })
+    )
+  })
 
   it('returns failure after terminal fallback exhaustion and releases queue', async () => {
     const executor = vi.fn().mockRejectedValue({ stderr: 'HTTP Error 403: Forbidden', exitCode: 1 })

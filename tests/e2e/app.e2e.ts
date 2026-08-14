@@ -27,6 +27,27 @@ test('launches the built Electron application', async () => {
     await app.close()
   }
 })
+test('opens download settings and allows browser selection', async () => {
+  const app = await electron.launch({
+    args: [`--user-data-dir=/tmp/audio-fetch-settings-e2e-${process.pid}`, appEntry]
+  })
+
+  try {
+    const window = await app.firstWindow()
+    const toggle = window.locator('#settings-toggle-btn')
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await expect(window.locator('#settings-content')).toBeVisible()
+    await expect(window.locator('#cookies-enabled')).toBeEnabled()
+    await expect(window.locator('#browser-select')).toBeEnabled()
+    await window.locator('#cookies-enabled').check()
+    await window.locator('#browser-select').selectOption('brave')
+    await expect(window.locator('#browser-select')).toHaveValue('brave')
+  } finally {
+    await app.close()
+  }
+})
 
 test('runs offline input to loading to info to download transitions', async () => {
   const app = await electron.launch({

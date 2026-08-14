@@ -1,3 +1,11 @@
+html {
+  height: 100%;
+}
+
+body {
+  height: 100vh;
+  min-height: 0;
+}
 /* Custom styles on top of NES.css */
 
 @font-face {
@@ -160,19 +168,21 @@ body {
 .container {
   max-width: 750px;
   margin: 0 auto;
-  padding: 2rem 1.5rem 1.5rem;
+  padding: 1.25rem 1.5rem 0.75rem;
   width: 100%;
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  overflow-y: auto;
+  justify-content: flex-start;
+  overflow: hidden;
 }
 
 /* Header */
 .header {
+  flex-shrink: 0;
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .title {
@@ -189,14 +199,17 @@ body {
   color: #666;
 }
 
-/* Main Content */
 .main-content {
   flex: 1;
-  margin-bottom: 1rem;
+  min-height: 0;
+  margin-bottom: 0.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.25rem 0.35rem 0.5rem;
 }
 
 .main-content section {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 /* Input Section */
@@ -314,6 +327,116 @@ body {
   padding: 0.3rem;
 }
 
+.settings-panel > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.settings-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-panel > summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 0.5rem;
+  color: #209cee;
+}
+
+.settings-panel[open] > summary::before {
+  content: '▾';
+}
+
+.settings-toggle-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #212529;
+  font: inherit;
+  font-size: 0.7rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-toggle-btn:focus-visible {
+  outline: 4px solid #209cee;
+  outline-offset: 4px;
+}
+
+.settings-toggle-icon {
+  color: #209cee;
+}
+/* Cookie fallback settings */
+.settings-panel {
+  background: #fffdf2;
+  border-color: #212529;
+  margin-bottom: 1rem;
+  padding: 1rem 1.25rem !important;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 2px dashed #d9d2b7;
+}
+
+.settings-label {
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+.settings-help,
+.settings-privacy,
+.settings-status {
+  color: #666;
+  font-size: 0.5rem;
+  line-height: 1.6;
+}
+
+.settings-help {
+  margin-top: 0.35rem;
+  max-width: 34rem;
+}
+
+.settings-toggle {
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 0.55rem;
+}
+
+.settings-browser-select {
+  min-width: 11rem;
+}
+
+.settings-privacy {
+  margin: 0.7rem 0;
+  padding: 0.6rem;
+  color: #725d00;
+  background: #fff4b8;
+  border-left: 4px solid #f7d51d;
+}
+
+.settings-save {
+  width: 100%;
+}
+
+.settings-status {
+  min-height: 1rem;
+  margin-top: 0.6rem;
+  text-align: center;
+}
+
+.settings-panel select:disabled {
+  cursor: not-allowed !important;
+}
+
 /* Action Buttons */
 .action-buttons {
   display: grid;
@@ -363,6 +486,14 @@ body {
 
   .action-buttons {
     grid-template-columns: 1fr;
+  }
+  .settings-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .settings-browser-select {
+    min-width: 100%;
   }
 }
 
