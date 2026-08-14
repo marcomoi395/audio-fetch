@@ -8,17 +8,12 @@ import {
   type QueueStatus,
   type SettingsSnapshot,
   type SettingsUpdate,
-  type SupportedBrowser,
   type VideoInfo
 } from '../../shared/ipc'
 
 export type IpcEvent = { sender: unknown }
 export type IpcHandler = (event: IpcEvent, payload?: unknown) => Promise<unknown> | unknown
-
-export type IpcMainLike = {
-  handle(channel: string, handler: IpcHandler): void
-}
-
+export type IpcMainLike = { handle(channel: string, handler: IpcHandler): void }
 type WindowLike = { minimize(): void; close(): void }
 
 export type IpcServices = {
@@ -29,25 +24,29 @@ export type IpcServices = {
   updateSettings(update: SettingsUpdate): Promise<SettingsSnapshot>
 }
 
+type ServiceError = Error & { code?: string; hint?: string }
+
 function invalid<T>(message: string): IpcResult<T> {
   return { ok: false, error: { code: 'INVALID_INPUT', message } }
 }
-
-function internal<T>(message: string): IpcResult<T> {
-  return { ok: false, error: { code: 'INTERNAL_ERROR', message } }
+function internal<T>(message: string, hint?: string): IpcResult<T> {
+  return { ok: false, error: { code: 'INTERNAL_ERROR', message, ...(hint ? { hint } : {}) } }
 }
 function busy<T>(message: string): IpcResult<T> {
   return { ok: false, error: { code: 'BUSY', message } }
 }
-
+function authRequired<T>(error: ServiceError): IpcResult<T> {
+  return {
+    ok: false,
+    error: { code: 'COOKIES_REQUIRED', message: error.message, hint: error.hint }
+  }
+}
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object'
 }
-
 function property(value: unknown, key: string): unknown {
   return isRecord(value) && key in value ? value[key] : undefined
 }
-
 function isValidUrl(value: unknown): value is string {
   if (typeof value !== 'string') return false
   try {
@@ -57,7 +56,6 @@ function isValidUrl(value: unknown): value is string {
     return false
   }
 }
-
 function isValidOptions(value: unknown): value is DownloadOptions {
   return (
     isRecord(value) &&
@@ -67,18 +65,13 @@ function isValidOptions(value: unknown): value is DownloadOptions {
     ['0', '5', '9'].includes(value.quality)
   )
 }
-function isSupportedBrowser(value: unknown): value is SupportedBrowser {
-  return value === 'chrome' || value === 'chromium' || value === 'brave'
-}
-
 function isValidSettingsUpdate(value: unknown): value is SettingsUpdate {
   if (!isRecord(value)) return false
   const keys = Object.keys(value)
-  if (keys.length === 0 || keys.some((key) => key !== 'cookiesEnabled' && key !== 'browser')) {
+  if (keys.length === 0 || keys.some((key) => key !== 'cookies' && key !== 'clearCookies'))
     return false
-  }
-  if ('cookiesEnabled' in value && typeof value.cookiesEnabled !== 'boolean') return false
-  if ('browser' in value && !isSupportedBrowser(value.browser)) return false
+  if ('cookies' in value && typeof value.cookies !== 'string') return false
+  if ('clearCookies' in value && typeof value.clearCookies !== 'boolean') return false
   return true
 }
 function describeError(value: unknown): string {
@@ -98,31 +91,29 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC_CHANNELS.videoInfoFetch, async (_event, payload) => {
     const url = property(payload, 'url')
     if (!isValidUrl(url)) return invalid('Invalid video URL')
-
     try {
       return { ok: true, data: await services.fetchVideoInfo(url) }
-    } catch {
-      return internal('Unable to fetch video information')
+    } catch (error) {
+      const serviceError = error as ServiceError
+      if (serviceError.code === 'COOKIES_REQUIRED') return authRequired(serviceError)
+      return internal('Unable to fetch video information', serviceError.hint)
     }
   })
 
   ipcMain.handle(IPC_CHANNELS.downloadStart, async (_event, payload) => {
     const url = property(payload, 'url')
     const options = property(payload, 'options')
-    console.log('[download] IPC start', { hasUrl: typeof url === 'string', options })
     if (!isValidUrl(url) || !isValidOptions(options)) return invalid('Invalid download request')
-
     try {
-      const result = await services.startDownload(url, options)
-      console.log('[download] IPC success', result)
-      return { ok: true, data: result }
+      return { ok: true, data: await services.startDownload(url, options) }
     } catch (error) {
+      const serviceError = error as ServiceError
       if (!(error instanceof Error && error.message === 'Unable to download audio')) {
-        const message = `[download] IPC failure ${describeError(error).slice(0, 1000)}`
-        log(message)
+        log(`[download] IPC failure ${describeError(error).slice(0, 1000)}`)
       }
       if (error instanceof BusyDownloadError) return busy(error.message)
-      return internal('Unable to start download')
+      if (serviceError.code === 'COOKIES_REQUIRED') return authRequired(serviceError)
+      return internal('Unable to start download', serviceError.hint)
     }
   })
 
@@ -140,7 +131,6 @@ export function registerIpcHandlers(
       return internal<SettingsSnapshot>('Unable to read settings')
     }
   })
-
   ipcMain.handle(IPC_CHANNELS.settingsUpdate, async (_event, payload) => {
     if (!isValidSettingsUpdate(payload)) return invalid<SettingsSnapshot>('Invalid settings update')
     try {
@@ -149,21 +139,18 @@ export function registerIpcHandlers(
       return internal<SettingsSnapshot>('Unable to save settings')
     }
   })
-
   ipcMain.handle(IPC_CHANNELS.windowMinimize, (event) => {
     const window = resolveSenderWindow(event.sender)
     if (!window) return internal<null>('Unable to access application window')
     window.minimize()
     return { ok: true, data: null }
   })
-
   ipcMain.handle(IPC_CHANNELS.windowClose, async (event, payload) => {
     const window = resolveSenderWindow(event.sender)
     if (!window) return internal<null>('Unable to access application window')
     if (!isRecord(payload) || typeof payload.confirmed !== 'boolean') {
       return invalid<null>('Invalid close request')
     }
-
     try {
       const status = await services.getQueueStatus()
       if (status.active && !payload.confirmed)

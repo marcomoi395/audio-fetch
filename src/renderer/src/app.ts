@@ -22,6 +22,10 @@ function isValidUrl(url: string): boolean {
   }
 }
 
+function displayError(error: { message: string; hint?: string }): string {
+  return error.hint ? `${error.message}\n${error.hint}` : error.message
+}
+
 export async function confirmAndClose(
   api: Pick<AudioFetchApi, 'queue' | 'window'>,
   confirmClose: (message: string) => boolean
@@ -59,15 +63,11 @@ export function createRendererController(api: RendererApi) {
     try {
       const result = await api.videoInfo.fetch(url)
       if (version !== requestVersion) return
-      if (result.ok) {
-        update({ status: 'success', ...result.data })
-      } else {
-        update({ status: 'error', message: result.error.message })
-      }
+      if (result.ok) update({ status: 'success', ...result.data })
+      else update({ status: 'error', message: displayError(result.error) })
     } catch {
-      if (version === requestVersion) {
+      if (version === requestVersion)
         update({ status: 'error', message: 'Unable to fetch video information' })
-      }
     }
   }
 
@@ -102,13 +102,12 @@ export function createRendererController(api: RendererApi) {
           update({ ...current, downloadStatus: 'success', downloadPath: result.data.path })
         } else {
           console.error('[download] rejected', result.error)
-          update({ status: 'error', message: result.error.message })
+          update({ status: 'error', message: displayError(result.error) })
         }
       } catch (error) {
         console.error('[download] IPC threw', error)
-        if (version === requestVersion) {
+        if (version === requestVersion)
           update({ status: 'error', message: 'Unable to download audio' })
-        }
       }
     }
   }

@@ -466,9 +466,6 @@ body {
   font-size: 0.55rem;
 }
 
-.settings-browser-select {
-  min-width: 11rem;
-}
 
 .settings-privacy {
   margin: 0.7rem 0;
@@ -488,9 +485,6 @@ body {
   text-align: center;
 }
 
-.settings-panel select:disabled {
-  cursor: not-allowed !important;
-}
 
 /* Action Buttons */
 .action-buttons {
@@ -547,9 +541,6 @@ body {
     flex-direction: column;
   }
 
-  .settings-browser-select {
-    min-width: 100%;
-  }
 }
 
 @media (max-width: 480px) {

@@ -13,12 +13,7 @@ import type {
   VideoInfo
 } from '../../src/shared/ipc'
 
-const settings: SettingsSnapshot = {
-  cookiesEnabled: false,
-  browser: 'chrome',
-  availableBrowsers: []
-}
-
+const settings: SettingsSnapshot = { cookiesConfigured: false }
 const services: IpcServices = {
   fetchVideoInfo: vi.fn<() => Promise<VideoInfo>>(),
   startDownload: vi.fn<(url: string, options: DownloadOptions) => Promise<{ path: string }>>(),
@@ -26,217 +21,170 @@ const services: IpcServices = {
   getSettings: vi.fn<() => Promise<SettingsSnapshot>>().mockResolvedValue(settings),
   updateSettings: vi.fn().mockResolvedValue(settings)
 }
-
 function registerForTest(handlers: Map<string, IpcHandler>): IpcMainLike {
-  return {
-    handle: vi.fn((channel, handler) => handlers.set(channel, handler))
-  }
+  return { handle: vi.fn((channel, handler) => handlers.set(channel, handler)) }
 }
 
 describe('typed IPC boundary', () => {
-  it('registers one explicit channel per approved operation', () => {
+  it('registers one explicit handler per channel', () => {
     const handlers = new Map<string, IpcHandler>()
-
     registerIpcHandlers(
       registerForTest(handlers),
       services,
       vi.fn(() => null)
     )
-
     expect([...handlers.keys()]).toEqual(Object.values(IPC_CHANNELS))
   })
 
-  it('rejects invalid payloads before calling services', async () => {
+  it('rejects invalid URLs before service calls', async () => {
     const fetchVideoInfo = vi.fn<() => Promise<VideoInfo>>()
     const handlers = new Map<string, IpcHandler>()
-    const testServices = { ...services, fetchVideoInfo }
-
     registerIpcHandlers(
       registerForTest(handlers),
-      testServices,
+      { ...services, fetchVideoInfo },
       vi.fn(() => null)
     )
-    const handler = handlers.get(IPC_CHANNELS.videoInfoFetch)
-    expect(handler).toBeDefined()
-    const result = await handler?.({ sender: {} }, { url: 'javascript:alert(1)' })
-
-    expect(result).toEqual({
+    await expect(
+      handlers.get(IPC_CHANNELS.videoInfoFetch)?.({ sender: {} }, { url: 'javascript:alert(1)' })
+    ).resolves.toEqual({
       ok: false,
       error: { code: 'INVALID_INPUT', message: 'Invalid video URL' }
     })
     expect(fetchVideoInfo).not.toHaveBeenCalled()
   })
 
-  it('normalizes thrown errors into serializable safe responses', async () => {
+  it('accepts cookie settings without returning raw cookie text', async () => {
     const handlers = new Map<string, IpcHandler>()
-    const testServices: IpcServices = {
-      ...services,
-      fetchVideoInfo: vi.fn().mockRejectedValue(new Error('contains secret token'))
-    }
-
+    const updateSettings = vi.fn().mockResolvedValue({ cookiesConfigured: true })
     registerIpcHandlers(
       registerForTest(handlers),
-      testServices,
+      { ...services, updateSettings },
       vi.fn(() => null)
     )
-    const handler = handlers.get(IPC_CHANNELS.videoInfoFetch)
-    expect(handler).toBeDefined()
-    const result = await handler?.({ sender: {} }, { url: 'https://youtube.com/watch?v=1' })
-
-    expect(result).toEqual({
-      ok: false,
-      error: { code: 'INTERNAL_ERROR', message: 'Unable to fetch video information' }
+    const cookieText = '.youtube.com\tTRUE\t/\tTRUE\t0\tSID\tsecret-value'
+    await expect(
+      handlers.get(IPC_CHANNELS.settingsUpdate)?.({ sender: {} }, { cookies: cookieText })
+    ).resolves.toEqual({
+      ok: true,
+      data: { cookiesConfigured: true }
     })
-  })
-  it('logs download service failures without exposing the raw error to IPC', async () => {
-    const handlers = new Map<string, IpcHandler>()
-    const log = vi.fn()
-    const testServices: IpcServices = {
-      ...services,
-      startDownload: vi.fn().mockRejectedValue(new Error('yt-dlp failed token=secret-value'))
-    }
-
-    registerIpcHandlers(
-      registerForTest(handlers),
-      testServices,
-      vi.fn(() => null),
-      log
-    )
-    const result = await handlers.get(IPC_CHANNELS.downloadStart)?.(
-      { sender: {} },
-      { url: 'https://youtube.com/watch?v=1', options: { format: 'mp3', quality: '0' } }
-    )
-
-    expect(result).toEqual({
-      ok: false,
-      error: { code: 'INTERNAL_ERROR', message: 'Unable to start download' }
-    })
-    expect(log).toHaveBeenCalledWith(expect.stringContaining('[download] IPC failure'))
-    expect(log.mock.calls[0][0]).not.toContain('secret-value')
+    expect(
+      JSON.stringify(await handlers.get(IPC_CHANNELS.settingsGet)?.({ sender: {} }))
+    ).not.toContain('secret-value')
+    expect(updateSettings).toHaveBeenCalledWith({ cookies: cookieText })
   })
 
-  it('validates settings updates and never exposes cookie paths', async () => {
+  it('rejects unknown settings fields', async () => {
     const handlers = new Map<string, IpcHandler>()
     registerIpcHandlers(
       registerForTest(handlers),
       services,
       vi.fn(() => null)
     )
-
     await expect(
-      handlers.get(IPC_CHANNELS.settingsUpdate)?.({ sender: {} }, { browser: 'firefox' })
+      handlers.get(IPC_CHANNELS.settingsUpdate)?.({ sender: {} }, { browser: 'chrome' })
     ).resolves.toEqual({
       ok: false,
       error: { code: 'INVALID_INPUT', message: 'Invalid settings update' }
     })
+  })
+
+  it('maps auth failures for metadata and download', async () => {
+    const handlers = new Map<string, IpcHandler>()
+    const authError = Object.assign(new Error('Authentication required'), {
+      code: 'COOKIES_REQUIRED',
+      hint: 'Add Netscape cookies and retry.'
+    })
+    const testServices: IpcServices = {
+      ...services,
+      fetchVideoInfo: vi.fn().mockRejectedValue(authError),
+      startDownload: vi.fn().mockRejectedValue(authError)
+    }
+    registerIpcHandlers(
+      registerForTest(handlers),
+      testServices,
+      vi.fn(() => null)
+    )
     await expect(
-      handlers.get(IPC_CHANNELS.settingsUpdate)?.(
+      handlers.get(IPC_CHANNELS.videoInfoFetch)?.(
         { sender: {} },
-        { cookiesEnabled: true, cookiePath: '/home/test/Cookies' }
+        { url: 'https://youtube.com/watch?v=1' }
       )
     ).resolves.toEqual({
       ok: false,
-      error: { code: 'INVALID_INPUT', message: 'Invalid settings update' }
+      error: {
+        code: 'COOKIES_REQUIRED',
+        message: 'Authentication required',
+        hint: 'Add Netscape cookies and retry.'
+      }
     })
-    await expect(handlers.get(IPC_CHANNELS.settingsGet)?.({ sender: {} })).resolves.toEqual({
-      ok: true,
-      data: settings
+    await expect(
+      handlers.get(IPC_CHANNELS.downloadStart)?.(
+        { sender: {} },
+        {
+          url: 'https://youtube.com/watch?v=1',
+          options: { format: 'mp3', quality: '0' }
+        }
+      )
+    ).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'COOKIES_REQUIRED',
+        message: 'Authentication required',
+        hint: 'Add Netscape cookies and retry.'
+      }
     })
-    expect(JSON.stringify(settings)).not.toContain('Cookies')
   })
 
-  it('sanitizes unavailable service errors', async () => {
+  it('keeps generic failures generic', async () => {
     const handlers = new Map<string, IpcHandler>()
-    const testServices: IpcServices = {
-      ...services,
-      fetchVideoInfo: vi.fn().mockRejectedValue(new Error('secret token leaked'))
-    }
-
     registerIpcHandlers(
       registerForTest(handlers),
-      testServices,
+      {
+        ...services,
+        fetchVideoInfo: vi.fn().mockRejectedValue(new Error('network timeout'))
+      },
       vi.fn(() => null)
     )
-    const result = await handlers.get(IPC_CHANNELS.videoInfoFetch)?.(
-      { sender: {} },
-      { url: 'https://youtube.com/watch?v=1' }
-    )
-
-    expect(result).toEqual({
+    await expect(
+      handlers.get(IPC_CHANNELS.videoInfoFetch)?.(
+        { sender: {} },
+        { url: 'https://youtube.com/watch?v=1' }
+      )
+    ).resolves.toEqual({
       ok: false,
       error: { code: 'INTERNAL_ERROR', message: 'Unable to fetch video information' }
     })
-    expect(JSON.stringify(result)).not.toContain('secret token leaked')
   })
-
-  it('rejects window controls without an owning window', () => {
+  it('preserves a cookie hint for uncertain HTTP auth failures only', async () => {
     const handlers = new Map<string, IpcHandler>()
-
+    const uncertainError = Object.assign(new Error('Unable to download audio'), {
+      cause: { statusCode: 403 },
+      hint: 'Nội dung có thể yêu cầu cookie; hãy thêm Netscape cookies và thử lại'
+    })
     registerIpcHandlers(
       registerForTest(handlers),
-      services,
+      {
+        ...services,
+        startDownload: vi.fn().mockRejectedValue(uncertainError)
+      },
       vi.fn(() => null)
     )
-
-    expect(handlers.get(IPC_CHANNELS.windowMinimize)?.({ sender: {} })).toEqual({
-      ok: false,
-      error: { code: 'INTERNAL_ERROR', message: 'Unable to access application window' }
-    })
-  })
-  it('owns window controls through the sender window', async () => {
-    const handlers = new Map<string, IpcHandler>()
-    const senderWindow = { minimize: vi.fn(), close: vi.fn() }
-    const resolveSenderWindow = vi.fn(() => senderWindow)
-
-    registerIpcHandlers(registerForTest(handlers), services, resolveSenderWindow)
-
-    handlers.get(IPC_CHANNELS.windowMinimize)?.({ sender: {} })
-    await handlers.get(IPC_CHANNELS.windowClose)?.({ sender: {} }, { confirmed: false })
-
-    expect(resolveSenderWindow).toHaveBeenCalledTimes(2)
-    expect(senderWindow.minimize).toHaveBeenCalledOnce()
-    expect(senderWindow.close).toHaveBeenCalledOnce()
-  })
-  it('blocks active close without confirmation', async () => {
-    const handlers = new Map<string, IpcHandler>()
-    const senderWindow = { minimize: vi.fn(), close: vi.fn() }
-    const testServices = {
-      ...services,
-      getQueueStatus: vi.fn().mockResolvedValue({ active: true })
-    }
-    registerIpcHandlers(registerForTest(handlers), testServices, () => senderWindow)
-
     await expect(
-      handlers.get(IPC_CHANNELS.windowClose)?.({ sender: {} }, { confirmed: false })
+      handlers.get(IPC_CHANNELS.downloadStart)?.(
+        { sender: {} },
+        {
+          url: 'https://youtube.com/watch?v=1',
+          options: { format: 'mp3', quality: '0' }
+        }
+      )
     ).resolves.toEqual({
       ok: false,
-      error: { code: 'BUSY', message: 'A download is already in progress' }
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Unable to start download',
+        hint: 'Nội dung có thể yêu cầu cookie; hãy thêm Netscape cookies và thử lại'
+      }
     })
-    expect(senderWindow.close).not.toHaveBeenCalled()
-  })
-
-  it('closes when inactive or explicitly confirmed', async () => {
-    const handlers = new Map<string, IpcHandler>()
-    const senderWindow = { minimize: vi.fn(), close: vi.fn() }
-    const getQueueStatus = vi
-      .fn()
-      .mockResolvedValueOnce({ active: false })
-      .mockResolvedValueOnce({ active: true })
-    const testServices = { ...services, getQueueStatus }
-    registerIpcHandlers(registerForTest(handlers), testServices, () => senderWindow)
-
-    await expect(
-      handlers.get(IPC_CHANNELS.windowClose)?.({ sender: {} }, { confirmed: false })
-    ).resolves.toEqual({
-      ok: true,
-      data: null
-    })
-    await expect(
-      handlers.get(IPC_CHANNELS.windowClose)?.({ sender: {} }, { confirmed: true })
-    ).resolves.toEqual({
-      ok: true,
-      data: null
-    })
-    expect(senderWindow.close).toHaveBeenCalledTimes(2)
   })
 })

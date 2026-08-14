@@ -67,35 +67,29 @@
           <div id="settings-content" class="settings-content" hidden>
             <div class="settings-row">
               <div>
-                <p class="settings-label">Browser cookies</p>
-                <p class="settings-help">Sign in to YouTube in Chrome, Chromium, or Brave first.</p>
+                <label class="settings-label" for="cookies-input">Manual cookies</label>
+                <p class="settings-help">Paste Netscape HTTP Cookie File content. Optional; used only as a final fallback.</p>
               </div>
-              <label class="nes-checkbox settings-toggle" for="cookies-enabled">
-                <input id="cookies-enabled" type="checkbox" />
-                <span>Use cookies</span>
-              </label>
+              <span id="cookies-configured" class="settings-help">No cookies configured</span>
             </div>
-            <div class="settings-row settings-browser-row" id="browser-row" hidden>
-              <div>
-                <label class="settings-label" for="browser-select">Browser profile</label>
-                <p id="browser-availability" class="settings-help">Checking browser profiles...</p>
-              </div>
-              <div class="nes-select settings-browser-select">
-                <select id="browser-select" aria-label="Browser profile">
-                  <option value="chrome">Chrome</option>
-                  <option value="chromium">Chromium</option>
-                  <option value="brave">Brave</option>
-                </select>
-              </div>
-            </div>
+            <textarea
+              id="cookies-input"
+              class="settings-cookie-input"
+              rows="8"
+              spellcheck="false"
+              autocomplete="off"
+              aria-label="Netscape cookie file"
+            ></textarea>
             <p class="settings-privacy" role="note">
-              Privacy: availability checks may inspect browser profile folders. When enabled, cookie
-              values are used locally by yt-dlp and sent only to the selected service during
-              download; never exposed to Audio Fetch UI or logs.
+              Cookie values stay in the main process memory, never enter logs or persisted config, and are
+              written to a temporary 0600 file only while yt-dlp runs.
             </p>
-            <button id="settings-save-btn" class="nes-btn settings-save" type="button">
-              Save settings
-            </button>
+            <div class="settings-actions">
+              <button id="settings-save-btn" class="nes-btn settings-save" type="button">
+                Save cookies
+              </button>
+              <button id="settings-clear-btn" class="nes-btn" type="button">Clear cookies</button>
+            </div>
             <p id="settings-status" class="settings-status" role="status" aria-live="polite"></p>
           </div>
         </section>

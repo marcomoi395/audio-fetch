@@ -21,7 +21,7 @@ This document defines the target. It does not claim the target is already implem
 ## Locked Decisions
 
 1. **Queue**: One download may run at a time. A new download while one is active returns a busy error; no concurrent execution and no FIFO backlog in v1.
-2. **Cookies**: Support Chrome, Chromium, and Brave on Windows and Linux. Firefox and Edge are excluded from the migration scope.
+2. **Cookies**: Users may paste optional Netscape HTTP Cookie File content. Raw cookie values stay in Main process memory; no browser extraction.
 3. **Configuration**: Use a new Electron configuration schema. Do not read, migrate, or promise compatibility with legacy config files.
 
 ## Objective
@@ -37,8 +37,7 @@ Migrate Audio Fetch from the Python desktop application (PySide6 + embedded Fast
 
 - YouTube video information lookup.
 - Audio format and quality selection.
-- Three-tier download fallback behavior.
-- Chrome-family browser cookie extraction.
+- Tiered download fallback: standard requests, mobile clients, optional manual cookies.
 - Single-active-download protection.
 - Custom frameless title bar and window controls.
 - New JSON configuration stored in Electron's user-data directory.
@@ -74,7 +73,6 @@ The migration is successful when the Electron application passes the functional,
 
 - `youtube-dl-exec` 3.x for yt-dlp execution.
 - `@ffmpeg-installer/ffmpeg` 1.x for the bundled FFmpeg binary.
-- `chrome-cookies-secure` 3.x for Chrome, Chromium, and Brave cookies.
 - Native Electron APIs for window lifecycle, single-instance locking, paths, and IPC.
 
 ### Renderer Process
@@ -145,78 +143,38 @@ bun run build:linux
 audio-fetch/
 ├── src/
 │   ├── main/
-│   │   ├── index.ts                 # App lifecycle and single-instance lock
-│   │   ├── window.ts                # BrowserWindow creation and window behavior
-│   │   ├── ipc/
-│   │   │   ├── download.ts          # Download IPC handlers
-│   │   │   ├── video-info.ts         # Video info IPC handlers
-│   │   │   └── window.ts             # Minimize/close/window IPC handlers
+│   │   ├── index.ts
+│   │   ├── window.ts
+│   │   ├── ipc/index.ts
 │   │   ├── services/
-│   │   │   ├── downloader.ts         # yt-dlp and FFmpeg orchestration
-│   │   │   ├── tier-strategy.ts      # Fallback order and escalation rules
-│   │   │   ├── cookie-extractor.ts   # Chrome-family cookie handling
-│   │   │   ├── queue.ts               # Single-active-download guard
-│   │   │   └── config.ts              # New config schema and persistence
+│   │   │   ├── downloader.ts
+│   │   │   ├── tier-strategy.ts
+│   │   │   ├── cookie-store.ts
+│   │   │   ├── queue.ts
+│   │   │   └── config.ts
 │   │   └── utils/
-│   │       ├── paths.ts              # Electron path resolution
-│   │       └── logger.ts             # Structured application logging
-│   │
+│   │       ├── paths.ts
+│   │       └── logger.ts
 │   ├── preload/
-│   │   ├── index.ts                  # Narrow contextBridge API
-│   │   └── index.d.ts                # Renderer-facing API types
-│   │
+│   │   ├── index.ts
+│   │   └── index.d.ts
 │   └── renderer/
-│       ├── index.html                # Audio Fetch DOM and CSP
-│       ├── src/
-│       │   ├── renderer.ts            # Renderer entry point
-│       │   ├── app.ts                 # UI state and event handling
-│       │   ├── audio.ts               # 8-bit Web Audio effects
-│       │   └── types.ts               # Renderer data types
-│       └── assets/
-│           ├── css/custom.css         # Port of legacy custom CSS
-│           └── images/favicon.png     # Legacy favicon
-│
+│       ├── index.html
+│       ├── src/{renderer.ts,app.ts,audio.ts}
+│       └── assets/{css/custom.css,images/favicon.png}
 ├── tests/
-│   ├── unit/
-│   │   ├── downloader.test.ts
-│   │   ├── tier-strategy.test.ts
-│   │   ├── cookie-extractor.test.ts
-│   │   ├── queue.test.ts
-│   │   └── config.test.ts
-│   ├── integration/
-│   │   ├── download-flow.test.ts
-│   │   └── ipc-handlers.test.ts
-│   └── e2e/
-│       └── app.test.ts
-│
+│   ├── unit/{downloader,tier-strategy,cookie-store,queue,config}.test.ts
+│   ├── integration/{download-flow,ipc-handlers,preload,renderer-assets}.test.ts
+│   └── e2e/app.e2e.ts
 ├── resources/icon.png
 ├── electron-builder.yml
 ├── electron.vite.config.ts
 ├── vitest.config.ts
 ├── playwright.config.ts
 ├── tsconfig.json
-├── tsconfig.node.json
-├── tsconfig.web.json
 ├── package.json
-├── README.md
-└── .github/workflows/              # Node/Electron CI and packaging workflows
+└── README.md
 ```
-
-### Runtime Data
-
-Use Electron APIs, not hardcoded platform paths:
-
-- Config: `path.join(app.getPath('userData'), 'config.json')`.
-- Logs: `app.getPath('logs')` or a child directory under `app.getPath('userData')`.
-- Single-instance protection: `app.requestSingleInstanceLock()`; no user-managed `app.lock` file.
-
-### Module Boundaries
-
-- **Main**: downloads, external binaries, file I/O, config, logging, cookies, queue, system integration.
-- **Preload**: explicit, typed IPC methods only.
-- **Renderer**: DOM, UI state, user interactions, Web Audio effects.
-- Renderer never receives Node.js or filesystem access.
-
 ## Functional Contract
 
 ### Video Information
@@ -237,30 +195,20 @@ Use Electron APIs, not hardcoded platform paths:
 
 ### Tier Strategy
 
-The migration must preserve the tested legacy escalation contract:
-
 1. **Tier 1**: up to three attempts: default request, browser user-agent, user-agent plus request delay/rate limiting.
-2. **Tier 2**: browser-cookie authentication using the configured Chrome-family browser and its compatible profiles.
-3. **Tier 3**: advanced mobile-client fallback, enabled only when configured.
-4. Escalation signals include legacy auth/bot indicators and HTTP status codes `401`, `403`, and `429`.
-5. Tier order, attempt counts, and user-visible failure handling must be covered by tests.
+2. **Tier 2**: mobile clients `android`, then `mweb`, without cookies.
+3. **Tier 3**: one manual Netscape-cookie attempt when cookies are configured.
+4. Escalation signals include auth/bot indicators and HTTP status codes `401`, `403`, and `429`.
+5. Tier order, attempt counts, manual-cookie handling, and terminal errors must be covered by tests.
 
-The legacy `TierStrategy` flag table and the runtime `download_audio_with_tiers` path contain different Tier 3 details. The exact Tier 3 flags require approval before implementation; the migration must not silently choose between them.
+After all tiers fail, only clear authentication/private indicators produce `COOKIES_REQUIRED`. Network, invalid URL, and unrelated failures preserve their original generic classification; auth-uncertain failures may include a suggestion without replacing the cause.
 
-### Queue and Shutdown
+### Manual Cookies
 
-- At most one download executes at any time.
-- A second download request returns a user-facing busy error.
-- Closing during an active download prompts for confirmation.
-- Minimize, close, and title-bar drag work on Windows and Linux.
-- A second application launch focuses the existing instance instead of opening another window.
-
-### Browser Cookies
-
-- Supported browsers: Chrome, Chromium, Brave.
-- Supported OS: Windows and Linux.
-- Firefox and Edge are rejected as unsupported, not silently treated as Chrome.
-- Browser paths and profile discovery must be tested without requiring real user cookie databases.
+- Netscape HTTP Cookie File format only.
+- Accept comments, `#HttpOnly_`, and YouTube/Google-related domains including `.youtube.com`, `.google.com`, `accounts.google.com`, and `googlevideo.com`.
+- Raw cookie values stay in Main process memory and never enter `AppConfig`, renderer state, logs, or IPC responses.
+- Main writes a temporary cookie file with `0700` directory and `0600` file permissions, then removes it in `finally`.
 
 ### Configuration
 
@@ -275,10 +223,9 @@ The new schema is versioned and independent of the legacy schema:
     "quality": "0"
   },
   "tierStrategy": {
-    "browser": "chrome",
     "fallbackEnabled": true,
     "tier1Attempts": 3,
-    "tier3Enabled": false
+    "mobileFallbackEnabled": true
   },
   "ui": {
     "windowWidth": 850,
@@ -298,6 +245,7 @@ Requirements:
 - Missing config uses defaults.
 - Invalid config fails safely and falls back to defaults with a logged reason.
 - Saving creates parent directories asynchronously.
+- Cookie values are never persisted in config.
 - Legacy config keys and files are not read or migrated.
 
 ## Code Style
@@ -347,8 +295,8 @@ The preload bridge must not expose raw `ipcRenderer`, Node.js modules, or arbitr
 
 ### Test Levels
 
-- **Unit**: tier decisions, queue exclusivity, config validation, browser filtering, filename sanitization, format/quality mapping, error normalization.
-- **Integration**: downloader orchestration, mocked yt-dlp/FFmpeg, IPC handlers, config persistence.
+- **Unit**: tier decisions, queue exclusivity, config validation, cookie-domain filtering, filename sanitization, format/quality mapping, error normalization.
+- **Integration**: downloader orchestration, mocked yt-dlp/FFmpeg, IPC handlers, preload bridge, config persistence.
 - **E2E**: launch Electron, verify the legacy UI states, fetch/download interaction through mocked services, title-bar controls, close confirmation, single-instance behavior.
 - **Manual smoke**: real yt-dlp/FFmpeg download on Windows and Linux before release.
 
@@ -357,7 +305,7 @@ The preload bridge must not expose raw `ipcRenderer`, Node.js modules, or arbitr
 - Mock yt-dlp and FFmpeg in automated tests.
 - Use deterministic video-info fixtures.
 - Use temporary directories for config/output tests.
-- Do not require real browser cookies or live YouTube access in CI.
+- Do not require real cookie values or live YouTube access in CI.
 
 ### Coverage
 
@@ -374,7 +322,7 @@ The Python tests under `legacy/tests/` remain the behavioral reference while equ
 
 ### Always Do
 
-1. Validate URLs, browser names, config values, and output paths at trust boundaries.
+1. Validate URLs, cookie domains, config values, and output paths at trust boundaries.
 2. Log external-call failures with context without logging cookies or secrets.
 3. Keep renderer work non-blocking.
 4. Use IPC for cross-process communication.
@@ -413,8 +361,8 @@ The Python tests under `legacy/tests/` remain the behavioral reference while equ
 - [ ] Supported format and quality selections match the legacy contract.
 - [ ] Audio output preserves format conversion, thumbnail embedding, and metadata embedding.
 - [ ] Tier 1/Tier 2/Tier 3 fallback behavior is tested and approved.
-- [ ] Chrome, Chromium, and Brave cookie handling works on Windows and Linux.
-- [ ] Firefox and Edge are explicitly unsupported.
+- [ ] Manual Netscape cookie validation and temporary-file cleanup work across supported platforms.
+- [ ] Authentication/private failures expose `COOKIES_REQUIRED`; unrelated failures preserve their cause.
 - [ ] Only one download runs; a second request receives a busy error.
 - [ ] Invalid input and external failures produce safe, user-facing errors.
 - [ ] New config schema loads, validates, saves, and recovers from invalid files.
@@ -435,14 +383,14 @@ The Python tests under `legacy/tests/` remain the behavioral reference while equ
 
 ### Documentation
 
-- [ ] README covers install, development, testing, building, and supported OS/browser scope.
+- [ ] README covers install, development, testing, building, and manual-cookie scope.
 - [ ] IPC API surface is documented.
 - [ ] Process-boundary architecture is documented.
 - [ ] Troubleshooting covers yt-dlp, FFmpeg, cookies, permissions, and packaging.
 
 ## Approved Decisions
 
-1. **Tier 3 implementation**: Follow the legacy runtime downloader path with `android` and `mweb` clients, without cookies. Tier 3 runs after Tier 2 exhaustion, uses one attempt per client in listed order, and escalates only on the existing auth/bot signals or HTTP status codes `401`, `403`, and `429`.
+1. **Tier fallback**: Tier 1 standard attempts, Tier 2 `android`/`mweb`, Tier 3 one manual-cookie attempt when configured. Escalate on auth/bot indicators or HTTP status codes `401`, `403`, and `429`.
 2. **Progress reporting**: Defer progress reporting until after functional parity. No progress IPC contract is required for migration v1.
 3. **NES.css delivery**: Bundle NES.css for offline UI availability.
 4. **Linux packaging extras**: Build only AppImage and deb targets.
@@ -451,7 +399,7 @@ The Python tests under `legacy/tests/` remain the behavioral reference while equ
 
 Resolved for this draft:
 
-- Browser scope: Chrome/Chromium/Brave only.
+- Manual cookies: optional Netscape format; no browser extraction.
 - Queue: one active download, no concurrency.
 - Config: new schema, no legacy migration.
 - Logging default: `WARNING`.
@@ -475,10 +423,9 @@ Resolved for this draft:
 ### Phase 2: Download Services
 
 1. Port and test format/quality mapping.
-2. Port Tier 1/Tier 2/Tier 3 behavior after approval.
-3. Implement Chrome-family cookie handling.
-4. Implement single-active-download protection.
-5. Integrate yt-dlp and FFmpeg with packaged-binary checks.
+2. Implement manual Netscape cookie validation and temporary-file handling.
+3. Implement single-active-download protection.
+4. Integrate yt-dlp and FFmpeg with packaged-binary checks.
 
 ### Phase 3: Renderer Parity
 

@@ -1,9 +1,4 @@
-import type {
-  DownloadFormat,
-  DownloadQuality,
-  SettingsSnapshot,
-  SupportedBrowser
-} from '../../shared/ipc'
+import type { DownloadFormat, DownloadQuality, SettingsSnapshot } from '../../shared/ipc'
 import { bindAudioInteractions, createAudioEffects } from './audio'
 import { confirmAndClose, createRendererController, type RendererState } from './app'
 
@@ -18,35 +13,18 @@ function isSafeThumbnailUrl(value: string): boolean {
 const DOWNLOAD_FORMATS: DownloadFormat[] = ['mp3', 'm4a', 'opus', 'wav', 'best']
 const DOWNLOAD_QUALITIES: DownloadQuality[] = ['0', '5', '9']
 const audio = createAudioEffects()
-const BROWSER_LABELS: Record<SupportedBrowser, string> = {
-  chrome: 'Chrome',
-  chromium: 'Chromium',
-  brave: 'Brave'
-}
-let availableBrowsers: SupportedBrowser[] = []
 
 function updateSettingsControls(): void {
   const saveButton = document.getElementById('settings-save-btn') as HTMLButtonElement | null
   if (saveButton) saveButton.disabled = false
 }
-function renderSettings(settings: SettingsSnapshot): void {
-  const enabled = document.getElementById('cookies-enabled') as HTMLInputElement | null
-  const browserRow = document.getElementById('browser-row')
-  const browserSelect = document.getElementById('browser-select') as HTMLSelectElement | null
-  const availability = document.getElementById('browser-availability')
-  if (!enabled || !browserRow || !browserSelect || !availability) return
 
-  availableBrowsers = settings.availableBrowsers
-  const selectedBrowser = availableBrowsers.includes(settings.browser)
-    ? settings.browser
-    : (availableBrowsers[0] ?? settings.browser)
-  enabled.checked = settings.cookiesEnabled
-  browserSelect.value = selectedBrowser
-  browserRow.hidden = !settings.cookiesEnabled
-  browserSelect.disabled = false
-  availability.textContent = availableBrowsers.length
-    ? `Available: ${availableBrowsers.map((browser) => BROWSER_LABELS[browser]).join(', ')}`
-    : 'No supported browser profile detected. Tier 2 will be skipped.'
+function renderSettings(settings: SettingsSnapshot): void {
+  const indicator = document.getElementById('cookies-configured')
+  if (!indicator) return
+  indicator.textContent = settings.cookiesConfigured
+    ? 'Cookies configured'
+    : 'No cookies configured'
   updateSettingsControls()
 }
 
@@ -60,6 +38,7 @@ async function loadSettings(): Promise<void> {
     if (status) status.textContent = 'Unable to load settings'
   }
 }
+
 const controller = createRendererController(window.audioFetch)
 let lastRenderedState = ''
 
@@ -122,24 +101,20 @@ function render(state: RendererState): void {
   const hasThumbnail = isSafeThumbnailUrl(state.thumbnailUrl)
   thumbnail.hidden = !hasThumbnail
   thumbnail.src = hasThumbnail ? state.thumbnailUrl : ''
-  if (state.downloadStatus === 'loading') {
-    status.textContent = 'Downloading...'
-  } else if (state.downloadStatus === 'success') {
+  if (state.downloadStatus === 'loading') status.textContent = 'Downloading...'
+  else if (state.downloadStatus === 'success')
     status.textContent = `Downloaded: ${state.downloadPath ?? 'complete'}`
-  } else {
-    status.textContent = 'Video info loaded'
-  }
+  else status.textContent = 'Video info loaded'
 }
 
 window.addEventListener('DOMContentLoaded', () => {
   controller.subscribe(render)
   render(controller.getState())
 
-  function bindSettingsToggle(): void {
-    const toggle = document.getElementById('settings-toggle-btn') as HTMLButtonElement | null
-    const content = document.getElementById('settings-content')
-    const icon = toggle?.querySelector('.settings-toggle-icon')
-    if (!toggle || !content || !icon) return
+  const toggle = document.getElementById('settings-toggle-btn') as HTMLButtonElement | null
+  const content = document.getElementById('settings-content')
+  const icon = toggle?.querySelector('.settings-toggle-icon')
+  if (toggle && content && icon) {
     toggle.addEventListener('click', () => {
       const expanded = toggle.getAttribute('aria-expanded') === 'true'
       toggle.setAttribute('aria-expanded', String(!expanded))
@@ -147,8 +122,12 @@ window.addEventListener('DOMContentLoaded', () => {
       icon.textContent = expanded ? '▸' : '▾'
     })
   }
-  bindSettingsToggle()
-  bindAudioInteractions(document.querySelectorAll('button, input, select'), audio.play, false)
+
+  bindAudioInteractions(
+    document.querySelectorAll('button, input, select, textarea'),
+    audio.play,
+    false
+  )
 
   document.getElementById('videoInfoForm')?.addEventListener('submit', (event) => {
     event.preventDefault()
@@ -160,14 +139,12 @@ window.addEventListener('DOMContentLoaded', () => {
     audio.play('click')
     void controller.retry()
   })
-
   document.getElementById('new-url-btn')?.addEventListener('click', () => {
     audio.play('click')
     controller.newUrl()
     const input = document.getElementById('youtube-url') as HTMLInputElement | null
     if (input) input.value = ''
   })
-
   document.getElementById('download-btn')?.addEventListener('click', () => {
     audio.play('download')
     const format = document.getElementById('format-select') as HTMLSelectElement | null
@@ -176,49 +153,55 @@ window.addEventListener('DOMContentLoaded', () => {
     if (
       !DOWNLOAD_FORMATS.includes(format.value as DownloadFormat) ||
       !DOWNLOAD_QUALITIES.includes(quality.value as DownloadQuality)
-    ) {
+    )
       return
-    }
     void controller.download(format.value as DownloadFormat, quality.value as DownloadQuality)
   })
 
   document.getElementById('settings-save-btn')?.addEventListener('click', () => {
     audio.play('click')
-    const enabled = document.getElementById('cookies-enabled') as HTMLInputElement | null
-    const browser = document.getElementById('browser-select') as HTMLSelectElement | null
+    const textarea = document.getElementById('cookies-input') as HTMLTextAreaElement | null
     const status = document.getElementById('settings-status')
-    if (!enabled || !browser || !status) return
+    if (!textarea || !status) return
     status.textContent = 'Saving...'
+    const update = textarea.value.trim() ? { cookies: textarea.value } : { clearCookies: true }
     void window.audioFetch.settings
-      .update({ cookiesEnabled: enabled.checked, browser: browser.value as SupportedBrowser })
+      .update(update)
       .then((result) => {
         if (result.ok) {
           renderSettings(result.data)
-          status.textContent = 'Settings saved'
-        } else {
-          status.textContent = result.error.message
-        }
+          status.textContent = 'Cookies saved'
+        } else status.textContent = result.error.message
       })
       .catch(() => {
-        status.textContent = 'Unable to save settings'
+        status.textContent = 'Unable to save cookies'
       })
   })
 
-  document.getElementById('cookies-enabled')?.addEventListener('change', () => {
-    const browserRow = document.getElementById('browser-row')
-    const enabled = document.getElementById('cookies-enabled') as HTMLInputElement | null
-    if (browserRow && enabled) browserRow.hidden = !enabled.checked
-    updateSettingsControls()
+  document.getElementById('settings-clear-btn')?.addEventListener('click', () => {
+    audio.play('click')
+    const textarea = document.getElementById('cookies-input') as HTMLTextAreaElement | null
+    const status = document.getElementById('settings-status')
+    if (!textarea || !status) return
+    void window.audioFetch.settings
+      .update({ clearCookies: true })
+      .then((result) => {
+        if (result.ok) {
+          textarea.value = ''
+          renderSettings(result.data)
+          status.textContent = 'Cookies cleared'
+        } else status.textContent = result.error.message
+      })
+      .catch(() => {
+        status.textContent = 'Unable to clear cookies'
+      })
   })
-  document.getElementById('browser-select')?.addEventListener('change', updateSettingsControls)
 
   void loadSettings()
-
   document.getElementById('minimize-btn')?.addEventListener('click', () => {
     audio.play('click')
     void window.audioFetch.window.minimize()
   })
-
   document.getElementById('close-btn')?.addEventListener('click', () => {
     audio.play('click')
     void confirmAndClose(window.audioFetch, (message) => window.confirm(message))

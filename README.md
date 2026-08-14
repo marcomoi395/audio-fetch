@@ -6,7 +6,7 @@ Electron desktop app for downloading YouTube audio on Windows and Linux.
 
 - Formats: MP3, M4A, OPUS, WAV, BEST.
 - MP3 quality: 320, 192, 128 kbps.
-- Browser cookies: Chrome, Chromium, Brave only.
+- Optional manual Netscape cookies for private or login-protected content.
 - Queue: one active download; concurrent requests return `BUSY`.
 - Config: new Electron JSON config; no legacy config migration.
 - Supported OS: Windows and Linux. macOS packaging is out of scope.
@@ -107,7 +107,9 @@ Confirm the platform package exists under `node_modules/@ffmpeg-installer/` and 
 
 ### Cookies unavailable
 
-Use Chrome, Chromium, or Brave. Sign in to YouTube. Firefox and Edge are intentionally unsupported. Browser cookie values never enter renderer state or logs.
+Paste an optional Netscape HTTP Cookie File in Download Settings. The final fallback uses it for content
+that may be private, age-restricted, or login-protected. Cookie values stay in Main process memory, never
+enter logs or persisted config, and are removed after each yt-dlp attempt.
 
 ### Permission/output errors
 

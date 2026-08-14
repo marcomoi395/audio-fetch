@@ -36,8 +36,7 @@ describe('video info service', () => {
       'https://youtube.com/watch?v=test',
       expect.objectContaining({
         dumpSingleJson: true,
-        skipDownload: true,
-        extractorArgs: 'youtube:player_client=android'
+        skipDownload: true
       })
     )
   })

@@ -6,8 +6,8 @@ const rendererRoot = resolve(process.cwd(), 'src/renderer')
 const indexHtml = readFileSync(resolve(rendererRoot, 'index.html'), 'utf8')
 const mainCss = readFileSync(resolve(rendererRoot, 'assets/main.css'), 'utf8')
 
-describe('legacy renderer assets', () => {
-  it('keeps the four state sections, title-bar controls, and cookie settings', () => {
+describe('renderer assets', () => {
+  it('keeps the four state sections, title-bar controls, and manual cookie settings', () => {
     for (const id of [
       'title-bar',
       'drag-area',
@@ -22,22 +22,22 @@ describe('legacy renderer assets', () => {
       'settings-section',
       'settings-toggle-btn',
       'settings-content',
-      'cookies-enabled',
-      'browser-row',
-      'browser-select',
-      'settings-save-btn'
+      'cookies-input',
+      'cookies-configured',
+      'settings-save-btn',
+      'settings-clear-btn'
     ]) {
       expect(indexHtml).toContain(`id="${id}"`)
     }
-    expect(indexHtml).toContain('aria-expanded="false"')
-    expect(indexHtml).toContain('Sign in to YouTube in Chrome, Chromium, or Brave first.')
-    expect(indexHtml).not.toContain('Cookie values never leave this device')
+    expect(indexHtml).toContain('Paste Netscape HTTP Cookie File content.')
+    expect(indexHtml).toContain('Cookie values stay in the main process memory')
+    expect(indexHtml).not.toContain('cookies-enabled')
+    expect(indexHtml).not.toContain('browser-select')
   })
 
   it('uses bundled local styles and pixel font without remote dependencies', () => {
     const customCss = readFileSync(resolve(rendererRoot, 'assets/css/custom.css'), 'utf8')
     const fontPath = resolve(rendererRoot, 'assets/fonts/press-start-2p.woff2')
-
     expect(indexHtml).toContain('./assets/nes.css')
     expect(indexHtml).toContain('./assets/images/favicon.png')
     expect(indexHtml).not.toContain('https://unpkg.com/nes.css')
@@ -45,13 +45,6 @@ describe('legacy renderer assets', () => {
     expect(mainCss).toContain('./css/custom.css')
     expect(customCss).toContain("url('../fonts/press-start-2p.woff2')")
     expect(customCss).toContain("font-family: 'Press Start 2P', monospace")
-    expect(customCss).toContain('.settings-panel')
-    expect(customCss).toContain('min-height: 0;')
-    expect(customCss).toContain('overflow-y: auto;')
-    expect(customCss).toContain('justify-content: flex-start;')
-    expect(customCss).toContain('height: 100vh;')
-    expect(customCss).toContain('.settings-toggle-btn')
-    expect(customCss).toContain('min-height: 0;')
     expect(existsSync(resolve(rendererRoot, 'assets/nes.css'))).toBe(true)
     expect(existsSync(resolve(rendererRoot, 'assets/css/custom.css'))).toBe(true)
     expect(existsSync(fontPath)).toBe(true)

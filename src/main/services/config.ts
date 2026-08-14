@@ -5,11 +5,9 @@ export type AppConfig = {
   schemaVersion: 1
   downloads: { defaultPath: string; format: string; quality: string }
   tierStrategy: {
-    browser: 'chrome' | 'chromium' | 'brave'
-    cookiesEnabled: boolean
     fallbackEnabled: boolean
     tier1Attempts: number
-    tier3Enabled: boolean
+    mobileFallbackEnabled: boolean
   }
   ui: { windowWidth: number; windowHeight: number; windowTitle: string }
   logging: { level: string; maxBytes: number; backupCount: number }
@@ -19,11 +17,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   schemaVersion: 1,
   downloads: { defaultPath: '', format: 'mp3', quality: '0' },
   tierStrategy: {
-    browser: 'chrome',
-    cookiesEnabled: false,
     fallbackEnabled: true,
     tier1Attempts: 3,
-    tier3Enabled: false
+    mobileFallbackEnabled: true
   },
   ui: { windowWidth: 850, windowHeight: 650, windowTitle: 'Audio Fetch' },
   logging: { level: 'WARNING', maxBytes: 10485760, backupCount: 3 }
@@ -38,6 +34,13 @@ function isConfig(value: unknown): value is AppConfig {
   const tierStrategy = config.tierStrategy as Record<string, unknown> | undefined
   const ui = config.ui as Record<string, unknown> | undefined
   const logging = config.logging as Record<string, unknown> | undefined
+  const tierKeys = Object.keys(tierStrategy ?? {})
+  if (
+    !tierKeys.every((key) =>
+      ['fallbackEnabled', 'tier1Attempts', 'mobileFallbackEnabled'].includes(key)
+    )
+  )
+    return false
 
   return Boolean(
     config.schemaVersion === 1 &&
@@ -48,15 +51,12 @@ function isConfig(value: unknown): value is AppConfig {
     typeof downloads.quality === 'string' &&
     ['0', '5', '9'].includes(downloads.quality) &&
     tierStrategy &&
-    typeof tierStrategy.browser === 'string' &&
-    ['chrome', 'chromium', 'brave'].includes(tierStrategy.browser) &&
-    typeof tierStrategy.cookiesEnabled === 'boolean' &&
     typeof tierStrategy.fallbackEnabled === 'boolean' &&
     typeof tierStrategy.tier1Attempts === 'number' &&
     Number.isInteger(tierStrategy.tier1Attempts) &&
     tierStrategy.tier1Attempts >= 1 &&
     tierStrategy.tier1Attempts <= 3 &&
-    typeof tierStrategy.tier3Enabled === 'boolean' &&
+    typeof tierStrategy.mobileFallbackEnabled === 'boolean' &&
     ui &&
     typeof ui.windowWidth === 'number' &&
     Number.isFinite(ui.windowWidth) &&

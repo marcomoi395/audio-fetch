@@ -39,6 +39,7 @@ function readHttpStatus(...values: unknown[]): number | undefined {
   const match = text.match(/HTTP Error (401|403|429)\b/i)
   return match ? Number(match[1]) : undefined
 }
+
 type VideoInfoLogger = (message: string) => void
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -91,25 +92,27 @@ function isValidUrl(url: string): boolean {
 export function createVideoInfoService(
   executor: YtDlpExecutor,
   log: VideoInfoLogger = () => undefined
-): { fetch(url: string): Promise<VideoInfo> } {
+): { fetch(url: string, attemptFlags?: Record<string, unknown>): Promise<VideoInfo> } {
   return {
-    async fetch(url: string): Promise<VideoInfo> {
+    async fetch(url, attemptFlags = {}): Promise<VideoInfo> {
       if (!isValidUrl(url)) throw new Error('Invalid video URL')
 
       try {
         const metadata = await executor(url, {
+          ...attemptFlags,
           dumpSingleJson: true,
-          skipDownload: true,
-          extractorArgs: 'youtube:player_client=android'
+          skipDownload: true
         })
         return mapVideoInfo(metadata)
-      } catch {
+      } catch (error) {
+        const executionError = new DownloadExecutionError(error)
         log('Video info fetch failed')
-        throw new Error('Unable to fetch video information')
+        throw new Error('Unable to fetch video information', { cause: executionError })
       }
     }
   }
 }
+
 type AudioExecutor = (url: string, options: Record<string, unknown>) => Promise<unknown>
 function describeFailure(value: unknown): string {
   const redact = (text: string): string =>
@@ -122,16 +125,12 @@ function describeFailure(value: unknown): string {
   if (value instanceof Error) {
     const cause = value.cause
     const causeDetails = isRecord(cause) ? cause : {}
-    const details: Record<string, string> = {
-      name: value.name,
-      message: redact(value.message)
-    }
+    const details: Record<string, string> = { name: value.name, message: redact(value.message) }
     for (const key of ['stderr', 'stdout', 'exitCode', 'statusCode']) {
       if (key in causeDetails) details[key] = redact(String(causeDetails[key]))
     }
-    if (cause instanceof Error && cause.message !== value.message) {
+    if (cause instanceof Error && cause.message !== value.message)
       details.cause = redact(cause.message)
-    }
     return JSON.stringify(details)
   }
   if (!isRecord(value)) return redact(String(value))
@@ -192,13 +191,6 @@ export function createAudioDownloadService(
       if (!isValidUrl(url)) throw new Error('Invalid video URL')
       if (!outputDir) throw new Error('Invalid output directory')
 
-      console.log('[download] yt-dlp start', {
-        format: options.format,
-        quality: options.quality,
-        outputDir,
-        attemptFlags,
-        ffmpegLocation: ffmpeg.path
-      })
       try {
         const result = await executor(url, {
           ...attemptFlags,
@@ -206,10 +198,6 @@ export function createAudioDownloadService(
           output: `${outputDir.replace(/[\\/]+$/, '')}/%(title)s.%(ext)s`,
           print: 'after_move:filepath',
           ffmpegLocation: ffmpeg.path
-        })
-        console.log('[download] yt-dlp result', {
-          type: typeof result,
-          preview: typeof result === 'string' ? result.slice(-500) : result
         })
         const filename =
           typeof result === 'string'
@@ -225,8 +213,7 @@ export function createAudioDownloadService(
         return { path: safeOutputPath(filename) }
       } catch (error) {
         const executionError = new DownloadExecutionError(error)
-        const message = `[download] yt-dlp failure ${describeFailure(executionError)}`
-        log(message)
+        log(`[download] yt-dlp failure ${describeFailure(executionError)}`)
         throw new Error('Unable to download audio', { cause: executionError })
       }
     }

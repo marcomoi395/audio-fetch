@@ -15,7 +15,6 @@ export type DownloadOptions = {
   format: DownloadFormat
   quality: DownloadQuality
 }
-export type SupportedBrowser = 'chrome' | 'chromium' | 'brave'
 
 export type VideoInfo = {
   title: string
@@ -28,20 +27,20 @@ export type VideoInfo = {
 
 export type DownloadResult = { path: string }
 export type QueueStatus = { active: boolean }
+
 export type SettingsSnapshot = {
-  cookiesEnabled: boolean
-  browser: SupportedBrowser
-  availableBrowsers: SupportedBrowser[]
+  cookiesConfigured: boolean
 }
 
 export type SettingsUpdate = {
-  cookiesEnabled?: boolean
-  browser?: SupportedBrowser
+  cookies?: string
+  clearCookies?: boolean
 }
 
 export type IpcError = {
-  code: 'INVALID_INPUT' | 'BUSY' | 'INTERNAL_ERROR'
+  code: 'INVALID_INPUT' | 'BUSY' | 'INTERNAL_ERROR' | 'COOKIES_REQUIRED'
   message: string
+  hint?: string
 }
 
 export type IpcResult<T> = { ok: true; data: T } | { ok: false; error: IpcError }

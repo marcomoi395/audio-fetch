@@ -1,51 +1,51 @@
-import { homedir } from 'node:os'
 import type {
   DownloadOptions,
   DownloadResult,
   QueueStatus,
   SettingsSnapshot,
   SettingsUpdate,
-  SupportedBrowser
+  VideoInfo
 } from '../../shared/ipc'
 import type { IpcServices } from './index'
 import { createAudioDownloadService, createVideoInfoService } from '../services/downloader'
 import { createDownloadQueue } from '../services/queue'
 import { configurePackagedYtDlpEnvironment } from '../utils/binaries'
-import { DEFAULT_CONFIG, saveConfig, type AppConfig } from '../services/config'
-import { CookieExtractor } from '../services/cookie-extractor'
-import { createTierStrategy, executeTierStrategy } from '../services/tier-strategy'
+import { DEFAULT_CONFIG, type AppConfig } from '../services/config'
+import { createManualCookieStore, type ManualCookieStore } from '../services/cookie-store'
+import {
+  createTierStrategy,
+  executeTierStrategy,
+  isAuthenticationRequired,
+  type TierAttempt
+} from '../services/tier-strategy'
 
 type YtDlpModule = (url: string, options: Record<string, unknown>) => Promise<unknown>
 type AudioServiceExecutor = (url: string, options: Record<string, unknown>) => Promise<unknown>
-type ConfigSaver = (path: string, config: AppConfig) => Promise<void>
-export type BrowserDetector = { findInstalledBrowsers(): SupportedBrowser[] }
+type ServiceError = Error & { code?: 'COOKIES_REQUIRED'; hint?: string }
 
-function isSupportedBrowser(value: unknown): value is SupportedBrowser {
-  return value === 'chrome' || value === 'chromium' || value === 'brave'
-}
+const COOKIE_HINT = 'Nội dung có thể yêu cầu cookie; hãy thêm Netscape cookies và thử lại'
 
-function isSettingsUpdate(value: SettingsUpdate): boolean {
-  const keys = Object.keys(value)
-  if (keys.length === 0 || keys.some((key) => key !== 'cookiesEnabled' && key !== 'browser')) {
-    return false
-  }
-  if ('cookiesEnabled' in value && typeof value.cookiesEnabled !== 'boolean') return false
-  if ('browser' in value && !isSupportedBrowser(value.browser)) return false
-  return true
+function createUncertainError(
+  message: string,
+  lastError: { statusCode?: number } | undefined
+): ServiceError {
+  const error = new Error(message) as ServiceError
+  if (lastError?.statusCode && [401, 403, 429].includes(lastError.statusCode))
+    error.hint = COOKIE_HINT
+  error.cause = lastError
+  return error
 }
 
 async function executeYtDlp(url: string, options: Record<string, unknown>): Promise<unknown> {
   const mode = process.env['AUDIO_FETCH_E2E_FIXTURE']
   if (mode) {
     await new Promise((resolve) => setTimeout(resolve, mode === 'slow' ? 1000 : 100))
-    if (mode === 'error' || (mode === 'failure' && !options.dumpSingleJson)) {
+    if (mode === 'error' || (mode === 'failure' && !options.dumpSingleJson))
       throw new Error('fixture failure')
-    }
     return options.dumpSingleJson
       ? { title: 'Fixture Video', uploader: 'Fixture Channel', duration: 42, thumbnail: '' }
       : '/downloads/fixture.mp3\n'
   }
-
   if (process.resourcesPath && process.resourcesPath !== process.cwd()) {
     configurePackagedYtDlpEnvironment(process.resourcesPath, process.env)
   }
@@ -53,12 +53,22 @@ async function executeYtDlp(url: string, options: Record<string, unknown>): Prom
   return module.default(url, options)
 }
 
-function createDefaultBrowserDetector(): BrowserDetector {
-  try {
-    return new CookieExtractor({ platform: process.platform, homeDir: homedir() })
-  } catch {
-    return { findInstalledBrowsers: () => [] }
-  }
+function isSettingsUpdate(value: SettingsUpdate): boolean {
+  const keys = Object.keys(value)
+  if (keys.length === 0 || keys.some((key) => key !== 'cookies' && key !== 'clearCookies'))
+    return false
+  if ('cookies' in value && typeof value.cookies !== 'string') return false
+  if ('clearCookies' in value && typeof value.clearCookies !== 'boolean') return false
+  return true
+}
+
+function createAuthError(lastError: unknown): ServiceError {
+  const error = new Error('Authentication required to download this content') as ServiceError
+  error.code = 'COOKIES_REQUIRED'
+  error.hint =
+    'This content may be private, age-restricted, or require login. Add Netscape cookies and retry.'
+  error.cause = lastError
+  return error
 }
 
 export function createIpcServices(
@@ -66,50 +76,64 @@ export function createIpcServices(
   outputDir = process.cwd(),
   executor: AudioServiceExecutor = executeYtDlp,
   config: AppConfig = DEFAULT_CONFIG,
-  configPath = '',
-  browserDetector: BrowserDetector = createDefaultBrowserDetector(),
-  configSaver: ConfigSaver = saveConfig
+  cookieStore: ManualCookieStore = createManualCookieStore()
 ): IpcServices {
-  let currentConfig = config
   const videoInfo = createVideoInfoService(executor, log)
   const audioDownload = createAudioDownloadService(executor, log)
   const queue = createDownloadQueue()
-
-  const getAvailableBrowsers = (): SupportedBrowser[] => {
-    try {
-      return browserDetector.findInstalledBrowsers()
-    } catch {
-      return []
-    }
+  const getSettings = (): SettingsSnapshot => ({ cookiesConfigured: cookieStore.isConfigured() })
+  const withCookieFlags = async <T>(
+    flags: TierAttempt,
+    callback: (next: TierAttempt) => Promise<T>
+  ) => {
+    if (!flags.useManualCookies) return callback(flags)
+    return cookieStore.withCookieFile((path) => callback({ ...flags, cookies: path }))
   }
-
-  const getSettings = (): SettingsSnapshot => ({
-    cookiesEnabled: currentConfig.tierStrategy.cookiesEnabled,
-    browser: currentConfig.tierStrategy.browser,
-    availableBrowsers: getAvailableBrowsers()
-  })
+  const createStrategy = () =>
+    createTierStrategy({
+      fallbackEnabled: config.tierStrategy.fallbackEnabled,
+      tier1Attempts: config.tierStrategy.tier1Attempts,
+      mobileFallbackEnabled: config.tierStrategy.mobileFallbackEnabled,
+      cookiesConfigured: cookieStore.isConfigured()
+    })
 
   return {
-    fetchVideoInfo: videoInfo.fetch,
+    fetchVideoInfo: async (url: string): Promise<VideoInfo> => {
+      let metadata: VideoInfo | undefined
+      const result = await executeTierStrategy(
+        createStrategy(),
+        (flags) =>
+          withCookieFlags(flags, async (attemptFlags) => {
+            metadata = await videoInfo.fetch(url, attemptFlags)
+            return metadata
+          }),
+        undefined,
+        (message) => log(`[video-info] ${message}`)
+      )
+      if (!result.success) {
+        if (isAuthenticationRequired(result.lastError)) throw createAuthError(result.lastError)
+        throw createUncertainError('Unable to fetch video information', result.lastError)
+      }
+      if (!metadata) throw new Error('Unable to fetch video information')
+      return metadata
+    },
     startDownload: (url: string, options: DownloadOptions): Promise<DownloadResult> =>
       queue.run(async () => {
         let downloadResult: DownloadResult | undefined
-        const availableBrowsers = getAvailableBrowsers()
-        const tierStrategy = createTierStrategy({
-          browser: currentConfig.tierStrategy.browser,
-          cookiesEnabled:
-            currentConfig.tierStrategy.cookiesEnabled &&
-            availableBrowsers.includes(currentConfig.tierStrategy.browser),
-          fallbackEnabled: currentConfig.tierStrategy.fallbackEnabled,
-          tier1Attempts: currentConfig.tierStrategy.tier1Attempts,
-          tier3Enabled: currentConfig.tierStrategy.tier3Enabled
-        })
-        const result = await executeTierStrategy(tierStrategy, async (flags) => {
-          downloadResult = await audioDownload.download(url, options, outputDir, flags)
-          return downloadResult
-        })
-        if (!result.success)
-          throw new Error('Unable to download audio', { cause: result.lastError })
+        const result = await executeTierStrategy(
+          createStrategy(),
+          (flags) =>
+            withCookieFlags(flags, async (attemptFlags) => {
+              downloadResult = await audioDownload.download(url, options, outputDir, attemptFlags)
+              return downloadResult
+            }),
+          undefined,
+          (message) => log(`[download] ${message}`)
+        )
+        if (!result.success) {
+          if (isAuthenticationRequired(result.lastError)) throw createAuthError(result.lastError)
+          throw createUncertainError('Unable to download audio', result.lastError)
+        }
         if (!downloadResult) throw new Error('Unable to download audio')
         return downloadResult
       }),
@@ -117,16 +141,8 @@ export function createIpcServices(
     getSettings: async (): Promise<SettingsSnapshot> => getSettings(),
     updateSettings: async (update: SettingsUpdate): Promise<SettingsSnapshot> => {
       if (!isSettingsUpdate(update)) throw new Error('Invalid settings update')
-      const nextConfig: AppConfig = {
-        ...currentConfig,
-        tierStrategy: {
-          ...currentConfig.tierStrategy,
-          ...(update.cookiesEnabled === undefined ? {} : { cookiesEnabled: update.cookiesEnabled }),
-          ...(update.browser === undefined ? {} : { browser: update.browser })
-        }
-      }
-      if (configPath) await configSaver(configPath, nextConfig)
-      currentConfig = nextConfig
+      if (update.clearCookies) cookieStore.clear()
+      if (update.cookies !== undefined) cookieStore.set(update.cookies)
       return getSettings()
     }
   }

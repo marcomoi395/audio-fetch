@@ -3,6 +3,7 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
 import { createIpcServices } from './ipc/services'
 import { DEFAULT_CONFIG, loadConfig, saveConfig } from './services/config'
+import { createManualCookieStore } from './services/cookie-store'
 import { createLogger } from './utils/logger'
 import { getElectronConfigPath } from './utils/paths'
 import { createWindow, DEFAULT_WINDOW_CONFIG, focusExistingWindow } from './window'
@@ -34,7 +35,7 @@ if (hasSingleInstance) {
       logger.warn('Config startup failed; using defaults')
       createWindow(DEFAULT_WINDOW_CONFIG)
     }
-
+    const cookieStore = createManualCookieStore()
     registerIpcHandlers(
       ipcMain,
       createIpcServices(
@@ -42,7 +43,7 @@ if (hasSingleInstance) {
         process.cwd(),
         undefined,
         config,
-        configPath
+        cookieStore
       ),
       (sender) => {
         if (!sender || typeof sender !== 'object') return null

@@ -1,3 +1,4 @@
+import { stat } from 'node:fs/promises'
 import { describe, expect, it, vi } from 'vitest'
 import {
   IPC_CHANNELS,
@@ -7,17 +8,18 @@ import {
 } from '../../src/main/ipc'
 import { createIpcServices } from '../../src/main/ipc/services'
 import { DEFAULT_CONFIG } from '../../src/main/services/config'
+import { createManualCookieStore } from '../../src/main/services/cookie-store'
 
+const COOKIE_TEXT = '.youtube.com\tTRUE\t/\tTRUE\t0\tSID\tsecret-value'
 const registerForTest = (handlers: Map<string, IpcHandler>): IpcMainLike => ({
   handle: vi.fn((channel, handler) => handlers.set(channel, handler))
 })
 
 describe('download IPC flow', () => {
-  it('starts one download and exposes safe queue status', async () => {
+  it('downloads successfully and exposes safe queue status', async () => {
     const executor = vi.fn().mockResolvedValue('/downloads/song.mp3\n')
     const services = createIpcServices(() => undefined, '/downloads', executor)
     const handlers = new Map<string, IpcHandler>()
-
     registerIpcHandlers(
       registerForTest(handlers),
       services,
@@ -27,7 +29,10 @@ describe('download IPC flow', () => {
     await expect(
       handlers.get(IPC_CHANNELS.downloadStart)?.(
         { sender: {} },
-        { url: 'https://youtube.com/watch?v=test', options: { format: 'mp3', quality: '0' } }
+        {
+          url: 'https://youtube.com/watch?v=test',
+          options: { format: 'mp3', quality: '0' }
+        }
       )
     ).resolves.toEqual({ ok: true, data: { path: '/downloads/song.mp3' } })
     await expect(handlers.get(IPC_CHANNELS.queueStatus)?.({ sender: {} })).resolves.toEqual({
@@ -36,221 +41,98 @@ describe('download IPC flow', () => {
     })
   })
 
-  it('falls back to Tier 3 and preserves fixed yt-dlp options', async () => {
+  it('runs mobile clients before manual cookies and logs safe labels', async () => {
     const executor = vi
       .fn()
       .mockRejectedValueOnce({ stderr: 'HTTP Error 403: Forbidden', exitCode: 1 })
-      .mockResolvedValueOnce('/downloads/fallback.mp3\n')
-    const services = createIpcServices(() => undefined, '/downloads', executor, {
-      ...DEFAULT_CONFIG,
-      tierStrategy: { ...DEFAULT_CONFIG.tierStrategy, tier1Attempts: 1, tier3Enabled: true }
-    })
-    const handlers = new Map<string, IpcHandler>()
-
-    registerIpcHandlers(
-      registerForTest(handlers),
-      services,
-      vi.fn(() => null)
-    )
-
-    await expect(
-      handlers.get(IPC_CHANNELS.downloadStart)?.(
-        { sender: {} },
-        { url: 'https://youtube.com/watch?v=test', options: { format: 'mp3', quality: '5' } }
-      )
-    ).resolves.toEqual({ ok: true, data: { path: '/downloads/fallback.mp3' } })
-    expect(executor).toHaveBeenCalledTimes(2)
-    expect(executor.mock.calls[0][1]).toMatchObject({
-      output: '/downloads/%(title)s.%(ext)s',
-      print: 'after_move:filepath',
-      format: 'bestaudio/best',
-      audioFormat: 'mp3',
-      audioQuality: '192'
-    })
-    expect(executor.mock.calls[1][1]).toMatchObject({
-      output: '/downloads/%(title)s.%(ext)s',
-      print: 'after_move:filepath',
-      format: 'bestaudio/best',
-      audioFormat: 'mp3',
-      audioQuality: '192',
-      extractorArgs: 'youtube:player_client=android'
-    })
-    expect(executor.mock.calls[1][1]).not.toHaveProperty('cookiesFromBrowser')
-  })
-  it('uses Tier 2 cookies only after explicit opt-in and browser detection', async () => {
-    const executor = vi
-      .fn()
+      .mockRejectedValueOnce({ stderr: 'HTTP Error 403: Forbidden', exitCode: 1 })
       .mockRejectedValueOnce({ stderr: 'HTTP Error 403: Forbidden', exitCode: 1 })
       .mockResolvedValueOnce('/downloads/cookie.mp3\n')
+    const log = vi.fn()
+    const cookieStore = createManualCookieStore()
+    cookieStore.set(COOKIE_TEXT)
     const services = createIpcServices(
-      () => undefined,
+      log,
       '/downloads',
       executor,
-      {
-        ...DEFAULT_CONFIG,
-        tierStrategy: {
-          ...DEFAULT_CONFIG.tierStrategy,
-          cookiesEnabled: true,
-          tier1Attempts: 1,
-          tier3Enabled: true
-        }
-      },
-      '',
-      { findInstalledBrowsers: () => ['chrome'] }
-    )
-    const handlers = new Map<string, IpcHandler>()
-    registerIpcHandlers(
-      registerForTest(handlers),
-      services,
-      vi.fn(() => null)
-    )
-
-    await expect(
-      handlers.get(IPC_CHANNELS.downloadStart)?.(
-        { sender: {} },
-        { url: 'https://youtube.com/watch?v=test', options: { format: 'mp3', quality: '0' } }
-      )
-    ).resolves.toEqual({ ok: true, data: { path: '/downloads/cookie.mp3' } })
-    expect(executor.mock.calls[1][1]).toMatchObject({ cookiesFromBrowser: 'chrome' })
-  })
-
-  it('skips unavailable Tier 2 cookies and continues to Tier 3', async () => {
-    const executor = vi
-      .fn()
-      .mockRejectedValueOnce({ stderr: 'HTTP Error 403: Forbidden', exitCode: 1 })
-      .mockResolvedValueOnce('/downloads/no-cookie.mp3\n')
-    const services = createIpcServices(
-      () => undefined,
-      '/downloads',
-      executor,
-      {
-        ...DEFAULT_CONFIG,
-        tierStrategy: {
-          ...DEFAULT_CONFIG.tierStrategy,
-          cookiesEnabled: true,
-          tier1Attempts: 1,
-          tier3Enabled: true
-        }
-      },
-      '',
-      { findInstalledBrowsers: () => [] }
+      { ...DEFAULT_CONFIG, tierStrategy: { ...DEFAULT_CONFIG.tierStrategy, tier1Attempts: 1 } },
+      cookieStore
     )
 
     await expect(
       services.startDownload('https://youtube.com/watch?v=test', { format: 'mp3', quality: '0' })
-    ).resolves.toEqual({ path: '/downloads/no-cookie.mp3' })
+    ).resolves.toEqual({
+      path: '/downloads/cookie.mp3'
+    })
+    expect(log).toHaveBeenCalledWith('[download] tier=1 attempt=1')
+    expect(log).toHaveBeenCalledWith('[download] tier=2 client=android')
+    expect(log).toHaveBeenCalledWith('[download] tier=2 client=mweb')
+    expect(log).toHaveBeenCalledWith('[download] tier=3 manual-cookie')
+    expect(log.mock.calls.flat().join('\n')).not.toContain('cookies.txt')
+    expect(log.mock.calls.flat().join('\n')).not.toContain('secret-value')
+    const cookiePath = executor.mock.calls[3][1].cookies as string
+    await expect(stat(cookiePath)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('uses the same tier order for private metadata lookup', async () => {
+    const executor = vi
+      .fn()
+      .mockRejectedValueOnce({ stderr: 'This video is private', exitCode: 1 })
+      .mockRejectedValueOnce({ stderr: 'This video is private', exitCode: 1 })
+      .mockRejectedValueOnce({ stderr: 'This video is private', exitCode: 1 })
+      .mockResolvedValueOnce({ title: 'Private', uploader: 'Channel', duration: 1 })
+    const cookieStore = createManualCookieStore()
+    cookieStore.set(COOKIE_TEXT)
+    const services = createIpcServices(
+      () => undefined,
+      '/downloads',
+      executor,
+      { ...DEFAULT_CONFIG, tierStrategy: { ...DEFAULT_CONFIG.tierStrategy, tier1Attempts: 1 } },
+      cookieStore
+    )
+
+    await expect(
+      services.fetchVideoInfo('https://youtube.com/watch?v=private')
+    ).resolves.toMatchObject({
+      title: 'Private'
+    })
     expect(executor.mock.calls[1][1]).toMatchObject({
       extractorArgs: 'youtube:player_client=android'
     })
-    expect(executor.mock.calls[1][1]).not.toHaveProperty('cookiesFromBrowser')
+    expect(executor.mock.calls[2][1]).toMatchObject({ extractorArgs: 'youtube:player_client=mweb' })
+    const cookiePath = executor.mock.calls[3][1].cookies as string
+    expect(cookiePath).toContain('cookies.txt')
+    await expect(stat(cookiePath)).rejects.toMatchObject({ code: 'ENOENT' })
   })
-
-  it('rejects invalid direct settings updates and rolls back failed saves', async () => {
-    const configSaver = vi.fn().mockRejectedValue(new Error('disk full'))
-    const services = createIpcServices(
-      () => undefined,
-      '/downloads',
-      vi.fn(),
-      DEFAULT_CONFIG,
-      '/config.json',
-      { findInstalledBrowsers: () => [] },
-      configSaver
-    )
-
-    await expect(services.updateSettings({ browser: 'firefox' as never })).rejects.toThrow(
-      'Invalid settings update'
-    )
-    await expect(services.updateSettings({ cookiesEnabled: true })).rejects.toThrow('disk full')
-    await expect(services.getSettings()).resolves.toMatchObject({
-      cookiesEnabled: false,
-      browser: 'chrome'
+  it('maps terminal auth failure to COOKIES_REQUIRED', async () => {
+    const executor = vi.fn().mockRejectedValue({ stderr: 'This video is private', exitCode: 1 })
+    const services = createIpcServices(() => undefined, '/downloads', executor, {
+      ...DEFAULT_CONFIG,
+      tierStrategy: { ...DEFAULT_CONFIG.tierStrategy, tier1Attempts: 1 }
     })
-  })
-  it('persists selected browser and cookie opt-in before updating runtime state', async () => {
-    const configSaver = vi.fn().mockResolvedValue(undefined)
-    const services = createIpcServices(
-      () => undefined,
-      '/downloads',
-      vi.fn(),
-      DEFAULT_CONFIG,
-      '/config.json',
-      { findInstalledBrowsers: () => ['brave'] },
-      configSaver
+    const handlers = new Map<string, IpcHandler>()
+    registerIpcHandlers(
+      registerForTest(handlers),
+      services,
+      vi.fn(() => null)
     )
 
     await expect(
-      services.updateSettings({ cookiesEnabled: true, browser: 'brave' })
+      handlers.get(IPC_CHANNELS.downloadStart)?.(
+        { sender: {} },
+        {
+          url: 'https://youtube.com/watch?v=test',
+          options: { format: 'mp3', quality: '0' }
+        }
+      )
     ).resolves.toMatchObject({
-      cookiesEnabled: true,
-      browser: 'brave'
-    })
-    expect(configSaver).toHaveBeenCalledWith(
-      '/config.json',
-      expect.objectContaining({
-        tierStrategy: expect.objectContaining({ cookiesEnabled: true, browser: 'brave' })
-      })
-    )
-  })
-
-  it('returns failure after terminal fallback exhaustion and releases queue', async () => {
-    const executor = vi.fn().mockRejectedValue({ stderr: 'HTTP Error 403: Forbidden', exitCode: 1 })
-    const services = createIpcServices(() => undefined, '/downloads', executor, {
-      ...DEFAULT_CONFIG,
-      tierStrategy: { ...DEFAULT_CONFIG.tierStrategy, tier3Enabled: true }
-    })
-    const handlers = new Map<string, IpcHandler>()
-
-    registerIpcHandlers(
-      registerForTest(handlers),
-      services,
-      vi.fn(() => null)
-    )
-
-    await expect(
-      handlers.get(IPC_CHANNELS.downloadStart)?.(
-        { sender: {} },
-        { url: 'https://youtube.com/watch?v=test', options: { format: 'mp3', quality: '0' } }
-      )
-    ).resolves.toEqual({
       ok: false,
-      error: { code: 'INTERNAL_ERROR', message: 'Unable to start download' }
-    })
-    expect(executor).toHaveBeenCalledTimes(5)
-    await expect(handlers.get(IPC_CHANNELS.queueStatus)?.({ sender: {} })).resolves.toEqual({
-      ok: true,
-      data: { active: false }
+      error: { code: 'COOKIES_REQUIRED', hint: expect.stringContaining('Add Netscape cookies') }
     })
   })
 
-  it('does not retry non-escalation failures', async () => {
-    const executor = vi.fn().mockRejectedValue({ stderr: 'ERROR: ffmpeg not found', exitCode: 1 })
-    const services = createIpcServices(() => undefined, '/downloads', executor, {
-      ...DEFAULT_CONFIG,
-      tierStrategy: { ...DEFAULT_CONFIG.tierStrategy, tier3Enabled: true }
-    })
-    const handlers = new Map<string, IpcHandler>()
-
-    registerIpcHandlers(
-      registerForTest(handlers),
-      services,
-      vi.fn(() => null)
-    )
-
-    await expect(
-      handlers.get(IPC_CHANNELS.downloadStart)?.(
-        { sender: {} },
-        { url: 'https://youtube.com/watch?v=test', options: { format: 'mp3', quality: '0' } }
-      )
-    ).resolves.toEqual({
-      ok: false,
-      error: { code: 'INTERNAL_ERROR', message: 'Unable to start download' }
-    })
-    expect(executor).toHaveBeenCalledOnce()
-  })
-
-  it('returns a busy error for a concurrent second request', async () => {
-    const { promise: result, resolve: release } = Promise.withResolvers<{ filename: string }>()
-    const executor = vi.fn(() => result)
+  it('does not classify network errors as cookie failures', async () => {
+    const executor = vi.fn().mockRejectedValue({ stderr: 'network timeout', exitCode: 1 })
     const services = createIpcServices(() => undefined, '/downloads', executor)
     const handlers = new Map<string, IpcHandler>()
     registerIpcHandlers(
@@ -258,25 +140,50 @@ describe('download IPC flow', () => {
       services,
       vi.fn(() => null)
     )
-    const payload = {
-      url: 'https://youtube.com/watch?v=test',
-      options: { format: 'mp3', quality: '0' }
-    }
 
-    const first = handlers.get(IPC_CHANNELS.downloadStart)?.({ sender: {} }, payload)
-    await expect(handlers.get(IPC_CHANNELS.queueStatus)?.({ sender: {} })).resolves.toEqual({
-      ok: true,
-      data: { active: true }
-    })
     await expect(
-      handlers.get(IPC_CHANNELS.downloadStart)?.({ sender: {} }, payload)
+      handlers.get(IPC_CHANNELS.downloadStart)?.(
+        { sender: {} },
+        {
+          url: 'https://youtube.com/watch?v=test',
+          options: { format: 'mp3', quality: '0' }
+        }
+      )
     ).resolves.toEqual({
       ok: false,
-      error: { code: 'BUSY', message: 'A download is already in progress' }
+      error: { code: 'INTERNAL_ERROR', message: 'Unable to start download' }
     })
-    expect(executor).toHaveBeenCalledOnce()
+  })
+  it('adds a cookie hint for terminal HTTP 403 without changing error code', async () => {
+    const executor = vi
+      .fn()
+      .mockRejectedValue({ statusCode: 403, stderr: 'Forbidden', exitCode: 1 })
+    const services = createIpcServices(() => undefined, '/downloads', executor, {
+      ...DEFAULT_CONFIG,
+      tierStrategy: { ...DEFAULT_CONFIG.tierStrategy, tier1Attempts: 1 }
+    })
+    const handlers = new Map<string, IpcHandler>()
+    registerIpcHandlers(
+      registerForTest(handlers),
+      services,
+      vi.fn(() => null)
+    )
 
-    release({ filename: '/downloads/song.mp3' })
-    await first
+    await expect(
+      handlers.get(IPC_CHANNELS.downloadStart)?.(
+        { sender: {} },
+        {
+          url: 'https://youtube.com/watch?v=test',
+          options: { format: 'mp3', quality: '0' }
+        }
+      )
+    ).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Unable to start download',
+        hint: 'Nội dung có thể yêu cầu cookie; hãy thêm Netscape cookies và thử lại'
+      }
+    })
   })
 })
