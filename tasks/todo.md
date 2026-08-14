@@ -1,0 +1,51 @@
+# Audio Fetch Migration Task Checklist
+
+## Phase 0: Contract and Tooling
+
+- [x] P0 Resolve SPEC open questions: Tier 3, progress, NES.css delivery, Linux targets, Windows signing, package-manager authority.
+- [x] P1 Add Node runtime/test dependencies, scripts, Vitest/Playwright configs, root test directories.
+- [x] P2 Replace Python-only CI/release assumptions with Node/Electron checks; retain legacy guard only if approved.
+- [x] Checkpoint 0: Tooling commands pass; unresolved blockers explicitly recorded.
+
+## Phase 1: Electron Infrastructure
+
+- [x] P3 Implement branded Electron shell, frameless window, safe links, single-instance focus.
+- [x] P4 Implement new config schema, Electron paths, async persistence, safe logging.
+- [x] P5 Define/register typed preload and IPC boundary; reject invalid payloads before services.
+- [x] Checkpoint 1: App shell, config, preload, typecheck, focused tests, build pass.
+
+## Phase 2: Backend Vertical Slices
+
+- [x] P6 Deliver video-info flow: validation, yt-dlp metadata, typed IPC, renderer response/error states.
+- [x] P7 Port and Lock the Three-Tier Strategy.
+- [x] P8 Implement Chrome-Family Cookie Extraction.
+- [x] P9 Deliver audio download service: formats, quality, FFmpeg, metadata, thumbnail, filename safety.
+- [x] P10 Implement single-active-download guard, download IPC, queue status, close-confirmation data.
+- [x] Checkpoint 2: Backend flow, tier tests, cookie tests, download mocks, queue exclusivity pass.
+
+## Phase 3: Renderer Parity
+
+- [x] P11 Port legacy HTML/CSS/favicon and approved NES.css delivery.
+- [x] P12 Wire renderer video-info/download state machine through typed preload IPC.
+- [x] P13 Port Web Audio effects and window controls/drag/close confirmation.
+- [ ] Checkpoint 3: UI parity, renderer IPC-only access, controls, focused E2E pass.
+
+## Phase 4: Verification, Packaging, Release
+
+- [x] P14 Complete unit/integration/Electron E2E regression coverage; meet SPEC thresholds.
+- [ ] P15 Finalize Windows/Linux packaging, branding, binary resources, AppImage/deb targets.
+- [ ] P16 Update release workflows for Electron artifacts, versioning, signing, uploads.
+- [ ] P17 Complete README, IPC/architecture/troubleshooting docs, release acceptance measurements.
+- [ ] Checkpoint 4: Full tests, lint, builds, cross-platform smoke tests, performance checks, human release approval. Open blockers: Windows runner, real yt-dlp/FFmpeg smoke, named-machine performance measurements, human approval.
+
+## Global Verification
+
+- [x] `bun run typecheck`
+- [x] `bun test`
+- [x] `bun run test:coverage`
+- [x] `bun run test:e2e`
+- [x] `bun run lint`
+- [x] `bun run build`
+- [x] `bun run build:unpack`
+- [ ] Windows installer smoke test
+- [ ] Linux AppImage/deb smoke test

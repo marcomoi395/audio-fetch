@@ -1,297 +1,137 @@
-# Audio Fetch Desktop
+# Audio Fetch
 
-A native desktop application for downloading YouTube audio with automatic cookie extraction and multi-tier fallback strategies.
+Electron desktop app for downloading YouTube audio on Windows and Linux.
 
-## Features
+## Scope
 
-- **Native Desktop Window**: Qt-based application with embedded web interface
-- **Single Instance Lock**: Prevents multiple instances from running simultaneously
-- **Auto Cookie Extraction**: Automatically extracts browser cookies for YouTube authentication (Chrome, Firefox, Edge, Brave)
-- **3-Tier Download Strategy**: Progressive fallback system for robust downloading
-- **Quit Confirmation**: Warns before closing if downloads are in progress
-- **Cross-Platform**: Runs on Linux, Windows, and macOS
-- **Standalone Binary**: Can be packaged as a single executable with PyInstaller
+- Formats: MP3, M4A, OPUS, WAV, BEST.
+- MP3 quality: 320, 192, 128 kbps.
+- Optional manual Netscape cookies for private or login-protected content.
+- Queue: one active download; concurrent requests return `BUSY`.
+- Config: new Electron JSON config; no legacy config migration.
+- Supported OS: Windows and Linux. macOS packaging is out of scope.
 
-## Prerequisites
+## Install
 
-- **Python 3.11+** (for running from source)
-- **FFmpeg** (for audio format conversion)
+Requirements: Bun 1.x, Node.js 20+ LTS.
 
-### Installing FFmpeg
-
-**Linux (Debian/Ubuntu):**
 ```bash
-sudo apt install ffmpeg
+bun install
 ```
 
-**Linux (Arch):**
-```bash
-sudo pacman -S ffmpeg
-```
-
-**Windows:**
-- Download from [ffmpeg.org](https://ffmpeg.org/download.html)
-- Add to PATH
-
-**macOS:**
-```bash
-brew install ffmpeg
-```
-
-## Quick Start
-
-### Option 1: Run from Source
-```bash
-# Clone the repository
-git clone <repository-url>
-cd audio-fetch
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the application
-python desktop_main.py
-```
-
-### Option 2: Build Standalone Binary
-
-**Linux:**
-```bash
-pip install -r requirements.txt
-pyinstaller audio-fetch.spec --clean
-./dist/audio-fetch
-```
-
-**Windows:**
-
-See [docs/BUILD_WINDOWS.md](docs/BUILD_WINDOWS.md) for detailed Windows build instructions.
-
-## How It Works
-
-1. **Application starts** → checks for existing instance via lock file
-2. **FastAPI server starts** on configured port (default: 8000)
-3. **Qt window opens** with embedded WebEngine browser
-4. **User pastes YouTube URL** → app extracts cookies from installed browsers
-5. **Download uses 3-tier strategy**:
-   - Tier 1: Basic yt-dlp with cookies
-   - Tier 2: Advanced yt-dlp options (ignore errors, extract-audio)
-   - Tier 3: Mobile client emulation and OAuth2
-6. **Files saved** to configured download directory
-
-## Configuration
-
-Configuration is stored in platform-specific locations:
-
-- **Linux**: `~/.config/audio-fetch/config.json`
-- **Windows**: `%APPDATA%\audio-fetch\config.json`
-- **macOS**: `~/Library/Application Support/audio-fetch/config.json`
-
-### Default Configuration
-
-```json
-{
-  "version": "1.0",
-  "server": {
-    "port": 8000,
-    "auto_detect_port": true
-  },
-  "download": {
-    "default_path": "~/Downloads/audio-fetch"
-  },
-  "logging": {
-    "level": "WARNING",
-    "file": "~/.config/audio-fetch/logs/app.log"
-  }
-}
-```
-
-### Configuration Options
-
-- `server.port`: Port for embedded FastAPI server (default: 8000)
-- `server.auto_detect_port`: Automatically find available port if default is busy (default: true)
-- `download.default_path`: Where downloaded files are saved
-- `logging.level`: Log verbosity (DEBUG, INFO, WARNING, ERROR)
-- `logging.file`: Path to log file
-
-See [docs/CONFIG_SCHEMA.md](docs/CONFIG_SCHEMA.md) for complete schema documentation.
-
-## YouTube Authentication
-
-YouTube requires authentication to download videos. Audio Fetch handles this automatically:
-
-### Automatic Cookie Extraction
-
-The app automatically extracts cookies from installed browsers:
-- Chrome / Chromium
-- Firefox
-- Microsoft Edge
-- Brave
-
-**How it works:**
-1. App detects installed browsers on your system
-2. When a download starts, cookies are extracted from browser profiles
-3. Cookies are passed to yt-dlp for authentication
-4. No manual cookie export needed!
-
-
-## Troubleshooting
-
-### "Audio Fetch is already running"
-
-**Cause:** Another instance is already running, or a stale lock file exists.
-
-**Solution:**
-1. Check if the app is running in Task Manager / System Monitor
-2. If not running, manually delete the lock file:
-   - Linux: `~/.config/audio-fetch/app.lock`
-   - Windows: `%APPDATA%\audio-fetch\app.lock`
-   - macOS: `~/Library/Application Support/audio-fetch/app.lock`
-
-### "Port 8000 is already in use"
-
-**Cause:** Another application is using port 8000.
-
-**Solution:**
-1. Enable auto port detection in config:
-   ```json
-   {
-     "server": {
-       "auto_detect_port": true
-     }
-   }
-   ```
-2. Or manually specify a different port
-
-### Browser cookies not found
-
-**Cause:** Browser is not installed or cookies cannot be accessed.
-
-**Solution:**
-1. Ensure browser (Chrome/Firefox/Edge/Brave) is installed
-2. Log in to YouTube at least once
-3. Try running app with elevated permissions (may be needed for Firefox)
-
-### Downloads fail with "Sign in to confirm you're not a bot"
-
-**Cause:** YouTube bot detection, cookies expired, or no authentication.
-
-**Solution:**
-1. Ensure you're logged in to YouTube in your browser
-2. Clear browser cache and log in again
-3. The 3-tier strategy will automatically retry with different methods
-
-### Qt/PySide6 errors on Linux
-
-**Cause:** Missing system Qt libraries.
-
-**Solution:**
-```bash
-# Debian/Ubuntu
-sudo apt install libxcb-xinerama0 libxcb-cursor0
-
-# Arch
-sudo pacman -S qt6-base
-```
-
-### FFmpeg not found
-
-**Cause:** FFmpeg not installed or not in PATH.
-
-**Solution:**
-- Install FFmpeg (see Prerequisites section)
-- Verify: `ffmpeg -version`
-- Without FFmpeg, only m4a format is available
-
-### Logs not appearing
-
-**Cause:** Default log level is WARNING.
-
-**Solution:**
-- Change `logging.level` to `INFO` or `DEBUG` in config
-- Check log file location: `~/.config/audio-fetch/logs/app.log`
+`youtube-dl-exec` installs the yt-dlp binary during dependency setup. FFmpeg comes from `@ffmpeg-installer/ffmpeg`.
 
 ## Development
 
-### Running Tests
-
 ```bash
-# Activate virtual environment
-source venv/bin/activate
-
-# Run all tests
-pytest tests/
-
-# Run desktop tests only
-pytest tests/desktop/ -v
-
-# Run with coverage
-pytest tests/ --cov=desktop --cov=services --cov=api --cov-report=html
-
-# Run specific test file
-pytest tests/desktop/test_server_manager.py -v
+bun run dev
+bun start
 ```
 
-### Code Quality
+## Quality checks
 
 ```bash
-# Format code
-ruff format .
-
-# Lint code
-ruff check .
-
-# Auto-fix linting issues
-ruff check --fix .
-
-# Type check
-mypy . --ignore-missing-imports
+bun run typecheck
+bun test
+bun run test:coverage
+bun run test:coverage:main
+bun run test:coverage:ipc
+bun run test:coverage:renderer
+bun run test:coverage:critical
+bun run test:e2e
+bun run lint
 ```
+
+Automated tests use mocked yt-dlp/FFmpeg behavior. No live YouTube request or real browser cookie database is required.
+
+## Build
+
+```bash
+bun run build
+bun run build:unpack
+bun run verify:resources
+bun run verify:resources:unpacked
+bun run build:linux
+bun run build:win
+```
+
+`verify:resources:unpacked` targets the Linux `dist/linux-unpacked` layout. Windows artifact verification runs on the Windows CI runner.
+
+Linux targets: AppImage and deb. Windows output: unsigned NSIS installer. Windows packaging requires a Windows runner.
 
 ## Architecture
 
-Audio Fetch uses a hybrid architecture:
+```text
+Renderer → contextBridge preload → typed IPC → main services
+```
 
-- **Desktop Layer** (Qt/PySide6): Native window, system integration, process management
-- **Server Layer** (FastAPI/Uvicorn): Embedded HTTP server running in background thread
-- **UI Layer** (HTML/CSS/JS): Web interface rendered in Qt WebEngine
-- **Service Layer** (yt-dlp): Download orchestration with tier strategy
+- Renderer: DOM, state, Web Audio, user interactions.
+- Preload: narrow `audioFetch` API only.
+- Main: yt-dlp, FFmpeg, cookies, config, queue, logging, window lifecycle.
+- Renderer has no Node.js, filesystem, raw IPC, or direct HTTP access.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
+Main IPC operations:
 
-## Release Process
+- `video-info:fetch`
+- `download:start`
+- `queue:status`
+- `window:minimize`
+- `window:close` with required confirmation flag.
 
-This project uses automated GitHub Actions workflows for releases.
+## Runtime data
 
-### For Release Managers
+- Config: Electron `userData/config.json`.
+- Logs: Electron log path.
+- Download output: configured output directory; filenames are sanitized for Windows/Linux.
 
-See [Release Management Guide](docs/RELEASE.md) for detailed instructions on:
-- Triggering releases via GitHub Actions
-- Version bump options (patch/minor/major)
-- Reviewing and publishing release drafts
-- Troubleshooting build issues
+## Troubleshooting
 
-### Release Artifacts
+### yt-dlp unavailable
 
-Each release includes pre-built binaries:
-- **Linux AppImage** - Universal, runs on any Linux distribution
-- **Linux .deb** - For Debian/Ubuntu systems
-- **Linux .rpm** - For Fedora/RHEL/CentOS systems  
-- **Windows Installer** - Setup executable for Windows
+Run `bun install`, then verify:
 
-Download from the [Releases](../../releases) page.
+```bash
+bun run verify:resources
+```
 
+Packaged Linux resources are verified with:
 
-## Documentation
+```bash
+bun run build:unpack
+bun run verify:resources:unpacked
+```
 
-- [Architecture Overview](docs/ARCHITECTURE.md)
-- [Configuration Schema](docs/CONFIG_SCHEMA.md)
-- [Building for Windows](docs/BUILD_WINDOWS.md)
-- [Cookie Export Guide](docs/COOKIE_EXPORT_GUIDE.md)
+### FFmpeg unavailable
 
-## License
+Confirm the platform package exists under `node_modules/@ffmpeg-installer/` and rerun the resource check.
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+### Cookies unavailable
+
+Paste an optional Netscape HTTP Cookie File in Download Settings. The final fallback uses it for content
+that may be private, age-restricted, or login-protected. Cookie values stay in Main process memory, never
+enter logs or persisted config, and are removed after each yt-dlp attempt.
+
+### Permission/output errors
+
+Choose a writable output directory. Check filesystem permissions and available disk space. Internal command details are not shown to users or logged.
+
+### Packaging
+
+Build AppImage/deb on Linux and the NSIS installer on Windows. Cross-platform artifact smoke tests require the corresponding OS runner.
+
+## Release acceptance
+
+Release approval requires:
+
+- Full typecheck, tests, coverage, E2E, lint, actionlint, and build gates.
+- Simulated artifact smoke: non-empty Linux/Windows artifacts plus unpacked Electron E2E with offline fixture.
+- A protected GitHub `production` Environment with required reviewers configured in repository settings.
+- Linux AppImage/deb smoke tests.
+- Windows installer smoke test on Windows.
+- Manual yt-dlp/FFmpeg smoke tests on Windows and Linux.
+- Startup under 3 seconds, idle memory under 200 MB, download memory under 500 MB.
+- UI responsiveness and manual renderer control/screenshot review.
+
+Performance measurement is deferred to a later phase. Simulated smoke does not replace real cross-OS installer/runtime or yt-dlp/FFmpeg smoke.
+
+Release blockers: Windows runner installer/runtime smoke, Linux cross-machine smoke, real yt-dlp/FFmpeg smoke on Windows/Linux, named-machine performance measurements, and configured `production` Environment reviewers.

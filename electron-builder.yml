@@ -1,0 +1,37 @@
+appId: com.audiofetch.app
+productName: Audio Fetch
+directories:
+  buildResources: resources
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - 'out/**'
+  - 'node_modules/youtube-dl-exec/bin/**'
+  - 'node_modules/@ffmpeg-installer/**'
+asarUnpack:
+  - node_modules/youtube-dl-exec/bin/**
+  - node_modules/@ffmpeg-installer/**
+  - resources/**
+win:
+  executableName: audio-fetch
+  icon: resources/icon.png
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+linux:
+  target:
+    - AppImage
+    - deb
+  maintainer: audio-fetch
+  category: AudioVideo
+  syncDesktopName: true
+appImage:
+  artifactName: ${name}-${version}.${ext}
+deb:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false
