@@ -30,7 +30,7 @@
     "build:win": "bun run build && bunx electron-builder --win",
     "build:linux": "bun run build && bunx electron-builder --linux"
   },
-  "trustedDependencies": ["youtube-dl-exec"],
+  "trustedDependencies": ["electron", "youtube-dl-exec"],
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
