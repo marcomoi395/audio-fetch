@@ -179,9 +179,16 @@ function getAudioOptions(options: DownloadOptions): Record<string, unknown> {
 export function createAudioDownloadService(
   executor: AudioExecutor,
   log: VideoInfoLogger = () => undefined
-): { download(url: string, options: DownloadOptions, outputDir: string): Promise<DownloadResult> } {
+): {
+  download(
+    url: string,
+    options: DownloadOptions,
+    outputDir: string,
+    attemptFlags?: Record<string, unknown>
+  ): Promise<DownloadResult>
+} {
   return {
-    async download(url, options, outputDir): Promise<DownloadResult> {
+    async download(url, options, outputDir, attemptFlags = {}): Promise<DownloadResult> {
       if (!isValidUrl(url)) throw new Error('Invalid video URL')
       if (!outputDir) throw new Error('Invalid output directory')
 
@@ -189,10 +196,12 @@ export function createAudioDownloadService(
         format: options.format,
         quality: options.quality,
         outputDir,
+        attemptFlags,
         ffmpegLocation: ffmpeg.path
       })
       try {
         const result = await executor(url, {
+          ...attemptFlags,
           ...getAudioOptions(options),
           output: `${outputDir.replace(/[\\/]+$/, '')}/%(title)s.%(ext)s`,
           print: 'after_move:filepath',

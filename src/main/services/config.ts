@@ -5,7 +5,7 @@ export type AppConfig = {
   schemaVersion: 1
   downloads: { defaultPath: string; format: string; quality: string }
   tierStrategy: {
-    browser: string
+    browser: 'chrome' | 'chromium' | 'brave'
     fallbackEnabled: boolean
     tier1Attempts: number
     tier3Enabled: boolean

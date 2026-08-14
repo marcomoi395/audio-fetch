@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, type WebContents } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
 import { createIpcServices } from './ipc/services'
-import { loadConfig, saveConfig } from './services/config'
+import { DEFAULT_CONFIG, loadConfig, saveConfig } from './services/config'
 import { createLogger } from './utils/logger'
 import { getElectronConfigPath } from './utils/paths'
 import { createWindow, DEFAULT_WINDOW_CONFIG, focusExistingWindow } from './window'
@@ -18,10 +18,11 @@ if (hasSingleInstance) {
     electronApp.setAppUserModelId('com.audiofetch.app')
     app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
     const logger = createLogger()
+    let config = DEFAULT_CONFIG
 
     try {
       const configPath = getElectronConfigPath(app)
-      const config = await loadConfig(configPath, (message) => logger.warn(message))
+      config = await loadConfig(configPath, (message) => logger.warn(message))
       await saveConfig(configPath, config)
       createWindow({
         width: config.ui.windowWidth,
@@ -35,7 +36,7 @@ if (hasSingleInstance) {
 
     registerIpcHandlers(
       ipcMain,
-      createIpcServices((message) => logger.warn(message)),
+      createIpcServices((message) => logger.warn(message), process.cwd(), undefined, config),
       (sender) => {
         if (!sender || typeof sender !== 'object') return null
         try {

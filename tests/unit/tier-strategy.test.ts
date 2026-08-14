@@ -18,6 +18,27 @@ describe('three-tier download strategy', () => {
       { userAgent: expect.any(String), sleepRequests: 1 }
     ])
   })
+  it('limits Tier 1 attempts from config', () => {
+    const strategy = createTierStrategy({
+      browser: 'chrome',
+      tier1Attempts: 1,
+      tier3Enabled: true
+    })
+
+    expect(strategy.getAttempts(DownloadTier.Tier1)).toEqual([{}])
+  })
+
+  it('disables fallback tiers from config', () => {
+    const strategy = createTierStrategy({
+      browser: 'chrome',
+      fallbackEnabled: false,
+      tier3Enabled: true
+    })
+
+    expect(strategy.getAttempts(DownloadTier.Tier1)).toHaveLength(3)
+    expect(strategy.getAttempts(DownloadTier.Tier2)).toEqual([])
+    expect(strategy.getAttempts(DownloadTier.Tier3)).toEqual([])
+  })
 
   it('succeeds on the first Tier 1 attempt', async () => {
     const strategy = createTierStrategy({ browser: 'chrome', tier3Enabled: true })

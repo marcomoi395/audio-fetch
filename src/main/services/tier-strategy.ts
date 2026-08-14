@@ -8,6 +8,8 @@ export type TierAttempt = Record<string, unknown>
 export type TierStrategyOptions = {
   browser: 'chrome' | 'chromium' | 'brave'
   cookiesEnabled?: boolean
+  fallbackEnabled?: boolean
+  tier1Attempts?: number
   tier3Enabled: boolean
 }
 export type TierStrategy = { getAttempts(tier: DownloadTier): TierAttempt[] }
@@ -74,24 +76,28 @@ export type TierExecutionResult = {
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 
 export function createTierStrategy(options: TierStrategyOptions): TierStrategy {
+  const fallbackEnabled = options.fallbackEnabled !== false
+  const tier1Attempts = options.tier1Attempts ?? 3
   const attempts: Record<DownloadTier, TierAttempt[]> = {
     [DownloadTier.Tier1]: [
       {},
       { userAgent: USER_AGENT },
       { userAgent: USER_AGENT, sleepRequests: 1 }
-    ],
-    [DownloadTier.Tier2]: options.cookiesEnabled
-      ? [
-          { cookiesFromBrowser: options.browser },
-          { cookiesFromBrowser: options.browser, userAgent: USER_AGENT }
-        ]
-      : [],
-    [DownloadTier.Tier3]: options.tier3Enabled
-      ? [
-          { extractorArgs: 'youtube:player_client=android' },
-          { extractorArgs: 'youtube:player_client=mweb' }
-        ]
-      : []
+    ].slice(0, tier1Attempts),
+    [DownloadTier.Tier2]:
+      fallbackEnabled && options.cookiesEnabled
+        ? [
+            { cookiesFromBrowser: options.browser },
+            { cookiesFromBrowser: options.browser, userAgent: USER_AGENT }
+          ]
+        : [],
+    [DownloadTier.Tier3]:
+      fallbackEnabled && options.tier3Enabled
+        ? [
+            { extractorArgs: 'youtube:player_client=android' },
+            { extractorArgs: 'youtube:player_client=mweb' }
+          ]
+        : []
   }
 
   return {
@@ -117,7 +123,11 @@ export function getNextTier(tier: DownloadTier): DownloadTier | null {
   if (tier === DownloadTier.Tier2) return DownloadTier.Tier3
   return null
 }
-
+function nextNonEmptyTier(strategy: TierStrategy, tier: DownloadTier): DownloadTier | null {
+  let nextTier = getNextTier(tier)
+  while (nextTier && strategy.getAttempts(nextTier).length === 0) nextTier = getNextTier(nextTier)
+  return nextTier
+}
 export async function executeTierStrategy(
   strategy: TierStrategy,
   attempt: (flags: TierAttempt) => Promise<unknown>,
@@ -132,7 +142,9 @@ export async function executeTierStrategy(
     lastTier = tier
     const tierAttempts = strategy.getAttempts(tier)
     if (tierAttempts.length === 0) {
-      tier = getNextTier(tier)
+      const nextTier = nextNonEmptyTier(strategy, tier)
+      if (!nextTier) return { success: false, tier: lastTier, attempts, lastError }
+      tier = nextTier
       continue
     }
 
@@ -147,10 +159,8 @@ export async function executeTierStrategy(
       }
     }
 
-    const nextTier = getNextTier(tier)
-    if (nextTier === DownloadTier.Tier3 && strategy.getAttempts(nextTier).length === 0) {
-      return { success: false, tier, attempts, lastError }
-    }
+    const nextTier = nextNonEmptyTier(strategy, tier)
+    if (!nextTier) return { success: false, tier: lastTier, attempts, lastError }
     tier = nextTier
   }
 
