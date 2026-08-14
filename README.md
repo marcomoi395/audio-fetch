@@ -124,11 +124,14 @@ Build AppImage/deb on Linux and the NSIS installer on Windows. Cross-platform ar
 Release approval requires:
 
 - Full typecheck, tests, coverage, E2E, lint, actionlint, and build gates.
+- Simulated artifact smoke: non-empty Linux/Windows artifacts plus mocked Electron E2E.
 - A protected GitHub `production` Environment with required reviewers configured in repository settings.
 - Linux AppImage/deb smoke tests.
 - Windows installer smoke test on Windows.
 - Manual yt-dlp/FFmpeg smoke tests on Windows and Linux.
 - Startup under 3 seconds, idle memory under 200 MB, download memory under 500 MB.
 - UI responsiveness and manual renderer control/screenshot review.
+
+Performance measurement is deferred to a later phase. Simulated smoke does not replace real cross-OS installer/runtime or yt-dlp/FFmpeg smoke.
 
 Release blockers: Windows runner installer/runtime smoke, Linux cross-machine smoke, real yt-dlp/FFmpeg smoke on Windows/Linux, named-machine performance measurements, and configured `production` Environment reviewers.

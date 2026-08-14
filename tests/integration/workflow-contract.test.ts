@@ -68,8 +68,15 @@ describe('GitHub Actions workflow contract', () => {
     expect(postMerge).toContain('build:')
     expect(postMerge).toContain('uses: ./.github/workflows/build.yml')
     expect(postMerge).toContain('tag: ${{ needs.prepare-release.outputs.new_tag }}')
-    expect(postMerge).toContain('publish:')
-    expect(postMerge).toContain('needs: [prepare-release, build]')
+    expect(postMerge).toContain('smoke-simulated:')
+    expect(postMerge).toContain('name: Simulated artifact and Electron smoke')
+    expect(postMerge).toContain(
+      "find artifacts/linux-appimage -type f -name '*.AppImage' -size +0c"
+    )
+    expect(postMerge).toContain("find artifacts/linux-deb -type f -name '*.deb' -size +0c")
+    expect(postMerge).toContain("find artifacts/windows-installer -type f -name '*.exe' -size +0c")
+    expect(postMerge).toContain('run: xvfb-run bun run test:e2e')
+    expect(postMerge).toContain('needs: [prepare-release, build, smoke-simulated]')
     expect(postMerge).toContain('name: production')
     expect(postMerge).toContain('actions/download-artifact@v4')
     expect(postMerge).not.toContain('gh workflow run')
