@@ -13,7 +13,6 @@ on:
 permissions:
   contents: read
 
-
 jobs:
   workflow-lint:
     name: Validate GitHub Actions workflows

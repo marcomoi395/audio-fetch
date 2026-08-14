@@ -175,6 +175,7 @@ audio-fetch/
 ├── package.json
 └── README.md
 ```
+
 ## Functional Contract
 
 ### Video Information

@@ -223,7 +223,9 @@ body {
   background-image:
     linear-gradient(45deg, #d9d2b7 25%, transparent 25%, transparent 75%, #d9d2b7 75%),
     linear-gradient(45deg, #d9d2b7 25%, transparent 25%, transparent 75%, #d9d2b7 75%);
-  background-position: 0 0, 4px 4px;
+  background-position:
+    0 0,
+    4px 4px;
   background-size: 8px 8px;
   border: 4px solid #212529;
 }
@@ -467,7 +469,6 @@ body {
   width: 100%;
 }
 
-
 .settings-row {
   display: flex;
   align-items: center;
@@ -514,7 +515,6 @@ body {
   margin: 0;
   text-align: center;
 }
-
 
 /* Action Buttons */
 .action-buttons {
