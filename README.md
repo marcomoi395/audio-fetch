@@ -123,11 +123,12 @@ Build AppImage/deb on Linux and the NSIS installer on Windows. Cross-platform ar
 
 Release approval requires:
 
-- Full typecheck, tests, coverage, E2E, lint, and build gates.
+- Full typecheck, tests, coverage, E2E, lint, actionlint, and build gates.
+- A protected GitHub `production` Environment with required reviewers configured in repository settings.
 - Linux AppImage/deb smoke tests.
 - Windows installer smoke test on Windows.
 - Manual yt-dlp/FFmpeg smoke tests on Windows and Linux.
 - Startup under 3 seconds, idle memory under 200 MB, download memory under 500 MB.
 - UI responsiveness and manual renderer control/screenshot review.
 
-Release blockers: Windows runner installer/runtime smoke, Linux cross-machine smoke, real yt-dlp/FFmpeg smoke on Windows/Linux, and named-machine performance measurements.
+Release blockers: Windows runner installer/runtime smoke, Linux cross-machine smoke, real yt-dlp/FFmpeg smoke on Windows/Linux, named-machine performance measurements, and configured `production` Environment reviewers.

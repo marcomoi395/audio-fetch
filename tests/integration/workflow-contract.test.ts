@@ -6,9 +6,11 @@ const workflow = (name: string) =>
   readFileSync(resolve(process.cwd(), '.github/workflows', name), 'utf8')
 
 describe('GitHub Actions workflow contract', () => {
-  it('uses Bun quality gates and headless Electron E2E on main and develop', () => {
+  it('uses pinned actionlint and Bun quality gates on main and develop', () => {
     const ci = workflow('ci.yml')
 
+    expect(ci).toContain('uses: docker://rhysd/actionlint:1.7.11')
+    expect(ci).toContain('with:\n          args: -color')
     expect(ci).toContain('oven-sh/setup-bun@v2')
     expect(ci).toContain('bun install --frozen-lockfile')
     expect(ci).toContain('bun run typecheck')
@@ -68,6 +70,7 @@ describe('GitHub Actions workflow contract', () => {
     expect(postMerge).toContain('tag: ${{ needs.prepare-release.outputs.new_tag }}')
     expect(postMerge).toContain('publish:')
     expect(postMerge).toContain('needs: [prepare-release, build]')
+    expect(postMerge).toContain('name: production')
     expect(postMerge).toContain('actions/download-artifact@v4')
     expect(postMerge).not.toContain('gh workflow run')
     expect(postMerge).not.toContain('gh run list')

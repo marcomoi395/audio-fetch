@@ -13,7 +13,19 @@ on:
 permissions:
   contents: read
 
+
 jobs:
+  workflow-lint:
+    name: Validate GitHub Actions workflows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run actionlint
+        uses: docker://rhysd/actionlint:1.7.11
+        with:
+          args: -color
   quality:
     name: Bun and Electron checks
     runs-on: ubuntu-latest
