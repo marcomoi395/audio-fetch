@@ -25,6 +25,8 @@ function registerForTest(handlers: Map<string, IpcHandler>): IpcMainLike {
   return { handle: vi.fn((channel, handler) => handlers.set(channel, handler)) }
 }
 
+const downloadWindow = { minimize: vi.fn(), close: vi.fn() }
+
 describe('typed IPC boundary', () => {
   it('registers one explicit handler per channel', () => {
     const handlers = new Map<string, IpcHandler>()
@@ -34,6 +36,34 @@ describe('typed IPC boundary', () => {
       vi.fn(() => null)
     )
     expect([...handlers.keys()]).toEqual(Object.values(IPC_CHANNELS))
+  })
+  it('moves a successful download to the user-selected path', async () => {
+    const handlers = new Map<string, IpcHandler>()
+    const showSaveDialog = vi
+      .fn()
+      .mockResolvedValue({ canceled: false, filePath: '/home/user/song.mp3' })
+    const moveFile = vi.fn().mockResolvedValue(undefined)
+    services.startDownload = vi.fn().mockResolvedValue({ path: '/tmp/song.mp3' })
+    registerIpcHandlers(
+      registerForTest(handlers),
+      services,
+      vi.fn(() => downloadWindow),
+      console.error,
+      showSaveDialog,
+      moveFile
+    )
+
+    const result = await handlers.get(IPC_CHANNELS.downloadStart)?.(
+      { sender: {} },
+      { url: 'https://youtube.com/watch?v=test', options: { format: 'mp3', quality: '0' } }
+    )
+
+    expect(showSaveDialog).toHaveBeenCalledWith(
+      downloadWindow,
+      expect.objectContaining({ defaultPath: '/tmp/song.mp3' })
+    )
+    expect(moveFile).toHaveBeenCalledWith('/tmp/song.mp3', '/home/user/song.mp3')
+    expect(result).toEqual({ ok: true, data: { path: '/home/user/song.mp3' } })
   })
 
   it('rejects invalid URLs before service calls', async () => {

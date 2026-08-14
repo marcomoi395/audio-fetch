@@ -38,7 +38,7 @@ export type SettingsUpdate = {
 }
 
 export type IpcError = {
-  code: 'INVALID_INPUT' | 'BUSY' | 'INTERNAL_ERROR' | 'COOKIES_REQUIRED'
+  code: 'INVALID_INPUT' | 'BUSY' | 'INTERNAL_ERROR' | 'COOKIES_REQUIRED' | 'CANCELED'
   message: string
   hint?: string
 }

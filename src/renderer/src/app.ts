@@ -100,6 +100,8 @@ export function createRendererController(api: RendererApi) {
         if (result.ok) {
           console.log('[download] success', result.data.path)
           update({ ...current, downloadStatus: 'success', downloadPath: result.data.path })
+        } else if (result.error.code === 'CANCELED') {
+          update(current)
         } else {
           console.error('[download] rejected', result.error)
           update({ status: 'error', message: displayError(result.error) })

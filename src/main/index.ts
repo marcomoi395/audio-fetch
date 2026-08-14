@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, type WebContents } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, type WebContents } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
 import { createIpcServices } from './ipc/services'
@@ -40,7 +40,7 @@ if (hasSingleInstance) {
       ipcMain,
       createIpcServices(
         (message) => logger.warn(message),
-        process.cwd(),
+        app.getPath('temp'),
         undefined,
         config,
         cookieStore
@@ -53,7 +53,8 @@ if (hasSingleInstance) {
           return null
         }
       },
-      (message) => logger.error(message)
+      (message) => logger.error(message),
+      (window, options) => dialog.showSaveDialog(window as BrowserWindow, options)
     )
   })
 

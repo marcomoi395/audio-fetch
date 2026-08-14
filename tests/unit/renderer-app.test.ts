@@ -109,4 +109,17 @@ describe('renderer video-info flow', () => {
       message: `A download is already in progress\n${COOKIE_HINT}`
     })
   })
+
+  it('keeps metadata visible when save dialog is canceled', async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, data: videoInfo })
+    const start = vi.fn().mockResolvedValue({
+      ok: false,
+      error: { code: 'CANCELED', message: 'Download canceled' }
+    })
+    const controller = createRendererController({ videoInfo: { fetch }, download: { start } })
+    await controller.submit('https://youtube.com/watch?v=test')
+    await controller.download('mp3', '0')
+    expect(controller.getState()).toMatchObject({ status: 'success', title: 'Test Video' })
+    expect(controller.getState()).not.toHaveProperty('downloadStatus')
+  })
 })

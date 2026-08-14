@@ -1,3 +1,4 @@
+import { copyFile, rename, unlink } from 'node:fs/promises'
 import { BusyDownloadError } from '../services/queue'
 import {
   IPC_CHANNELS,
@@ -15,6 +16,28 @@ export type IpcEvent = { sender: unknown }
 export type IpcHandler = (event: IpcEvent, payload?: unknown) => Promise<unknown> | unknown
 export type IpcMainLike = { handle(channel: string, handler: IpcHandler): void }
 type WindowLike = { minimize(): void; close(): void }
+type SaveDialogWindow = WindowLike | null
+type SaveDialogResult = { canceled: boolean; filePath: string }
+type SaveDialogOptions = {
+  defaultPath: string
+  title: string
+  properties: ['showOverwriteConfirmation']
+}
+type ShowSaveDialog = (
+  window: SaveDialogWindow,
+  options: SaveDialogOptions
+) => Promise<SaveDialogResult>
+type MoveFile = (source: string, destination: string) => Promise<void>
+
+const moveFileAcrossDevices: MoveFile = async (source, destination) => {
+  try {
+    await rename(source, destination)
+  } catch (error) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'EXDEV')) throw error
+    await copyFile(source, destination)
+    await unlink(source)
+  }
+}
 
 export type IpcServices = {
   fetchVideoInfo(url: string): Promise<VideoInfo>
@@ -22,6 +45,19 @@ export type IpcServices = {
   getQueueStatus(): Promise<QueueStatus>
   getSettings(): Promise<SettingsSnapshot>
   updateSettings(update: SettingsUpdate): Promise<SettingsSnapshot>
+}
+
+function canceled<T>(message: string): IpcResult<T> {
+  return { ok: false, error: { code: 'CANCELED', message } }
+}
+
+const defaultShowSaveDialog: ShowSaveDialog = async (_window, options) => ({
+  canceled: false,
+  filePath: options.defaultPath
+})
+
+async function removeStagedFile(path: string): Promise<void> {
+  await unlink(path).catch(() => undefined)
 }
 
 type ServiceError = Error & { code?: string; hint?: string }
@@ -86,7 +122,9 @@ export function registerIpcHandlers(
   ipcMain: IpcMainLike,
   services: IpcServices,
   resolveSenderWindow: (sender: unknown) => WindowLike | null,
-  log: (message: string) => void = console.error
+  log: (message: string) => void = console.error,
+  showSaveDialog: ShowSaveDialog = defaultShowSaveDialog,
+  moveFile: MoveFile = moveFileAcrossDevices
 ): void {
   ipcMain.handle(IPC_CHANNELS.videoInfoFetch, async (_event, payload) => {
     const url = property(payload, 'url')
@@ -100,13 +138,28 @@ export function registerIpcHandlers(
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.downloadStart, async (_event, payload) => {
+  ipcMain.handle(IPC_CHANNELS.downloadStart, async (event, payload) => {
     const url = property(payload, 'url')
     const options = property(payload, 'options')
     if (!isValidUrl(url) || !isValidOptions(options)) return invalid('Invalid download request')
+    let stagedPath = ''
     try {
-      return { ok: true, data: await services.startDownload(url, options) }
+      const window = resolveSenderWindow(event.sender)
+      const result = await services.startDownload(url, options)
+      stagedPath = result.path
+      const saveResult = await showSaveDialog(window, {
+        defaultPath: result.path,
+        title: 'Save downloaded audio',
+        properties: ['showOverwriteConfirmation']
+      })
+      if (saveResult.canceled || !saveResult.filePath) {
+        await removeStagedFile(stagedPath)
+        return canceled<DownloadResult>('Download canceled')
+      }
+      if (saveResult.filePath !== stagedPath) await moveFile(stagedPath, saveResult.filePath)
+      return { ok: true, data: { path: saveResult.filePath } }
     } catch (error) {
+      if (stagedPath) await removeStagedFile(stagedPath)
       const serviceError = error as ServiceError
       if (!(error instanceof Error && error.message === 'Unable to download audio')) {
         log(`[download] IPC failure ${describeError(error).slice(0, 1000)}`)
