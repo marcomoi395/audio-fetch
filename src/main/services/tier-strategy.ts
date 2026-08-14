@@ -178,12 +178,12 @@ export async function executeTierStrategy(
   startTier: DownloadTier = DownloadTier.Tier1,
   logAttempt: (message: string) => void = () => undefined
 ): Promise<TierExecutionResult> {
-  let tier: DownloadTier | null = startTier
+  let tier = startTier
   let lastTier = startTier
   let attempts = 0
   let lastError: TierError | undefined
 
-  while (tier) {
+  while (true) {
     lastTier = tier
     const tierAttempts = strategy.getAttempts(tier)
     if (tierAttempts.length === 0) {
@@ -207,5 +207,4 @@ export async function executeTierStrategy(
     if (!nextTier) return { success: false, tier: lastTier, attempts, lastError }
     tier = nextTier
   }
-  return { success: false, tier: lastTier, attempts, lastError }
 }
