@@ -8,7 +8,7 @@ on:
 
 permissions:
   pull-requests: write
-  contents: write
+  contents: read
 
 jobs:
   auto-merge:
@@ -20,26 +20,26 @@ jobs:
       - name: Enable auto-merge
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN || github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          PR_NUMBER="${{ github.event.pull_request.number }}"
-          REPO="${{ github.repository }}"
-
           echo "Enabling auto-merge for release PR #$PR_NUMBER"
 
           gh pr merge "$PR_NUMBER" \
-            --repo "$REPO" \
+            --repo "$REPOSITORY" \
             --squash \
             --auto \
-            --delete-branch || echo "Auto-merge not available, merge manually"
+            --delete-branch
+
 
       - name: Summary
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          PR_NUMBER="${{ github.event.pull_request.number }}"
-          PR_URL="${{ github.event.pull_request.html_url }}"
-
-          echo "## Auto-merge Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **PR**: #$PR_NUMBER" >> $GITHUB_STEP_SUMMARY
-          echo "- **Auto-merge**: Enabled ✓" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "[$PR_URL]($PR_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "## Auto-merge Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **PR**: #$PR_NUMBER" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Auto-merge**: Enabled" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "[$PR_URL]($PR_URL)" >> "$GITHUB_STEP_SUMMARY"

@@ -6,7 +6,7 @@ const workflow = (name: string) =>
   readFileSync(resolve(process.cwd(), '.github/workflows', name), 'utf8')
 
 describe('GitHub Actions workflow contract', () => {
-  it('uses Bun quality gates and headless Electron E2E', () => {
+  it('uses Bun quality gates and headless Electron E2E on main and develop', () => {
     const ci = workflow('ci.yml')
 
     expect(ci).toContain('oven-sh/setup-bun@v2')
@@ -15,21 +15,22 @@ describe('GitHub Actions workflow contract', () => {
     expect(ci).toContain('bun test')
     expect(ci).toContain('bun run lint')
     expect(ci).toContain('bun run test:coverage')
-    expect(ci).toContain('bun run build')
+    expect(ci).toContain('bun run build:unpack')
     expect(ci).toContain('xvfb-run bun run test:e2e')
-    expect(ci.indexOf('bun run build')).toBeLessThan(ci.indexOf('xvfb-run bun run test:e2e'))
+    expect(ci).toMatch(/branches:\n\s+- main\n\s+- develop/)
   })
 
   it('builds Electron AppImage, deb, and Windows artifacts without Python or RPM', () => {
     const build = workflow('build.yml')
 
-    expect(build).toContain('oven-sh/setup-bun@v2')
-    expect(build).toContain('bun install --frozen-lockfile')
-    expect(build).toContain('bun run build:linux')
-    expect(build).toContain('bun run build:win')
+    expect(build).toContain('workflow_call:')
+    expect(build).toContain('run: bun run build:linux')
+    expect(build).toContain('run: bun run build:win')
     expect(build).toContain('path: dist/*.AppImage')
     expect(build).toContain('path: dist/*.deb')
     expect(build).toContain('path: dist/*.exe')
+    expect(build).toContain('^v[0-9]+\\.[0-9]+\\.[0-9]+$')
+    expect(build).not.toContain('upload_to_release')
     expect(build).not.toMatch(/Python|PyInstaller|Qt|rpm/i)
   })
 
@@ -47,6 +48,7 @@ describe('GitHub Actions workflow contract', () => {
     const packageJson = readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')
     const builder = readFileSync(resolve(process.cwd(), 'electron-builder.yml'), 'utf8')
     const postMerge = workflow('post-merge-release.yml')
+    const autoApprove = workflow('auto-approve-release.yml')
 
     expect(packageJson).toContain('"desktopName": "audio-fetch"')
     expect(builder).toContain('- AppImage')
@@ -55,9 +57,33 @@ describe('GitHub Actions workflow contract', () => {
     expect(builder).toContain('deb:')
     expect(builder).not.toContain('- snap')
     expect(builder).not.toContain('- rpm')
+    expect(postMerge).toContain('prepare-release:')
+    expect(postMerge).toContain(
+      'ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}'
+    )
+    expect(postMerge).toContain('Verify release commit')
+    expect(postMerge).toContain('Upload release changelog')
+    expect(postMerge).toContain('build:')
+    expect(postMerge).toContain('uses: ./.github/workflows/build.yml')
+    expect(postMerge).toContain('tag: ${{ needs.prepare-release.outputs.new_tag }}')
+    expect(postMerge).toContain('publish:')
+    expect(postMerge).toContain('needs: [prepare-release, build]')
+    expect(postMerge).toContain('actions/download-artifact@v4')
+    expect(postMerge).not.toContain('gh workflow run')
+    expect(postMerge).not.toContain('gh run list')
+    expect(postMerge).not.toContain('request_id')
+    expect(postMerge).toContain('DISPATCH_VERSION: ${{ inputs.version }}')
+    expect(postMerge).toContain('HEAD_REF: ${{ github.event.pull_request.head.ref }}')
+    expect(postMerge).toContain('^v[0-9]+\\.[0-9]+\\.[0-9]+$')
+    expect(postMerge).not.toContain('NEW_TAG="${{ inputs.version }}"')
+    expect(postMerge).not.toContain('NEW_TAG="${{ github.event.pull_request.head.ref }}"')
     expect(postMerge).toContain('artifacts/linux-appimage/*.AppImage')
     expect(postMerge).toContain('artifacts/linux-deb/*.deb')
     expect(postMerge).toContain('artifacts/windows-installer/*.exe')
     expect(postMerge).not.toMatch(/pyproject|\.rpm|Firefox|Edge|ffmpeg is required/i)
+    expect(autoApprove).toContain('contents: read')
+    expect(autoApprove).not.toContain('contents: write')
+    expect(autoApprove).not.toContain('|| echo "Auto-merge not available')
+    expect(autoApprove.match(/gh pr merge/g)).toHaveLength(1)
   })
 })
