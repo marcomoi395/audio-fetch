@@ -217,4 +217,102 @@ describe('typed IPC boundary', () => {
       }
     })
   })
+  it('maps settings service failures to internal errors', async () => {
+    const handlers = new Map<string, IpcHandler>()
+    registerIpcHandlers(
+      registerForTest(handlers),
+      {
+        ...services,
+        getSettings: vi.fn().mockRejectedValue(new Error('read failed')),
+        updateSettings: vi.fn().mockRejectedValue(new Error('write failed'))
+      },
+      vi.fn(() => null)
+    )
+
+    await expect(handlers.get(IPC_CHANNELS.settingsGet)?.({ sender: {} })).resolves.toEqual({
+      ok: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Unable to read settings' }
+    })
+    await expect(
+      handlers.get(IPC_CHANNELS.settingsUpdate)?.({ sender: {} }, { clearCookies: true })
+    ).resolves.toEqual({
+      ok: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Unable to save settings' }
+    })
+  })
+
+  it('handles minimize requests with and without a window', async () => {
+    const missingWindowHandlers = new Map<string, IpcHandler>()
+    registerIpcHandlers(
+      registerForTest(missingWindowHandlers),
+      services,
+      vi.fn(() => null)
+    )
+    await expect(missingWindowHandlers.get(IPC_CHANNELS.windowMinimize)?.({ sender: {} })).toEqual({
+      ok: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Unable to access application window' }
+    })
+
+    const window = { minimize: vi.fn(), close: vi.fn() }
+    const handlers = new Map<string, IpcHandler>()
+    registerIpcHandlers(
+      registerForTest(handlers),
+      services,
+      vi.fn(() => window)
+    )
+    await expect(handlers.get(IPC_CHANNELS.windowMinimize)?.({ sender: {} })).toEqual({
+      ok: true,
+      data: null
+    })
+    expect(window.minimize).toHaveBeenCalledOnce()
+  })
+
+  it('validates close requests and protects active downloads', async () => {
+    const handlers = new Map<string, IpcHandler>()
+    const window = { minimize: vi.fn(), close: vi.fn() }
+    registerIpcHandlers(
+      registerForTest(handlers),
+      services,
+      vi.fn(() => window)
+    )
+
+    await expect(handlers.get(IPC_CHANNELS.windowClose)?.({ sender: {} }, {})).resolves.toEqual({
+      ok: false,
+      error: { code: 'INVALID_INPUT', message: 'Invalid close request' }
+    })
+
+    const busyHandlers = new Map<string, IpcHandler>()
+    registerIpcHandlers(
+      registerForTest(busyHandlers),
+      { ...services, getQueueStatus: vi.fn().mockResolvedValue({ active: true }) },
+      vi.fn(() => window)
+    )
+    await expect(
+      busyHandlers.get(IPC_CHANNELS.windowClose)?.({ sender: {} }, { confirmed: false })
+    ).resolves.toEqual({
+      ok: false,
+      error: { code: 'BUSY', message: 'A download is already in progress' }
+    })
+
+    await expect(
+      busyHandlers.get(IPC_CHANNELS.windowClose)?.({ sender: {} }, { confirmed: true })
+    ).resolves.toEqual({ ok: true, data: null })
+    expect(window.close).toHaveBeenCalledOnce()
+  })
+
+  it('returns internal errors when closing cannot read queue status', async () => {
+    const handlers = new Map<string, IpcHandler>()
+    registerIpcHandlers(
+      registerForTest(handlers),
+      { ...services, getQueueStatus: vi.fn().mockRejectedValue(new Error('queue failed')) },
+      vi.fn(() => downloadWindow)
+    )
+
+    await expect(
+      handlers.get(IPC_CHANNELS.windowClose)?.({ sender: {} }, { confirmed: false })
+    ).resolves.toEqual({
+      ok: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Unable to close application window' }
+    })
+  })
 })
