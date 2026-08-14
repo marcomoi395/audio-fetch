@@ -1,5 +1,5 @@
 import type { DownloadFormat, DownloadQuality } from '../../shared/ipc'
-import { createAudioEffects } from './audio'
+import { bindAudioInteractions, createAudioEffects } from './audio'
 import { confirmAndClose, createRendererController, type RendererState } from './app'
 
 function isSafeThumbnailUrl(value: string): boolean {
@@ -88,9 +88,7 @@ window.addEventListener('DOMContentLoaded', () => {
   controller.subscribe(render)
   render(controller.getState())
 
-  document.querySelectorAll('button').forEach((button) => {
-    button.addEventListener('click', () => audio.play('click'))
-  })
+  bindAudioInteractions(document.querySelectorAll('button, input, select'), audio.play, false)
 
   document.getElementById('videoInfoForm')?.addEventListener('submit', (event) => {
     event.preventDefault()
@@ -98,12 +96,13 @@ window.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('youtube-url') as HTMLInputElement | null
     if (input) void controller.submit(input.value)
   })
-
   document.getElementById('retry-btn')?.addEventListener('click', () => {
+    audio.play('click')
     void controller.retry()
   })
 
   document.getElementById('new-url-btn')?.addEventListener('click', () => {
+    audio.play('click')
     controller.newUrl()
     const input = document.getElementById('youtube-url') as HTMLInputElement | null
     if (input) input.value = ''
@@ -124,10 +123,12 @@ window.addEventListener('DOMContentLoaded', () => {
   })
 
   document.getElementById('minimize-btn')?.addEventListener('click', () => {
+    audio.play('click')
     void window.audioFetch.window.minimize()
   })
 
   document.getElementById('close-btn')?.addEventListener('click', () => {
+    audio.play('click')
     void confirmAndClose(window.audioFetch, (message) => window.confirm(message))
   })
 })

@@ -1,11 +1,21 @@
 import { describe, expect, it, vi } from 'vitest'
 import { confirmAndClose } from '../../src/renderer/src/app'
-import { createAudioEffects, type AudioContextLike } from '../../src/renderer/src/audio'
+import {
+  bindAudioInteractions,
+  createAudioEffects,
+  type AudioContextLike,
+  type AudioEvent
+} from '../../src/renderer/src/audio'
 
-function createContext(frequencies: number[] = []): AudioContextLike {
+function createContext(
+  frequencies: number[] = [],
+  state: 'running' | 'suspended' = 'running'
+): AudioContextLike {
   return {
     currentTime: 0,
     destination: {},
+    state,
+    resume: vi.fn().mockResolvedValue(undefined),
     createOscillator: vi.fn(() => {
       let value = 0
       return {
@@ -32,18 +42,90 @@ function createContext(frequencies: number[] = []): AudioContextLike {
 }
 
 describe('renderer audio effects', () => {
-  it('plays five distinct UI sound frequencies', () => {
+  it('plays seven distinct UI sound frequencies through one context', () => {
     const frequencies: number[] = []
     const context = createContext(frequencies)
     const effects = createAudioEffects(() => context)
 
-    for (const event of ['click', 'fetch', 'download', 'success', 'error'] as const) {
+    for (const event of [
+      'click',
+      'fetch',
+      'download',
+      'success',
+      'error',
+      'hover',
+      'focus'
+    ] as const) {
       effects.play(event)
     }
 
-    expect(context.createOscillator).toHaveBeenCalledTimes(5)
-    expect(context.createGain).toHaveBeenCalledTimes(5)
-    expect(frequencies).toEqual([440, 520, 660, 880, 180])
+    expect(context.createOscillator).toHaveBeenCalledTimes(7)
+    expect(context.createGain).toHaveBeenCalledTimes(7)
+    expect(frequencies).toEqual([440, 520, 660, 880, 180, 300, 360])
+  })
+
+  it('creates one context and resumes it when suspended', () => {
+    const context = createContext([], 'suspended')
+    const getContext = vi.fn(() => context)
+    const effects = createAudioEffects(getContext)
+
+    effects.play('hover')
+    effects.play('focus')
+
+    expect(getContext).toHaveBeenCalledOnce()
+    expect(context.resume).toHaveBeenCalledOnce()
+  })
+  it('retries resume after the first resume rejection', async () => {
+    const context = createContext([], 'suspended')
+    context.resume = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Autoplay blocked'))
+      .mockResolvedValue(undefined)
+    const effects = createAudioEffects(() => context)
+
+    effects.play('hover')
+    await Promise.resolve()
+    effects.play('focus')
+
+    expect(context.resume).toHaveBeenCalledTimes(2)
+  })
+
+  it('binds hover and focus without click when click is disabled', () => {
+    const listeners = new Map<string, () => void>()
+    const controls = [
+      {
+        addEventListener: vi.fn((event: string, listener: () => void) => {
+          listeners.set(event, listener)
+        })
+      }
+    ]
+    const play = vi.fn<(event: AudioEvent) => void>()
+
+    bindAudioInteractions(controls, play, false)
+    listeners.get('pointerenter')?.()
+    listeners.get('focusin')?.()
+    listeners.get('click')?.()
+
+    expect(play.mock.calls).toEqual([['hover'], ['focus']])
+  })
+
+  it('binds one hover, focus, and click sound per control', () => {
+    const listeners = new Map<string, () => void>()
+    const controls = [
+      {
+        addEventListener: vi.fn((event: string, listener: () => void) => {
+          listeners.set(event, listener)
+        })
+      }
+    ]
+    const play = vi.fn<(event: AudioEvent) => void>()
+
+    bindAudioInteractions(controls, play)
+    listeners.get('pointerenter')?.()
+    listeners.get('focusin')?.()
+    listeners.get('click')?.()
+
+    expect(play.mock.calls).toEqual([['hover'], ['focus'], ['click']])
   })
 
   it('swallows audio failures without breaking actions', () => {
