@@ -30,6 +30,8 @@ describe('Audio Fetch app shell', () => {
     expect(builderConfig).toContain('appId: com.audiofetch.app')
     expect(builderConfig).toContain('productName: Audio Fetch')
     expect(windowSource).toContain('frame: false')
+    expect(windowSource).toContain('resizable: false')
+    expect(windowSource).toContain('maximizable: false')
     expect(windowSource).toContain('contextIsolation: true')
     expect(windowSource).toContain('nodeIntegration: false')
     expect(policySource).toContain("protocol === 'http:' || protocol === 'https:'")

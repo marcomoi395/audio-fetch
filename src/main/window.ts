@@ -18,6 +18,8 @@ export function createWindow(config: WindowConfig = {}): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: windowConfig.width,
     height: windowConfig.height,
+    resizable: false,
+    maximizable: false,
     title: windowConfig.title,
     frame: false,
     show: false,

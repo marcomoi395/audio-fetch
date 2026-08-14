@@ -24,14 +24,21 @@ describe('legacy renderer assets', () => {
     }
   })
 
-  it('uses bundled local styles and favicon without remote CSS/font dependencies', () => {
+  it('uses bundled local styles and pixel font without remote dependencies', () => {
+    const customCss = readFileSync(resolve(rendererRoot, 'assets/css/custom.css'), 'utf8')
+    const fontPath = resolve(rendererRoot, 'assets/fonts/press-start-2p.woff2')
+
     expect(indexHtml).toContain('./assets/nes.css')
     expect(indexHtml).toContain('./assets/images/favicon.png')
     expect(indexHtml).not.toContain('https://unpkg.com/nes.css')
     expect(indexHtml).not.toContain('fonts.googleapis.com')
     expect(mainCss).toContain('./css/custom.css')
+    expect(customCss).toContain("url('../fonts/press-start-2p.woff2')")
+    expect(customCss).toContain("font-family: 'Press Start 2P', monospace")
     expect(existsSync(resolve(rendererRoot, 'assets/nes.css'))).toBe(true)
     expect(existsSync(resolve(rendererRoot, 'assets/css/custom.css'))).toBe(true)
+    expect(existsSync(fontPath)).toBe(true)
+    expect(readFileSync(fontPath).byteLength).toBeGreaterThan(0)
     expect(existsSync(resolve(rendererRoot, 'assets/images/favicon.png'))).toBe(true)
   })
 
