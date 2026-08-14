@@ -46,6 +46,11 @@ describe('GitHub Actions workflow contract', () => {
     expect(release).toContain('bun install --frozen-lockfile')
     expect(release).toContain('group: release-preparation')
     expect(release).toContain('cancel-in-progress: false')
+    expect(release).toContain('name: Get current package version')
+    expect(release).toContain(
+      'CURRENT_VERSION: ${{ steps.get_current_version.outputs.current_version }}'
+    )
+    expect(release).not.toContain('get_latest_tag')
   })
 
   it('publishes only Electron artifacts from the post-merge release flow', () => {

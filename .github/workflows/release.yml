@@ -45,16 +45,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Get latest tag
-        id: get_latest_tag
+      - name: Get current package version
+        id: get_current_version
         run: |
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+          CURRENT_VERSION=$(bun -e 'console.log(JSON.parse(require("node:fs").readFileSync("package.json", "utf8")).version)')
+          echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Calculate new version
         id: calc_version
         env:
-          CURRENT_VERSION: ${{ steps.get_latest_tag.outputs.latest_tag }}
+          CURRENT_VERSION: ${{ steps.get_current_version.outputs.current_version }}
           BUMP_TYPE: ${{ inputs.version_bump }}
         run: |
           NEW_VERSION=$(bun -e '
@@ -67,6 +67,7 @@ jobs:
           ')
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_tag=v$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
 
       - name: Update package.json and bun.lock versions
         env:
