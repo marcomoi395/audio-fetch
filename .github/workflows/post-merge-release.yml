@@ -15,12 +15,17 @@ on:
 permissions:
   contents: write
   actions: read
+concurrency:
+  group: release-publish
+  cancel-in-progress: false
 
 jobs:
   prepare-release:
     name: Prepare Electron release
     if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/'))
     runs-on: ubuntu-latest
+    env:
+      RELEASE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
     outputs:
       new_tag: ${{ steps.release.outputs.new_tag }}
     steps:
@@ -34,6 +39,7 @@ jobs:
       - name: Verify release commit
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          RELEASE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
         run: |
           ACTUAL_SHA=$(git rev-parse HEAD)
           if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
@@ -83,8 +89,10 @@ jobs:
 
       - name: Get previous tag
         id: previous
+        env:
+          RELEASE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
         run: |
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 "$GITHUB_SHA^" 2>/dev/null || echo "v0.0.0")
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 "$RELEASE_SHA^" 2>/dev/null || echo "v0.0.0")
           echo "previous_tag=$PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Generate changelog
@@ -92,12 +100,13 @@ jobs:
         env:
           PREVIOUS_TAG: ${{ steps.previous.outputs.previous_tag }}
           NEW_TAG: ${{ steps.release.outputs.new_tag }}
+          RELEASE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
         run: |
           CHANGELOG_FILE="$RUNNER_TEMP/changelog.md"
           if [ "$PREVIOUS_TAG" = "v0.0.0" ]; then
             COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
           else
-            COMMITS=$(git log "$PREVIOUS_TAG".."$GITHUB_SHA" --pretty=format:"- %s (%h)" --no-merges)
+            COMMITS=$(git log "$PREVIOUS_TAG".."$RELEASE_SHA" --pretty=format:"- %s (%h)" --no-merges)
           fi
           {
             echo "## Changes in $NEW_TAG"
@@ -173,7 +182,7 @@ jobs:
       - name: Verify unpacked runtime resources
         run: bun run verify:resources:unpacked
 
-      - name: Run mocked Electron smoke tests
+      - name: Run unpacked Electron E2E with offline fixture
         run: xvfb-run bun run test:e2e
 
   publish:

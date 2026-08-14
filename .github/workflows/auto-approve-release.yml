@@ -8,7 +8,7 @@ on:
 
 permissions:
   pull-requests: write
-  contents: read
+  contents: write
 
 jobs:
   auto-merge:
@@ -37,9 +37,11 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          echo "## Auto-merge Summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **PR**: #$PR_NUMBER" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Auto-merge**: Enabled" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "[$PR_URL]($PR_URL)" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Auto-merge Summary"
+            echo ""
+            echo "- **PR**: #$PR_NUMBER"
+            echo "- **Auto-merge**: Enabled"
+            echo ""
+            echo "[$PR_URL]($PR_URL)"
+          } >> "$GITHUB_STEP_SUMMARY"

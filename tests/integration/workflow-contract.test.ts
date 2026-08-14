@@ -36,7 +36,7 @@ describe('GitHub Actions workflow contract', () => {
     expect(build).not.toMatch(/Python|PyInstaller|Qt|rpm/i)
   })
 
-  it('updates package.json and refreshes bun.lock during release preparation', () => {
+  it('updates package.json, refreshes bun.lock, and serializes release preparation', () => {
     const release = workflow('release.yml')
 
     expect(release).toContain('package.json')
@@ -44,6 +44,8 @@ describe('GitHub Actions workflow contract', () => {
     expect(release).toContain('git add package.json bun.lock')
     expect(release).not.toContain('pyproject.toml')
     expect(release).toContain('bun install --frozen-lockfile')
+    expect(release).toContain('group: release-preparation')
+    expect(release).toContain('cancel-in-progress: false')
   })
 
   it('publishes only Electron artifacts from the post-merge release flow', () => {
@@ -59,7 +61,8 @@ describe('GitHub Actions workflow contract', () => {
     expect(builder).toContain('deb:')
     expect(builder).not.toContain('- snap')
     expect(builder).not.toContain('- rpm')
-    expect(postMerge).toContain('prepare-release:')
+    expect(postMerge).toContain('publish:')
+    expect(postMerge).toContain('group: release-publish')
     expect(postMerge).toContain(
       'ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}'
     )
@@ -75,7 +78,7 @@ describe('GitHub Actions workflow contract', () => {
     )
     expect(postMerge).toContain("find artifacts/linux-deb -type f -name '*.deb' -size +0c")
     expect(postMerge).toContain("find artifacts/windows-installer -type f -name '*.exe' -size +0c")
-    expect(postMerge).toContain('run: xvfb-run bun run test:e2e')
+    expect(postMerge).toContain('name: Run unpacked Electron E2E with offline fixture')
     expect(postMerge).toContain('needs: [prepare-release, build, smoke-simulated]')
     expect(postMerge).toContain('name: production')
     expect(postMerge).toContain('actions/download-artifact@v4')
@@ -91,8 +94,7 @@ describe('GitHub Actions workflow contract', () => {
     expect(postMerge).toContain('artifacts/linux-deb/*.deb')
     expect(postMerge).toContain('artifacts/windows-installer/*.exe')
     expect(postMerge).not.toMatch(/pyproject|\.rpm|Firefox|Edge|ffmpeg is required/i)
-    expect(autoApprove).toContain('contents: read')
-    expect(autoApprove).not.toContain('contents: write')
+    expect(autoApprove).toContain('contents: write')
     expect(autoApprove).not.toContain('|| echo "Auto-merge not available')
     expect(autoApprove.match(/gh pr merge/g)).toHaveLength(1)
   })

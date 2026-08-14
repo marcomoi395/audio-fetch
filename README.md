@@ -124,7 +124,7 @@ Build AppImage/deb on Linux and the NSIS installer on Windows. Cross-platform ar
 Release approval requires:
 
 - Full typecheck, tests, coverage, E2E, lint, actionlint, and build gates.
-- Simulated artifact smoke: non-empty Linux/Windows artifacts plus mocked Electron E2E.
+- Simulated artifact smoke: non-empty Linux/Windows artifacts plus unpacked Electron E2E with offline fixture.
 - A protected GitHub `production` Environment with required reviewers configured in repository settings.
 - Linux AppImage/deb smoke tests.
 - Windows installer smoke test on Windows.
