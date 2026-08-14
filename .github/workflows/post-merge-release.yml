@@ -74,6 +74,8 @@ jobs:
         env:
           NEW_TAG: ${{ steps.release.outputs.new_tag }}
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           EXPECTED_SHA=$(git rev-parse HEAD)
           if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
             TAG_SHA=$(git rev-parse "$NEW_TAG^{commit}")
