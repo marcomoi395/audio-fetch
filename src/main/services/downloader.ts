@@ -88,6 +88,11 @@ function isValidUrl(url: string): boolean {
     return false
   }
 }
+function toYtDlpFlags(attemptFlags: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(attemptFlags).filter(([key]) => key !== 'useManualCookies')
+  )
+}
 
 export function createVideoInfoService(
   executor: YtDlpExecutor,
@@ -99,14 +104,14 @@ export function createVideoInfoService(
 
       try {
         const metadata = await executor(url, {
-          ...attemptFlags,
+          ...toYtDlpFlags(attemptFlags),
           dumpSingleJson: true,
           skipDownload: true
         })
         return mapVideoInfo(metadata)
       } catch (error) {
         const executionError = new DownloadExecutionError(error)
-        log('Video info fetch failed')
+        log(`[video-info] yt-dlp failure ${describeFailure(executionError)}`)
         throw new Error('Unable to fetch video information', { cause: executionError })
       }
     }
@@ -193,7 +198,7 @@ export function createAudioDownloadService(
 
       try {
         const result = await executor(url, {
-          ...attemptFlags,
+          ...toYtDlpFlags(attemptFlags),
           ...getAudioOptions(options),
           output: `${outputDir.replace(/[\\/]+$/, '')}/%(title)s.%(ext)s`,
           print: 'after_move:filepath',

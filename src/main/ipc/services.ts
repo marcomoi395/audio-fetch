@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import { delimiter, join } from 'node:path'
 import type {
   DownloadOptions,
   DownloadResult,
@@ -35,6 +37,17 @@ function createUncertainError(
   error.cause = lastError
   return error
 }
+function resolveNodeRuntime(): string | undefined {
+  const pathEntries = (process.env.PATH ?? '').split(delimiter).filter(Boolean)
+  const executable = process.platform === 'win32' ? 'node.exe' : 'node'
+  const candidates = [
+    ...pathEntries.map((entry) => join(entry, executable)),
+    ...(process.platform === 'win32'
+      ? ['C:\\Program Files\\nodejs\\node.exe', 'C:\\Windows\\System32\\node.exe']
+      : ['/usr/bin/node', '/usr/local/bin/node'])
+  ]
+  return candidates.find((candidate) => existsSync(candidate))
+}
 
 async function executeYtDlp(url: string, options: Record<string, unknown>): Promise<unknown> {
   const mode = process.env['AUDIO_FETCH_E2E_FIXTURE']
@@ -49,8 +62,14 @@ async function executeYtDlp(url: string, options: Record<string, unknown>): Prom
   if (process.resourcesPath && process.resourcesPath !== process.cwd()) {
     configurePackagedYtDlpEnvironment(process.resourcesPath, process.env)
   }
+  const nodeRuntime = resolveNodeRuntime()
+  const ytDlpOptions = {
+    ...options,
+    remoteComponents: 'ejs:github',
+    ...(nodeRuntime ? { jsRuntimes: `node:${nodeRuntime}` } : {})
+  }
   const module = (await import('youtube-dl-exec')) as unknown as { default: YtDlpModule }
-  return module.default(url, options)
+  return module.default(url, ytDlpOptions)
 }
 
 function isSettingsUpdate(value: SettingsUpdate): boolean {

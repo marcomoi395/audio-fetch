@@ -41,6 +41,23 @@ describe('video info service', () => {
     )
   })
 
+  it('removes internal cookie flags before invoking yt-dlp', async () => {
+    const executor = vi.fn().mockResolvedValue({
+      title: 'Test Video',
+      uploader: 'Test Channel',
+      duration: 120
+    })
+    const service = createVideoInfoService(executor)
+
+    await service.fetch('https://youtube.com/watch?v=test', {
+      useManualCookies: true,
+      cookies: '/tmp/cookies.txt'
+    })
+
+    expect(executor.mock.calls[0][1]).not.toHaveProperty('useManualCookies')
+    expect(executor.mock.calls[0][1]).toMatchObject({ cookies: '/tmp/cookies.txt' })
+  })
+
   it('uses safe fallbacks for incomplete metadata', async () => {
     const executor = vi.fn().mockResolvedValue({
       title: '',
@@ -66,8 +83,8 @@ describe('video info service', () => {
     await expect(service.fetch('https://youtube.com/watch?v=test')).rejects.toThrow(
       'Unable to fetch video information'
     )
-    expect(log).toHaveBeenCalledWith('Video info fetch failed')
-    expect(log.mock.calls[0][0]).not.toContain('secret token')
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('[video-info] yt-dlp failure'))
+    expect(log.mock.calls[0][0]).toContain('secret=[REDACTED]')
   })
 })
 
