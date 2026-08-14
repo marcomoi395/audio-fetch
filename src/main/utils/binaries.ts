@@ -12,6 +12,27 @@ export function resolvePackagedYtDlpPath(resourcesPath: string): string {
   )
 }
 
+export function resolvePackagedFfmpegPath(resourcesPath: string): string {
+  return join(
+    resourcesPath,
+    'app.asar.unpacked',
+    'node_modules',
+    '@ffmpeg-installer',
+    `${process.platform}-${process.arch}`,
+    process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
+  )
+}
+
+export function resolveFfmpegPath(
+  resourcesPath: string | undefined,
+  fallbackPath: string,
+  fileExists: (path: string) => boolean = existsSync
+): string {
+  if (!resourcesPath) return fallbackPath
+  const packagedPath = resolvePackagedFfmpegPath(resourcesPath)
+  return fileExists(packagedPath) ? packagedPath : fallbackPath
+}
+
 export function configurePackagedYtDlpEnvironment(
   resourcesPath: string,
   env: NodeJS.ProcessEnv,

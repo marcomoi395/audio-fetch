@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   configurePackagedYtDlpEnvironment,
-  resolvePackagedYtDlpPath
+  resolvePackagedFfmpegPath,
+  resolvePackagedYtDlpPath,
+  resolveFfmpegPath
 } from '../../src/main/utils/binaries'
 
 describe('packaged binary paths', () => {
@@ -30,5 +32,21 @@ describe('packaged binary paths', () => {
       false
     )
     expect(env).toEqual({})
+  })
+  it('resolves packaged FFmpeg inside Electron asarUnpack output', () => {
+    expect(resolvePackagedFfmpegPath('/opt/audio-fetch/resources')).toBe(
+      '/opt/audio-fetch/resources/app.asar.unpacked/node_modules/@ffmpeg-installer/linux-x64/ffmpeg'
+    )
+  })
+
+  it('uses packaged FFmpeg when available and falls back otherwise', () => {
+    const packagedPath = resolvePackagedFfmpegPath('/opt/audio-fetch/resources')
+
+    expect(resolveFfmpegPath('/opt/audio-fetch/resources', '/dev/ffmpeg', () => true)).toBe(
+      packagedPath
+    )
+    expect(resolveFfmpegPath('/opt/audio-fetch/resources', '/dev/ffmpeg', () => false)).toBe(
+      '/dev/ffmpeg'
+    )
   })
 })

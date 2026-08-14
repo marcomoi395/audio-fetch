@@ -1,4 +1,5 @@
 import ffmpeg from '@ffmpeg-installer/ffmpeg'
+import { resolveFfmpegPath } from '../utils/binaries'
 import type {
   DownloadFormat,
   DownloadOptions,
@@ -202,7 +203,7 @@ export function createAudioDownloadService(
           ...getAudioOptions(options),
           output: `${outputDir.replace(/[\\/]+$/, '')}/%(title)s.%(ext)s`,
           print: 'after_move:filepath',
-          ffmpegLocation: ffmpeg.path
+          ffmpegLocation: resolveFfmpegPath(process.resourcesPath, ffmpeg.path)
         })
         const filename =
           typeof result === 'string'
