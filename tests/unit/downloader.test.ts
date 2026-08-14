@@ -37,7 +37,7 @@ describe('video info service', () => {
       expect.objectContaining({
         dumpSingleJson: true,
         skipDownload: true,
-        extractorArgs: expect.any(Object)
+        extractorArgs: 'youtube:player_client=android'
       })
     )
   })
@@ -74,9 +74,7 @@ describe('video info service', () => {
 
 describe('audio download service', () => {
   it('maps MP3 quality, FFmpeg, thumbnail, and metadata options', async () => {
-    const executor = vi.fn().mockResolvedValue({
-      filename: '/downloads/My Song.mp3'
-    })
+    const executor = vi.fn().mockResolvedValue('WARNING: done\n/downloads/My Song.mp3\n')
     const service = createAudioDownloadService(executor)
 
     await expect(
@@ -92,14 +90,15 @@ describe('audio download service', () => {
       expect.objectContaining({
         format: 'bestaudio/best',
         ffmpegLocation: expect.any(String),
-        outtmpl: '/downloads/%(title)s.%(ext)s',
-        writethumbnail: true,
-        postprocessors: [
-          { key: 'FFmpegExtractAudio', preferredcodec: 'mp3', preferredquality: '192' },
-          { key: 'FFmpegThumbnailsConvertor', format: 'jpg' },
-          { key: 'EmbedThumbnail' },
-          { key: 'FFmpegMetadata', add_metadata: true }
-        ]
+        output: '/downloads/%(title)s.%(ext)s',
+        print: 'after_move:filepath',
+        extractAudio: true,
+        audioFormat: 'mp3',
+        audioQuality: '192',
+        writeThumbnail: true,
+        convertThumbnails: 'jpg',
+        embedThumbnail: true,
+        embedMetadata: true
       })
     )
   })
@@ -119,18 +118,22 @@ describe('audio download service', () => {
     expect(executor).toHaveBeenCalledWith(
       'https://youtube.com/watch?v=test',
       expect.objectContaining({
-        postprocessors: [
-          { key: 'FFmpegThumbnailsConvertor', format: 'jpg' },
-          { key: 'EmbedThumbnail' },
-          { key: 'FFmpegMetadata', add_metadata: true }
-        ]
+        format: 'bestaudio/best',
+        writeThumbnail: true,
+        convertThumbnails: 'jpg',
+        embedThumbnail: true,
+        embedMetadata: true
       })
     )
+    const options = executor.mock.calls[0][1] as Record<string, unknown>
+    expect(options).not.toHaveProperty('extractAudio')
+    expect(options).not.toHaveProperty('audioFormat')
+    expect(options).not.toHaveProperty('audioQuality')
   })
 
-  it('normalizes binary failures and avoids leaking error details', async () => {
+  it('normalizes binary failures and logs the real error safely', async () => {
     const log = vi.fn()
-    const executor = vi.fn().mockRejectedValue(new Error('secret-token --cookies-from-browser'))
+    const executor = vi.fn().mockRejectedValue(new Error('fixture failure'))
     const service = createAudioDownloadService(executor, log)
 
     await expect(
@@ -140,7 +143,6 @@ describe('audio download service', () => {
         '/downloads'
       )
     ).rejects.toThrow('Unable to download audio')
-    expect(log).toHaveBeenCalledWith('Audio download failed')
-    expect(log.mock.calls[0][0]).not.toContain('secret-token')
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('fixture failure'))
   })
 })

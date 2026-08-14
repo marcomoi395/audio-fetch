@@ -63,11 +63,19 @@ function isValidOptions(value: unknown): value is DownloadOptions {
     ['0', '5', '9'].includes(value.quality)
   )
 }
+function describeError(value: unknown): string {
+  const message = value instanceof Error ? value.message : String(value)
+  return message.replace(
+    /(cookie|token|password|secret|authorization)[=:][^\s]+/gi,
+    '$1=[REDACTED]'
+  )
+}
 
 export function registerIpcHandlers(
   ipcMain: IpcMainLike,
   services: IpcServices,
-  resolveSenderWindow: (sender: unknown) => WindowLike | null
+  resolveSenderWindow: (sender: unknown) => WindowLike | null,
+  log: (message: string) => void = console.error
 ): void {
   ipcMain.handle(IPC_CHANNELS.videoInfoFetch, async (_event, payload) => {
     const url = property(payload, 'url')
@@ -83,11 +91,18 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC_CHANNELS.downloadStart, async (_event, payload) => {
     const url = property(payload, 'url')
     const options = property(payload, 'options')
+    console.log('[download] IPC start', { hasUrl: typeof url === 'string', options })
     if (!isValidUrl(url) || !isValidOptions(options)) return invalid('Invalid download request')
 
     try {
-      return { ok: true, data: await services.startDownload(url, options) }
+      const result = await services.startDownload(url, options)
+      console.log('[download] IPC success', result)
+      return { ok: true, data: result }
     } catch (error) {
+      if (!(error instanceof Error && error.message === 'Unable to download audio')) {
+        const message = `[download] IPC failure ${describeError(error).slice(0, 1000)}`
+        log(message)
+      }
       if (error instanceof BusyDownloadError) return busy(error.message)
       return internal('Unable to start download')
     }

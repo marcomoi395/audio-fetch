@@ -17,7 +17,7 @@ async function executeYtDlp(url: string, options: Record<string, unknown>): Prom
     }
     return options.dumpSingleJson
       ? { title: 'Fixture Video', uploader: 'Fixture Channel', duration: 42, thumbnail: '' }
-      : { filename: '/downloads/fixture.mp3' }
+      : '/downloads/fixture.mp3\n'
   }
 
   if (process.resourcesPath && process.resourcesPath !== process.cwd()) {

@@ -95,13 +95,17 @@ export function createRendererController(api: RendererApi) {
       update({ ...current, downloadStatus: 'loading' })
       try {
         const result = await api.download.start(currentUrl, { format, quality })
+        console.log('[download] IPC result', result)
         if (version !== requestVersion) return
         if (result.ok) {
+          console.log('[download] success', result.data.path)
           update({ ...current, downloadStatus: 'success', downloadPath: result.data.path })
         } else {
+          console.error('[download] rejected', result.error)
           update({ status: 'error', message: result.error.message })
         }
-      } catch {
+      } catch (error) {
+        console.error('[download] IPC threw', error)
         if (version === requestVersion) {
           update({ status: 'error', message: 'Unable to download audio' })
         }

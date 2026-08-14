@@ -75,6 +75,32 @@ describe('typed IPC boundary', () => {
       error: { code: 'INTERNAL_ERROR', message: 'Unable to fetch video information' }
     })
   })
+  it('logs download service failures without exposing the raw error to IPC', async () => {
+    const handlers = new Map<string, IpcHandler>()
+    const log = vi.fn()
+    const testServices: IpcServices = {
+      ...services,
+      startDownload: vi.fn().mockRejectedValue(new Error('yt-dlp failed token=secret-value'))
+    }
+
+    registerIpcHandlers(
+      registerForTest(handlers),
+      testServices,
+      vi.fn(() => null),
+      log
+    )
+    const result = await handlers.get(IPC_CHANNELS.downloadStart)?.(
+      { sender: {} },
+      { url: 'https://youtube.com/watch?v=1', options: { format: 'mp3', quality: '0' } }
+    )
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Unable to start download' }
+    })
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('[download] IPC failure'))
+    expect(log.mock.calls[0][0]).not.toContain('secret-value')
+  })
 
   it('sanitizes unavailable service errors', async () => {
     const handlers = new Map<string, IpcHandler>()

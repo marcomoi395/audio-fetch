@@ -43,7 +43,8 @@ if (hasSingleInstance) {
         } catch {
           return null
         }
-      }
+      },
+      (message) => logger.error(message)
     )
   })
 

@@ -6,6 +6,7 @@ import {
   getNextTier,
   shouldEscalateOnError
 } from '../../src/main/services/tier-strategy'
+import { DownloadExecutionError } from '../../src/main/services/downloader'
 
 describe('three-tier download strategy', () => {
   it('defines Tier 1 attempts in order', () => {
@@ -30,7 +31,11 @@ describe('three-tier download strategy', () => {
   })
 
   it('defines Tier 2 browser-cookie attempts', () => {
-    const strategy = createTierStrategy({ browser: 'brave', tier3Enabled: true })
+    const strategy = createTierStrategy({
+      browser: 'brave',
+      cookiesEnabled: true,
+      tier3Enabled: true
+    })
 
     expect(strategy.getAttempts(DownloadTier.Tier2)).toEqual([
       { cookiesFromBrowser: 'brave' },
@@ -38,8 +43,17 @@ describe('three-tier download strategy', () => {
     ])
   })
 
-  it('succeeds on the first Tier 2 attempt', async () => {
+  it('does not enable browser cookies by default', () => {
     const strategy = createTierStrategy({ browser: 'chrome', tier3Enabled: true })
+    expect(strategy.getAttempts(DownloadTier.Tier2)).toEqual([])
+  })
+
+  it('succeeds on the first Tier 2 attempt', async () => {
+    const strategy = createTierStrategy({
+      browser: 'chrome',
+      cookiesEnabled: true,
+      tier3Enabled: true
+    })
     const attempt = vi
       .fn()
       .mockRejectedValueOnce({ statusCode: 403 })
@@ -57,21 +71,42 @@ describe('three-tier download strategy', () => {
     const strategy = createTierStrategy({ browser: 'chrome', tier3Enabled: true })
 
     expect(strategy.getAttempts(DownloadTier.Tier3)).toEqual([
-      { playerClient: ['android'] },
-      { playerClient: ['mweb'] }
+      { extractorArgs: 'youtube:player_client=android' },
+      { extractorArgs: 'youtube:player_client=mweb' }
     ])
     expect(
       createTierStrategy({ browser: 'chrome', tier3Enabled: false }).getAttempts(DownloadTier.Tier3)
     ).toEqual([])
   })
 
-  it('escalates on approved status codes and bot/auth keywords only', () => {
+  it('escalates on approved status codes, stderr bot signals, and rejects FFmpeg errors', () => {
     expect(shouldEscalateOnError({ statusCode: 401 })).toBe(true)
     expect(shouldEscalateOnError({ statusCode: 403 })).toBe(true)
     expect(shouldEscalateOnError({ statusCode: 429 })).toBe(true)
     expect(shouldEscalateOnError({ message: 'Sign in to confirm you are not a bot' })).toBe(true)
+    expect(shouldEscalateOnError({ stderr: 'HTTP Error 403: Forbidden', exitCode: 1 })).toBe(true)
+    expect(shouldEscalateOnError({ statusCode: 403, stderr: 'Forbidden' })).toBe(true)
+    expect(shouldEscalateOnError({ stderr: 'ERROR: ffmpeg not found', exitCode: 1 })).toBe(false)
     expect(shouldEscalateOnError({ statusCode: 404, message: 'not found' })).toBe(false)
     expect(shouldEscalateOnError({ statusCode: 500, message: 'temporary error' })).toBe(false)
+  })
+  it('unwraps public download errors to classify their cause', () => {
+    const cause = new DownloadExecutionError({ stderr: 'HTTP Error 403: Forbidden', exitCode: 1 })
+    const error = new Error('Unable to download audio', { cause })
+
+    expect(shouldEscalateOnError(error)).toBe(true)
+  })
+
+  it('skips cookie tier without consent and reaches Tier 3', async () => {
+    const strategy = createTierStrategy({ browser: 'chrome', tier3Enabled: true })
+    const attempt = vi.fn().mockRejectedValue({ stderr: 'HTTP Error 403: Forbidden', exitCode: 1 })
+
+    await expect(executeTierStrategy(strategy, attempt)).resolves.toMatchObject({
+      success: false,
+      tier: DownloadTier.Tier3,
+      attempts: 5,
+      lastError: { stderr: 'HTTP Error 403: Forbidden', exitCode: 1 }
+    })
   })
 
   it('succeeds on the first Tier 3 attempt', async () => {
@@ -89,23 +124,35 @@ describe('three-tier download strategy', () => {
     const strategy = createTierStrategy({ browser: 'chrome', tier3Enabled: true })
     const attempt = vi.fn().mockRejectedValue({ statusCode: 403, message: 'forbidden' })
 
-    await expect(executeTierStrategy(strategy, attempt, DownloadTier.Tier3)).resolves.toEqual({
-      success: false,
-      tier: DownloadTier.Tier3,
-      attempts: 2
+    await expect(executeTierStrategy(strategy, attempt, DownloadTier.Tier3)).resolves.toMatchObject(
+      {
+        success: false,
+        tier: DownloadTier.Tier3,
+        attempts: 2,
+        lastError: { statusCode: 403, message: 'forbidden' }
+      }
+    )
+    expect(attempt).toHaveBeenNthCalledWith(1, {
+      extractorArgs: 'youtube:player_client=android'
     })
-    expect(attempt).toHaveBeenNthCalledWith(1, { playerClient: ['android'] })
-    expect(attempt).toHaveBeenNthCalledWith(2, { playerClient: ['mweb'] })
+    expect(attempt).toHaveBeenNthCalledWith(2, {
+      extractorArgs: 'youtube:player_client=mweb'
+    })
   })
 
   it('consumes all attempts across tiers after approved escalation errors', async () => {
-    const strategy = createTierStrategy({ browser: 'chrome', tier3Enabled: true })
+    const strategy = createTierStrategy({
+      browser: 'chrome',
+      cookiesEnabled: true,
+      tier3Enabled: true
+    })
     const attempt = vi.fn().mockRejectedValue({ statusCode: 403 })
 
-    await expect(executeTierStrategy(strategy, attempt)).resolves.toEqual({
+    await expect(executeTierStrategy(strategy, attempt)).resolves.toMatchObject({
       success: false,
       tier: DownloadTier.Tier3,
-      attempts: 7
+      attempts: 7,
+      lastError: { statusCode: 403 }
     })
   })
 
@@ -116,13 +163,18 @@ describe('three-tier download strategy', () => {
   })
 
   it('stops at Tier 2 when Tier 3 is disabled', async () => {
-    const strategy = createTierStrategy({ browser: 'chrome', tier3Enabled: false })
+    const strategy = createTierStrategy({
+      browser: 'chrome',
+      cookiesEnabled: true,
+      tier3Enabled: false
+    })
     const attempt = vi.fn().mockRejectedValue({ statusCode: 403 })
 
-    await expect(executeTierStrategy(strategy, attempt)).resolves.toEqual({
+    await expect(executeTierStrategy(strategy, attempt)).resolves.toMatchObject({
       success: false,
       tier: DownloadTier.Tier2,
-      attempts: 5
+      attempts: 5,
+      lastError: { statusCode: 403 }
     })
   })
 })

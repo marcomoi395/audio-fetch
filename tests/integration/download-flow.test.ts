@@ -13,7 +13,7 @@ const registerForTest = (handlers: Map<string, IpcHandler>): IpcMainLike => ({
 
 describe('download IPC flow', () => {
   it('starts one download and exposes safe queue status', async () => {
-    const executor = vi.fn().mockResolvedValue({ filename: '/downloads/song.mp3' })
+    const executor = vi.fn().mockResolvedValue('/downloads/song.mp3\n')
     const services = createIpcServices(() => undefined, '/downloads', executor)
     const handlers = new Map<string, IpcHandler>()
 
