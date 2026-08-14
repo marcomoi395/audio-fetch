@@ -1,6 +1,6 @@
 {
   "name": "audio-fetch",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "A minimal Electron application with TypeScript",
   "main": "./out/main/index.js",
   "author": "example.com",
@@ -30,7 +30,10 @@
     "build:win": "bun run build && bunx electron-builder --win",
     "build:linux": "bun run build && bunx electron-builder --linux"
   },
-  "trustedDependencies": ["electron", "youtube-dl-exec"],
+  "trustedDependencies": [
+    "electron",
+    "youtube-dl-exec"
+  ],
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
