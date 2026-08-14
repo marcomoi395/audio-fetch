@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "audio-fetch"
-version = "1.0.0"
+version = "1.1.0"
 description = "A desktop application for downloading YouTube audio with Qt GUI and embedded FastAPI server"
 requires-python = ">=3.10"
 
