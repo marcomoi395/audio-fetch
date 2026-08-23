@@ -86,6 +86,12 @@ describe('GitHub Actions workflow contract', () => {
     expect(postMerge).toContain("find artifacts/linux-deb -type f -name '*.deb' -size +0c")
     expect(postMerge).toContain("find artifacts/windows-installer -type f -name '*.exe' -size +0c")
     expect(postMerge).toContain('name: Run unpacked Electron E2E with offline fixture')
+    expect(postMerge).toContain(
+      'run: bun install --frozen-lockfile\n      - name: Download release artifacts'
+    )
+    expect(postMerge).not.toContain(
+      'run: bun install --frozen-lockfile --ignore-scripts\n      - name: Download release artifacts'
+    )
     expect(postMerge).toContain('needs: [prepare-release, build, smoke-simulated]')
     expect(postMerge).toContain('name: production')
     expect(postMerge).toContain(
