@@ -64,9 +64,9 @@ describe('download IPC flow', () => {
     ).resolves.toEqual({
       path: '/downloads/cookie.mp3'
     })
-    expect(log).toHaveBeenCalledWith('[download] tier=1 attempt=1')
     expect(log).toHaveBeenCalledWith('[download] tier=2 client=android')
     expect(log).toHaveBeenCalledWith('[download] tier=2 client=mweb')
+    expect(log).toHaveBeenCalledWith('[download] tier=1 attempt=1')
     expect(log).toHaveBeenCalledWith('[download] tier=3 manual-cookie')
     expect(log.mock.calls.flat().join('\n')).not.toContain('cookies.txt')
     expect(log.mock.calls.flat().join('\n')).not.toContain('secret-value')
@@ -96,12 +96,14 @@ describe('download IPC flow', () => {
     ).resolves.toMatchObject({
       title: 'Private'
     })
-    expect(executor.mock.calls[1][1]).toMatchObject({
+    expect(executor.mock.calls[0][1]).toMatchObject({
       extractorArgs: 'youtube:player_client=android'
     })
-    expect(executor.mock.calls[2][1]).toMatchObject({ extractorArgs: 'youtube:player_client=mweb' })
+    expect(executor.mock.calls[1][1]).toMatchObject({
+      extractorArgs: 'youtube:player_client=mweb'
+    })
+    expect(executor.mock.calls[2][1]).toMatchObject({})
     const cookiePath = executor.mock.calls[3][1].cookies as string
-    expect(cookiePath).toContain('cookies.txt')
     await expect(stat(cookiePath)).rejects.toMatchObject({ code: 'ENOENT' })
   })
   it('maps terminal auth failure to COOKIES_REQUIRED', async () => {

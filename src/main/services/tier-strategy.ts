@@ -152,8 +152,8 @@ export function isAuthenticationRequired(error: unknown): boolean {
 }
 
 export function getNextTier(tier: DownloadTier): DownloadTier | null {
-  if (tier === DownloadTier.Tier1) return DownloadTier.Tier2
-  if (tier === DownloadTier.Tier2) return DownloadTier.Tier3
+  if (tier === DownloadTier.Tier2) return DownloadTier.Tier1
+  if (tier === DownloadTier.Tier1) return DownloadTier.Tier3
   return null
 }
 
@@ -175,7 +175,7 @@ function attemptLabel(tier: DownloadTier, flags: TierAttempt, attempt: number): 
 export async function executeTierStrategy(
   strategy: TierStrategy,
   attempt: (flags: TierAttempt) => Promise<unknown>,
-  startTier: DownloadTier = DownloadTier.Tier1,
+  startTier: DownloadTier = DownloadTier.Tier2,
   logAttempt: (message: string) => void = () => undefined
 ): Promise<TierExecutionResult> {
   let tier = startTier

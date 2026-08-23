@@ -47,8 +47,9 @@ describe('three-tier download strategy', () => {
       attempts: 4,
       lastError: { statusCode: 403 }
     })
-    expect(attempt).toHaveBeenNthCalledWith(2, { extractorArgs: 'youtube:player_client=android' })
-    expect(attempt).toHaveBeenNthCalledWith(3, { extractorArgs: 'youtube:player_client=mweb' })
+    expect(attempt).toHaveBeenNthCalledWith(1, { extractorArgs: 'youtube:player_client=android' })
+    expect(attempt).toHaveBeenNthCalledWith(2, { extractorArgs: 'youtube:player_client=mweb' })
+    expect(attempt).toHaveBeenNthCalledWith(3, {})
     expect(attempt).toHaveBeenNthCalledWith(4, { useManualCookies: true })
   })
 
@@ -67,7 +68,7 @@ describe('three-tier download strategy', () => {
   it('preserves outer exit codes in terminal errors', async () => {
     const attempt = vi.fn().mockRejectedValue({ exitCode: 1, message: 'network timeout' })
     await expect(
-      executeTierStrategy(createTierStrategy({ tier1Attempts: 1 }), attempt)
+      executeTierStrategy(createTierStrategy({ tier1Attempts: 1 }), attempt, DownloadTier.Tier1)
     ).resolves.toMatchObject({
       success: false,
       tier: DownloadTier.Tier1,
@@ -148,21 +149,21 @@ describe('three-tier download strategy', () => {
     })
   })
 
-  it('preserves tier ordering helpers', () => {
-    expect(getNextTier(DownloadTier.Tier1)).toBe(DownloadTier.Tier2)
-    expect(getNextTier(DownloadTier.Tier2)).toBe(DownloadTier.Tier3)
+  it('preserves mobile-first tier ordering helpers', () => {
+    expect(getNextTier(DownloadTier.Tier2)).toBe(DownloadTier.Tier1)
+    expect(getNextTier(DownloadTier.Tier1)).toBe(DownloadTier.Tier3)
     expect(getNextTier(DownloadTier.Tier3)).toBeNull()
   })
   it('skips empty tiers before executing the next available tier', async () => {
     const strategy = {
-      getAttempts: (tier: DownloadTier) => (tier === DownloadTier.Tier2 ? [{}] : [])
+      getAttempts: (tier: DownloadTier) => (tier === DownloadTier.Tier1 ? [{}] : [])
     }
 
     await expect(
       executeTierStrategy(strategy, vi.fn().mockResolvedValue(undefined))
     ).resolves.toEqual({
       success: true,
-      tier: DownloadTier.Tier2,
+      tier: DownloadTier.Tier1,
       attempts: 1
     })
   })
@@ -173,7 +174,7 @@ describe('three-tier download strategy', () => {
       executeTierStrategy(strategy, vi.fn().mockResolvedValue(undefined))
     ).resolves.toEqual({
       success: true,
-      tier: DownloadTier.Tier1,
+      tier: DownloadTier.Tier2,
       attempts: 1
     })
   })

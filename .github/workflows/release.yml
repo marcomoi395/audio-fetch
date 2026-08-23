@@ -68,7 +68,6 @@ jobs:
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_tag=v$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
-
       - name: Update package.json and bun.lock versions
         env:
           NEW_VERSION: ${{ steps.calc_version.outputs.new_version }}
