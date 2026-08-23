@@ -172,7 +172,6 @@ jobs:
         with:
           path: artifacts
 
-
       - name: Verify artifact files
         shell: bash
         run: |
