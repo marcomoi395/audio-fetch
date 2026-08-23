@@ -4,11 +4,14 @@ import { registerIpcHandlers } from './ipc'
 import { createIpcServices } from './ipc/services'
 import { DEFAULT_CONFIG, loadConfig, saveConfig } from './services/config'
 import { createManualCookieStore } from './services/cookie-store'
+import { createYtDlpExecutor, updateYtDlp } from './services/ytdlp'
 import { createLogger } from './utils/logger'
+import { prepareYtDlpRuntime, resolveYtDlpSourcePath } from './utils/binaries'
 import { getElectronConfigPath } from './utils/paths'
-import { createWindow, DEFAULT_WINDOW_CONFIG, focusExistingWindow } from './window'
+import { createWindow, focusExistingWindow } from './window'
 import { registerSingleInstance } from './single-instance'
 
+type AudioServiceExecutor = (url: string, options: Record<string, unknown>) => Promise<unknown>
 const hasSingleInstance = registerSingleInstance(app, () => {
   const [mainWindow] = BrowserWindow.getAllWindows()
   if (mainWindow) focusExistingWindow(mainWindow)
@@ -26,22 +29,33 @@ if (hasSingleInstance) {
       configPath = getElectronConfigPath(app)
       config = await loadConfig(configPath, (message) => logger.warn(message))
       await saveConfig(configPath, config)
-      createWindow({
-        width: config.ui.windowWidth,
-        height: config.ui.windowHeight,
-        title: config.ui.windowTitle
-      })
     } catch {
       logger.warn('Config startup failed; using defaults')
-      createWindow(DEFAULT_WINDOW_CONFIG)
     }
+
+    const sourcePath = resolveYtDlpSourcePath(process.resourcesPath, process.cwd(), app.isPackaged)
+    const ytDlpRuntime = await prepareYtDlpRuntime(sourcePath, app.getPath('userData'))
+    const updatePromise = updateYtDlp(ytDlpRuntime, (message) => logger.warn(message))
+    let executorPromise: Promise<AudioServiceExecutor> | undefined
+    const executor: AudioServiceExecutor = async (url, options) => {
+      await updatePromise
+      executorPromise ??= createYtDlpExecutor(ytDlpRuntime)
+      const delegate = await executorPromise
+      return delegate(url, options)
+    }
+
+    createWindow({
+      width: config.ui.windowWidth,
+      height: config.ui.windowHeight,
+      title: config.ui.windowTitle
+    })
     const cookieStore = createManualCookieStore()
     registerIpcHandlers(
       ipcMain,
       createIpcServices(
         (message) => logger.warn(message),
         app.getPath('temp'),
-        undefined,
+        executor,
         config,
         cookieStore
       ),

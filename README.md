@@ -19,7 +19,9 @@ Requirements: Bun 1.x, Node.js 20+ LTS.
 bun install
 ```
 
-`youtube-dl-exec` installs the yt-dlp binary during dependency setup. FFmpeg comes from `@ffmpeg-installer/ffmpeg`.
+`youtube-dl-exec` installs the initial yt-dlp binary during dependency setup. On each app start, Audio Fetch ensures a user-writable copy exists in the Electron `userData/yt-dlp/` directory and runs yt-dlp's self-update check (`-U`) there. If the network or update fails, the app continues with the existing binary.
+
+FFmpeg comes from `@ffmpeg-installer/ffmpeg`.
 
 ## Development
 
