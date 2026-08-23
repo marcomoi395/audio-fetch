@@ -47,6 +47,7 @@ test('runs offline input to loading to info to download transitions', async () =
     await window.locator('#fetch-btn').click()
     await expect(window.locator('#videoInfoStatus')).toHaveText('Loading...')
     await expect(window.locator('#info-section')).toBeVisible()
+    await expect(window.locator('#video-title')).toHaveText('Fixture Video')
   } finally {
     await app.close()
   }

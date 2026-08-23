@@ -35,14 +35,15 @@ if (hasSingleInstance) {
 
     const sourcePath = resolveYtDlpSourcePath(process.resourcesPath, process.cwd(), app.isPackaged)
     const ytDlpRuntime = await prepareYtDlpRuntime(sourcePath, app.getPath('userData'))
-    const updatePromise = updateYtDlp(ytDlpRuntime, (message) => logger.warn(message))
+    void updateYtDlp(ytDlpRuntime, (message) => logger.warn(message))
     let executorPromise: Promise<AudioServiceExecutor> | undefined
-    const executor: AudioServiceExecutor = async (url, options) => {
-      await updatePromise
-      executorPromise ??= createYtDlpExecutor(ytDlpRuntime)
-      const delegate = await executorPromise
-      return delegate(url, options)
-    }
+    const executor: AudioServiceExecutor | undefined = process.env['AUDIO_FETCH_E2E_FIXTURE']
+      ? undefined
+      : async (url, options) => {
+          executorPromise ??= createYtDlpExecutor(ytDlpRuntime)
+          const delegate = await executorPromise
+          return delegate(url, options)
+        }
 
     createWindow({
       width: config.ui.windowWidth,
