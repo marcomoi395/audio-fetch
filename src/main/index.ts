@@ -11,6 +11,14 @@ import { getElectronConfigPath } from './utils/paths'
 import { createWindow, focusExistingWindow } from './window'
 import { registerSingleInstance } from './single-instance'
 
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err)
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason)
+})
+
 type AudioServiceExecutor = (url: string, options: Record<string, unknown>) => Promise<unknown>
 const hasSingleInstance = registerSingleInstance(app, () => {
   const [mainWindow] = BrowserWindow.getAllWindows()
